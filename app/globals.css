@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base styles */
+@layer base {
+  body {
+    @apply bg-cream text-charcoal font-sans;
+  }
+}
+
+@layer components {
+  .font-display {
+    @apply font-[var(--font-spartan)] font-bold tracking-tight;
+  }
+
+  .font-body {
+    @apply font-[var(--font-source-sans)];
+  }
+
+  .font-ui {
+    @apply font-[var(--font-poppins)];
+  }
+}
+
+.breakout {
+  position: relative;
+  width: 100vw;
+  left: 50%;
+  right: 50%;
+  margin-left: -50vw;
+  margin-right: -50vw;
+}
+
+/* Hide scrollbars globally (used for horizontal nav) */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Edge */
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+html {
+  scroll-padding-top: 120px; /* Adjust based on your navbar height */
+}

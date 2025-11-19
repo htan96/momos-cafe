@@ -1,0 +1,80 @@
+"use client";
+
+import { motion } from "framer-motion";
+import Image from "next/image";
+import { MenuCategory } from "@/types/menu";
+
+interface MenuSectionProps {
+  category: MenuCategory;
+}
+
+export default function MenuSection({ category }: MenuSectionProps) {
+  return (
+    <section
+      id={category.slug}
+      className="scroll-mt-[130px] py-10 fade-in"
+    >
+      {/* Section Header */}
+      <div className="text-center mb-10">
+        <h2 className="text-2xl md:text-3xl font-display font-bold text-teal uppercase tracking-wide">
+          {category.name}
+        </h2>
+        {category.description && (
+          <p className="text-sm md:text-base text-charcoal/80 mt-2 max-w-2xl mx-auto">
+            {category.description}
+          </p>
+        )}
+      </div>
+
+      {/* Menu Items Grid */}
+      <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {category.menuitems?.map((item, index) => (
+          <motion.div
+            id={`item-${item.id}`} // ✅ added anchor for scroll-to-item
+            key={item.id}
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: index * 0.05 }}
+            className="bg-cream rounded-2xl shadow-md overflow-hidden flex flex-col hover:shadow-lg hover:shadow-gold/10 transition-all duration-300"
+          >
+            {/* Image / Placeholder */}
+            <div className="relative h-56 bg-teal flex items-center justify-center overflow-hidden">
+              {item.image_url ? (
+                <Image
+                  src={item.image_url}
+                  alt={item.name}
+                  width={500}
+                  height={400}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-cream/90 font-medium text-sm">
+                  Coming Soon
+                </span>
+              )}
+            </div>
+
+            {/* Item Details */}
+            <div className="flex flex-col justify-between flex-grow p-5">
+              <div>
+                <h3 className="font-display text-lg font-semibold text-teal mb-1 leading-tight">
+                  {item.name}
+                </h3>
+                <p className="text-sm text-charcoal/80 leading-snug">
+                  {item.description || "Description coming soon."}
+                </p>
+              </div>
+
+              {/* Price */}
+              <div className="flex justify-end items-center mt-4">
+                <span className="text-gold font-semibold text-lg">
+                  {item.price ? `$${item.price}` : "--"}
+                </span>
+              </div>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+    </section>
+  );
+}

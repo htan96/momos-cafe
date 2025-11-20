@@ -49,7 +49,7 @@ export default function MenuSection({ category }: MenuSectionProps) {
                 />
               ) : (
                 <span className="text-cream/90 font-medium text-sm">
-                  Coming Soon
+                  Pictures Coming Soon
                 </span>
               )}
             </div>

@@ -46,7 +46,7 @@ export default function FindUs() {
               className="flex items-center gap-3 text-[#2F6D66] hover:text-[#C43B2F] transition-colors"
             >
               <Instagram className="w-5 h-5 text-[#C43B2F]" />
-              @momoscaf
+              @momoscafe
             </a>
           </div>
 

@@ -40,19 +40,19 @@ export default function MenuPage() {
   }, []);
 
   // ✅ Smooth scroll to a specific menu item if linked via /menu#item-UUID
-useEffect(() => {
-  if (typeof window !== "undefined" && window.location.hash) {
-    const hash = window.location.hash.startsWith("#item-")
-      ? window.location.hash
-      : `#item-${window.location.hash.substring(1)}`;
-    const el = document.querySelector(hash);
-    if (el) {
-      const offset = -120; // Adjust for sticky header
-      const y = el.getBoundingClientRect().top + window.scrollY + offset;
-      window.scrollTo({ top: y, behavior: "smooth" });
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.location.hash) {
+      const hash = window.location.hash.startsWith("#item-")
+        ? window.location.hash
+        : `#item-${window.location.hash.substring(1)}`;
+      const el = document.querySelector(hash);
+      if (el) {
+        const offset = -120; // Adjust for sticky header
+        const y = el.getBoundingClientRect().top + window.scrollY + offset;
+        window.scrollTo({ top: y, behavior: "smooth" });
+      }
     }
-  }
-}, []);
+  }, []);
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center text-teal">

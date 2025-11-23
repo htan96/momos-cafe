@@ -40,7 +40,7 @@ export default function FindUs() {
               (707) 654-7180 • Pickup Orders Only
             </p>
             <a
-              href="https://www.instagram.com/momoscaf"
+              href="https://www.instagram.com/momoscafe"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-3 text-[#2F6D66] hover:text-[#C43B2F] transition-colors"

@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { Home, BookOpen, Utensils, Briefcase, MapPin } from "lucide-react";
+import { Home, BookOpen, Utensils, Briefcase, MapPin, ShoppingBagIcon } from "lucide-react";
 
 export default function Header() {
   const pathname = usePathname();
@@ -13,8 +13,11 @@ export default function Header() {
     { href: "/our-story", label: "Our Story", icon: <BookOpen size={20} /> },
     { href: "/menu", label: "Menu", icon: <Utensils size={20} /> },
     { href: "/catering", label: "Catering", icon: <Briefcase size={20} /> },
-    { href: "/find-us", label: "Find Us", icon: <MapPin size={20} /> },
+    { href: "/shop", label: "Shop", icon: <ShoppingBagIcon size={20} /> },
+    { href: "/find-us", label: "Find Us", icon: <MapPin size={20} /> }
+
   ];
+
 
   return (
     <>

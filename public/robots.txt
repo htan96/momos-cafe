@@ -1,0 +1,9 @@
+# *
+User-agent: *
+Allow: /
+
+# Host
+Host: https://momovallejo.com
+
+# Sitemaps
+Sitemap: https://momovallejo.com/sitemap.xml

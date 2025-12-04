@@ -28,9 +28,17 @@ const poppins = Poppins({
 });
 
 export const metadata = {
-  title: "Momos Café — Vallejo Classic Reborn",
+  title: {
+    default: "Momo’s Café",
+    template: "%s • Momo’s Café",
+  },
   description:
-    "Warm • Rooted • Resilient • Retro Modern Comfort. The new chapter of Momos Café inside Morgen’s Kitchen.",
+    "Warm • Rooted • Resilient • Retro Modern Comfort. The new chapter of Momo’s Café inside Morgen’s Kitchen.",
+  icons: {
+    icon: "/favicon.png",     // ✅ square PNG
+    shortcut: "/favicon.png",
+    apple: "/favicon.png",
+  },
 };
 
 export default function RootLayout({

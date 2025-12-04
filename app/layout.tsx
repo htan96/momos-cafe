@@ -35,10 +35,10 @@ export const metadata = {
   description:
     "Warm • Rooted • Resilient • Retro Modern Comfort. The new chapter of Momo’s Café inside Morgen’s Kitchen.",
   icons: {
-    icon: "/favicon.png",     // ✅ square PNG
-    shortcut: "/favicon.png",
-    apple: "/favicon.png",
-  },
+  icon: "/favicon.ico",
+  shortcut: "/favicon.ico",
+  apple: "/favicon.ico",
+    },
 };
 
 export default function RootLayout({

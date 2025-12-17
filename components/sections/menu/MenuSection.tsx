@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import Image from "next/image";
 import { MenuCategory } from "@/types/menu";
 
@@ -12,7 +11,7 @@ export default function MenuSection({ category }: MenuSectionProps) {
   return (
     <section
       id={category.slug}
-      className="scroll-mt-[130px] py-10 fade-in"
+      className="scroll-mt-[130px] py-10"
     >
       {/* Section Header */}
       <div className="text-center mb-10">
@@ -28,14 +27,11 @@ export default function MenuSection({ category }: MenuSectionProps) {
 
       {/* Menu Items Grid */}
       <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {category.menuitems?.map((item, index) => (
-          <motion.div
-            id={`item-${item.id}`} // ✅ added anchor for scroll-to-item
+        {category.menuitems?.map((item) => (
+          <div
+            id={`item-${item.id}`}
             key={item.id}
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: index * 0.05 }}
-            className="bg-cream rounded-2xl shadow-md overflow-hidden flex flex-col hover:shadow-lg hover:shadow-gold/10 transition-all duration-300"
+            className="bg-cream rounded-2xl shadow-md overflow-hidden flex flex-col hover:shadow-lg hover:shadow-gold/10 transition-shadow duration-200"
           >
             {/* Image / Placeholder */}
             <div className="relative h-56 bg-teal flex items-center justify-center overflow-hidden">
@@ -72,7 +68,7 @@ export default function MenuSection({ category }: MenuSectionProps) {
                 </span>
               </div>
             </div>
-          </motion.div>
+          </div>
         ))}
       </div>
     </section>

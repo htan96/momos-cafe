@@ -18,6 +18,7 @@ export default function MenuSection({ category }: MenuSectionProps) {
         <h2 className="text-2xl md:text-3xl font-display font-bold text-teal uppercase tracking-wide">
           {category.name}
         </h2>
+
         {category.description && (
           <p className="text-sm md:text-base text-charcoal/80 mt-2 max-w-2xl mx-auto">
             {category.description}
@@ -27,24 +28,25 @@ export default function MenuSection({ category }: MenuSectionProps) {
 
       {/* Menu Items Grid */}
       <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {category.menuitems?.map((item) => (
+        {category.menuitems?.map((item, index) => (
           <div
             id={`item-${item.id}`}
             key={item.id}
             className="bg-cream rounded-2xl shadow-md overflow-hidden flex flex-col hover:shadow-lg hover:shadow-gold/10 transition-shadow duration-200"
           >
             {/* Image / Placeholder */}
-            <div className="relative h-56 bg-teal flex items-center justify-center overflow-hidden">
+            <div className="relative h-56 bg-teal overflow-hidden">
               {item.image_url ? (
                 <Image
                   src={item.image_url}
                   alt={item.name}
-                  width={500}
-                  height={400}
-                  className="w-full h-full object-cover"
+                  fill
+                  sizes="(max-width: 768px) 100vw, 25vw"
+                  priority={index < 4}
+                  className="object-cover"
                 />
               ) : (
-                <span className="text-cream/90 font-medium text-sm">
+                <span className="flex items-center justify-center h-full text-cream/90 font-medium text-sm">
                   Pictures Coming Soon
                 </span>
               )}

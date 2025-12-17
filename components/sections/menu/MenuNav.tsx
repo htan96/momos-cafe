@@ -12,6 +12,14 @@ interface MenuNavProps {
 export default function MenuNav({ categories }: MenuNavProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(categories[0]?.slug || "");
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile (touch devices)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setIsMobile(window.matchMedia("(pointer: coarse)").matches);
+    }
+  }, []);
 
   // Scroll horizontally through the nav
   const scroll = (dir: "left" | "right") => {
@@ -28,13 +36,13 @@ export default function MenuNav({ categories }: MenuNavProps) {
     setActive(slug);
     const el = document.getElementById(slug);
     if (el) {
-      const yOffset = -140; // offset below sticky nav
+      const yOffset = -140;
       const y = el.getBoundingClientRect().top + window.scrollY + yOffset;
       window.scrollTo({ top: y, behavior: "smooth" });
     }
   };
 
-  // Track active section while scrolling (optimized for mobile)
+  // Track active section while scrolling
   useEffect(() => {
     const handleScroll = () => {
       let current = "";
@@ -60,7 +68,7 @@ export default function MenuNav({ categories }: MenuNavProps) {
   }, [categories, active]);
 
   return (
-    <nav className="fixed top-[80px] left-0 z-40 w-full bg-teal text-gold shadow-md border-b border-gold/30 will-change-transform">
+    <nav className="fixed top-[80px] left-0 z-40 w-full bg-teal text-gold shadow-md border-b border-gold/30">
       <div className="relative flex items-center">
         {/* Scroll Left */}
         <button
@@ -79,7 +87,7 @@ export default function MenuNav({ categories }: MenuNavProps) {
             <button
               key={cat.slug}
               onClick={() => handleClick(cat.slug)}
-              className={`relative uppercase tracking-wide font-medium transition-colors duration-200 will-change-transform ${
+              className={`relative uppercase tracking-wide font-medium transition-colors duration-200 ${
                 active === cat.slug
                   ? "text-gold font-semibold"
                   : "text-cream hover:text-gold"
@@ -87,18 +95,24 @@ export default function MenuNav({ categories }: MenuNavProps) {
             >
               {cat.name}
 
-              <AnimatePresence>
-                {active === cat.slug && (
-                  <motion.span
-                    initial={{ scaleX: 0 }}
-                    animate={{ scaleX: 1 }}
-                    exit={{ scaleX: 0 }}
-                    transition={{ duration: 0.25, ease: "easeOut" }}
-                    style={{ originX: 0 }}
-                    className="absolute bottom-0 left-0 w-full h-[2px] bg-gold"
-                  />
-                )}
-              </AnimatePresence>
+              {/* 🔽 Underline */}
+              {active === cat.slug &&
+                (isMobile ? (
+                  // ✅ MOBILE: no animation
+                  <span className="absolute bottom-0 left-0 w-full h-[2px] bg-gold" />
+                ) : (
+                  // ✅ DESKTOP: animated
+                  <AnimatePresence>
+                    <motion.span
+                      initial={{ scaleX: 0 }}
+                      animate={{ scaleX: 1 }}
+                      exit={{ scaleX: 0 }}
+                      transition={{ duration: 0.25, ease: "easeOut" }}
+                      style={{ originX: 0 }}
+                      className="absolute bottom-0 left-0 w-full h-[2px] bg-gold"
+                    />
+                  </AnimatePresence>
+                ))}
             </button>
           ))}
         </div>

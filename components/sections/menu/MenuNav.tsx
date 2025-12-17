@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { MenuCategory } from "@/types/menu";
 
@@ -34,10 +34,11 @@ export default function MenuNav({ categories }: MenuNavProps) {
     }
   };
 
-  // Track active section while scrolling
+  // Track active section while scrolling (optimized for mobile)
   useEffect(() => {
     const handleScroll = () => {
       let current = "";
+
       for (const category of categories) {
         const el = document.getElementById(category.slug);
         if (el) {
@@ -48,15 +49,18 @@ export default function MenuNav({ categories }: MenuNavProps) {
           }
         }
       }
-      if (current) setActive(current);
+
+      if (current && current !== active) {
+        setActive(current);
+      }
     };
 
-    window.addEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [categories]);
+  }, [categories, active]);
 
   return (
-    <nav className="fixed top-[80px] left-0 z-40 w-full bg-teal text-gold shadow-md border-b border-gold/30">
+    <nav className="fixed top-[80px] left-0 z-40 w-full bg-teal text-gold shadow-md border-b border-gold/30 will-change-transform">
       <div className="relative flex items-center">
         {/* Scroll Left */}
         <button
@@ -75,19 +79,26 @@ export default function MenuNav({ categories }: MenuNavProps) {
             <button
               key={cat.slug}
               onClick={() => handleClick(cat.slug)}
-              className={`relative uppercase tracking-wide font-medium transition-all duration-200 ${
+              className={`relative uppercase tracking-wide font-medium transition-colors duration-200 will-change-transform ${
                 active === cat.slug
                   ? "text-gold font-semibold"
                   : "text-cream hover:text-gold"
               }`}
             >
               {cat.name}
-              {active === cat.slug && (
-                <motion.span
-                  layoutId="underline"
-                  className="absolute bottom-0 left-0 w-full h-[2px] bg-gold"
-                />
-              )}
+
+              <AnimatePresence>
+                {active === cat.slug && (
+                  <motion.span
+                    initial={{ scaleX: 0 }}
+                    animate={{ scaleX: 1 }}
+                    exit={{ scaleX: 0 }}
+                    transition={{ duration: 0.25, ease: "easeOut" }}
+                    style={{ originX: 0 }}
+                    className="absolute bottom-0 left-0 w-full h-[2px] bg-gold"
+                  />
+                )}
+              </AnimatePresence>
             </button>
           ))}
         </div>

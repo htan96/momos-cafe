@@ -25,7 +25,7 @@ export default function MenuSection({ category }: MenuSectionProps) {
           </p>
         )}
       </div>
-
+6
       {/* Menu Items Grid */}
       <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {category.menuitems?.map((item, index) => (

@@ -33,7 +33,7 @@ export default function FindUs() {
             </p>
             <p className="flex items-center gap-3">
               <Clock className="w-5 h-5 text-[#C43B2F]" />
-              Wednesday – Sunday • 8 AM – 4 PM
+              Thursday – Monday • 8 AM – 4 PM
             </p>
             <p className="flex items-center gap-3">
               <Phone className="w-5 h-5 text-[#C43B2F]" />

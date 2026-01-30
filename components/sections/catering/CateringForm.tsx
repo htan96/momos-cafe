@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
-export default function CateringForm() {
+export default function CateringForm({ onSuccess }: { onSuccess?: () => void }) {
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -20,32 +20,37 @@ export default function CateringForm() {
       details: formData.get("details") as string,
     };
 
-    const { error } = await supabase.from("CateringInquiries").insert([newInquiry]);
+    const { error } = await supabase
+      .from("CateringInquiries")
+      .insert([newInquiry]);
 
     if (error) {
-      console.error("❌ Error saving inquiry:", error.message);
       alert("Something went wrong. Please try again later.");
     } else {
       setIsSubmitted(true);
       form.reset();
-      setTimeout(() => setIsSubmitted(false), 3000);
+      setTimeout(() => {
+        setIsSubmitted(false);
+        onSuccess?.();
+      }, 1500);
     }
   };
 
   return (
-    <section className="py-24 px-6 md:px-12 lg:px-20 max-w-4xl mx-auto">
-      <div className="text-center mb-12">
-        <h2 className="font-display text-4xl md:text-5xl font-bold text-[#2F6D66] uppercase mb-3">
-          Catering Inquiry
-        </h2>
-        <p className="text-lg text-[#2F6D66]/80 leading-relaxed">
-          Planning an event? Let us bring the Momo’s Café flavor to your guests.
-        </p>
-      </div>
+    <div>
+      <h2 className="font-display text-3xl font-bold text-[#2F6D66] uppercase mb-2">
+        Request Catering
+      </h2>
+      <div className="w-20 h-1 bg-[#C43B2F] mb-6 rounded-full" />
+
+      <p className="text-[#2F6D66]/80 mb-6">
+        Tell us about your event and we’ll follow up to confirm details,
+        pricing, and availability.
+      </p>
 
       <form
         onSubmit={handleSubmit}
-        className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white/80 backdrop-blur-md p-8 rounded-2xl shadow-md border border-[#2F6D66]/20"
+        className="grid grid-cols-1 md:grid-cols-2 gap-4"
       >
         <input name="name" placeholder="Your Name" required className="input" />
         <input name="email" type="email" placeholder="Email" required className="input" />
@@ -63,31 +68,30 @@ export default function CateringForm() {
 
         <textarea
           name="details"
-          placeholder="Additional Details..."
+          placeholder="What menu items are you interested in?"
           rows={4}
           className="md:col-span-2 input"
         />
 
         <button
           type="submit"
-          className="md:col-span-2 bg-[#C43B2F] text-white hover:text-[#D4AF37] font-semibold py-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-200"
+          className="md:col-span-2 bg-[#C43B2F] text-white font-semibold py-3 rounded-full shadow-lg hover:shadow-xl transition"
         >
-          Submit
+          Submit Request
         </button>
       </form>
 
       {isSubmitted && (
-        <p className="text-center text-[#2F6D66] mt-6 font-semibold">
-          ✅ Your inquiry has been sent. We’ll get back to you soon!
+        <p className="text-center text-[#2F6D66] mt-4 font-semibold">
+          Your request has been sent!
         </p>
       )}
-    </section>
+    </div>
   );
 }
 
-// Tailwind helper classes for cleaner inputs
 const input = `
 w-full px-4 py-2 rounded-md border border-[#2F6D66]/30
-bg-[#F5E5C0]/50 focus:outline-none focus:ring-2
-focus:ring-[#2F6D66]/40 placeholder:text-[#2F6D66]/50
+bg-white focus:outline-none focus:ring-2
+focus:ring-[#C43B2F]/40 placeholder:text-[#2F6D66]/50
 `;

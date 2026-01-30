@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { MenuCategory } from "@/types/menu";
 
@@ -12,14 +11,6 @@ interface MenuNavProps {
 export default function MenuNav({ categories }: MenuNavProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(categories[0]?.slug || "");
-  const [isMobile, setIsMobile] = useState(false);
-
-  // Detect mobile (touch devices)
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setIsMobile(window.matchMedia("(pointer: coarse)").matches);
-    }
-  }, []);
 
   // Scroll horizontally through the nav
   const scroll = (dir: "left" | "right") => {
@@ -36,7 +27,7 @@ export default function MenuNav({ categories }: MenuNavProps) {
     setActive(slug);
     const el = document.getElementById(slug);
     if (el) {
-      const yOffset = -140;
+      const yOffset = -140; // offset for sticky header
       const y = el.getBoundingClientRect().top + window.scrollY + yOffset;
       window.scrollTo({ top: y, behavior: "smooth" });
     }
@@ -95,24 +86,10 @@ export default function MenuNav({ categories }: MenuNavProps) {
             >
               {cat.name}
 
-              {/* 🔽 Underline */}
-              {active === cat.slug &&
-                (isMobile ? (
-                  // ✅ MOBILE: no animation
-                  <span className="absolute bottom-0 left-0 w-full h-[2px] bg-gold" />
-                ) : (
-                  // ✅ DESKTOP: animated
-                  <AnimatePresence>
-                    <motion.span
-                      initial={{ scaleX: 0 }}
-                      animate={{ scaleX: 1 }}
-                      exit={{ scaleX: 0 }}
-                      transition={{ duration: 0.25, ease: "easeOut" }}
-                      style={{ originX: 0 }}
-                      className="absolute bottom-0 left-0 w-full h-[2px] bg-gold"
-                    />
-                  </AnimatePresence>
-                ))}
+              {/* Static underline (no animation) */}
+              {active === cat.slug && (
+                <span className="absolute bottom-0 left-0 w-full h-[2px] bg-gold" />
+              )}
             </button>
           ))}
         </div>

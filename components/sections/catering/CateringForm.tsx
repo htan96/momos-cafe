@@ -1,12 +1,15 @@
 "use client";
+
 import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import emailjs from "emailjs-com";
 
 export default function CateringForm({ onSuccess }: { onSuccess?: () => void }) {
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     const form = e.target as HTMLFormElement;
     const formData = new FormData(form);
 
@@ -20,20 +23,45 @@ export default function CateringForm({ onSuccess }: { onSuccess?: () => void }) 
       details: formData.get("details") as string,
     };
 
+    /* 1️⃣ SAVE TO SUPABASE */
     const { error } = await supabase
       .from("CateringInquiries")
       .insert([newInquiry]);
 
     if (error) {
-      alert("Something went wrong. Please try again later.");
-    } else {
-      setIsSubmitted(true);
-      form.reset();
-      setTimeout(() => {
-        setIsSubmitted(false);
-        onSuccess?.();
-      }, 1500);
+      console.error(error);
+      alert("Something went wrong. Please try again.");
+      return;
     }
+
+    /* 2️⃣ SEND EMAIL VIA EMAILJS */
+    try {
+      await emailjs.send(
+        "service_rxdcj98",     // ← replace
+        "template_xjytktb",    // ← replacer
+        {
+          name: newInquiry.name,
+          email: newInquiry.email,
+          phone: newInquiry.phone,
+          event_date: newInquiry.event_date,
+          guest_count: newInquiry.guest_count,
+          event_type: newInquiry.event_type,
+          details: newInquiry.details,
+        },
+        "XAJWQ0IbBfufV-uED"      // ← replace
+      );
+    } catch (err) {
+      console.error("EmailJS error:", err);
+    }
+
+    /* 3️⃣ UI FEEDBACK */
+    setIsSubmitted(true);
+    form.reset();
+
+    setTimeout(() => {
+      setIsSubmitted(false);
+      onSuccess?.(); // closes modal
+    }, 1500);
   };
 
   return (
@@ -41,6 +69,7 @@ export default function CateringForm({ onSuccess }: { onSuccess?: () => void }) 
       <h2 className="font-display text-3xl font-bold text-[#2F6D66] uppercase mb-2">
         Request Catering
       </h2>
+
       <div className="w-20 h-1 bg-[#C43B2F] mb-6 rounded-full" />
 
       <p className="text-[#2F6D66]/80 mb-6">
@@ -56,7 +85,13 @@ export default function CateringForm({ onSuccess }: { onSuccess?: () => void }) 
         <input name="email" type="email" placeholder="Email" required className="input" />
         <input name="phone" placeholder="Phone" required className="input" />
         <input name="event_date" type="date" required className="input" />
-        <input name="guest_count" type="number" placeholder="# of Guests" required className="input" />
+        <input
+          name="guest_count"
+          type="number"
+          placeholder="# of Guests"
+          required
+          className="input"
+        />
 
         <select name="event_type" className="input">
           <option value="">Event Type</option>
@@ -90,6 +125,7 @@ export default function CateringForm({ onSuccess }: { onSuccess?: () => void }) 
   );
 }
 
+/* Tailwind input helper */
 const input = `
 w-full px-4 py-2 rounded-md border border-[#2F6D66]/30
 bg-white focus:outline-none focus:ring-2

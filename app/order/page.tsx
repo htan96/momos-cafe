@@ -106,7 +106,7 @@ export default function OrderPage() {
   const canAcceptOrders = orderingStatus.canAccept;
 
   return (
-    <div className="min-h-screen bg-cream text-charcoal flex flex-col overflow-x-hidden">
+    <div className="min-h-screen bg-cream text-charcoal flex flex-col overflow-x-clip">
       {!canAcceptOrders && orderingStatus.closedMessage && (
         <OrderingClosedBanner message={orderingStatus.closedMessage} />
       )}

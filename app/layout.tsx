@@ -34,9 +34,6 @@ export const metadata = {
   },
   description:
     "Warm • Rooted • Resilient • Retro Modern Comfort. The new chapter of Momo’s Café inside Morgen’s Kitchen.",
-  icons: {
-    icon: "/images/icon.png",
-  },
   openGraph: {
     type: "website",
     url: "https://momovallejo.com",

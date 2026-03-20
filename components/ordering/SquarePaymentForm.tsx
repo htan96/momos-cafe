@@ -70,7 +70,7 @@ export default function SquarePaymentForm({
   }, [onReady, tokenize]);
 
   const buildPaymentRequest = useCallback(
-    (payments: ReturnType<typeof window.Square>["payments"]) => {
+    (payments: ReturnType<NonNullable<typeof window.Square>["payments"]>) => {
       if (!payments?.paymentRequest) return null;
       return payments.paymentRequest({
         countryCode: "US",

@@ -18,7 +18,7 @@ const ToastContext = createContext<ToastContextValue | null>(null);
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [message, setMessage] = useState("");
   const [visible, setVisible] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const showToast = useCallback((msg: string) => {
     if (timerRef.current) clearTimeout(timerRef.current);

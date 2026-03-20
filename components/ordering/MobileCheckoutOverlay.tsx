@@ -21,19 +21,22 @@ export default function MobileCheckoutOverlay({
 }: MobileCheckoutOverlayProps) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [orderNum, setOrderNum] = useState("");
+  const [estimatedPickupTime, setEstimatedPickupTime] = useState<string | undefined>();
   const { clearCart } = useCart();
 
   useEffect(() => {
     if (isOpen) {
       setStep(1);
       setOrderNum("");
+      setEstimatedPickupTime(undefined);
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const handleOrderPlaced = (num: string) => {
+  const handleOrderPlaced = (num: string, pickupTime?: string) => {
     setOrderNum(num);
+    setEstimatedPickupTime(pickupTime);
     setStep(3);
     clearCart();
   };
@@ -92,7 +95,7 @@ export default function MobileCheckoutOverlay({
         )}
         {step === 3 && (
           <div className="bg-white border-[1.5px] border-cream-dark rounded-2xl mx-4 mt-4 overflow-hidden">
-            <OrderConfirmation orderNum={orderNum} onOrderAgain={handleOrderAgain} />
+            <OrderConfirmation orderNum={orderNum} estimatedPickupTime={estimatedPickupTime} onOrderAgain={handleOrderAgain} />
           </div>
         )}
       </div>

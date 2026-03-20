@@ -36,7 +36,7 @@ export default function StickyCheckoutBar({ onGoToCheckout, visible, orderingDis
           className={`py-3 px-6 rounded-lg font-semibold text-sm tracking-wider uppercase transition-all ${
             orderingDisabled
               ? "bg-gray-mid text-white/80 cursor-not-allowed shadow-none"
-              : "bg-red text-white shadow-[0_3px_0_#a01e23] hover:opacity-90"
+              : "bg-red text-white shadow-[0_3px_0_#800] hover:opacity-90"
           }`}
         >
           {orderingDisabled ? "Ordering Closed" : "Go to Checkout →"}
@@ -66,7 +66,7 @@ export default function StickyCheckoutBar({ onGoToCheckout, visible, orderingDis
           <span className={`py-2.5 px-5 rounded-lg font-semibold text-sm tracking-wider uppercase transition-opacity ${
             orderingDisabled
               ? "bg-gray-mid text-white/80"
-              : "bg-red text-white shadow-[0_3px_0_#a01e23] group-hover:opacity-90"
+              : "bg-red text-white shadow-[0_3px_0_#800] group-hover:opacity-90"
           }`}>
             {orderingDisabled ? "Ordering Closed" : "Go to Checkout →"}
           </span>

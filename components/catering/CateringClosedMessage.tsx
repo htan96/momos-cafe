@@ -13,7 +13,7 @@ export default function CateringClosedMessage() {
       </p>
       <a
         href="tel:+17076547180"
-        className="inline-flex items-center justify-center font-semibold text-sm py-3 px-6 rounded-lg bg-red text-white shadow-[0_4px_0_#a01e23] hover:opacity-90 transition-opacity"
+        className="inline-flex items-center justify-center font-semibold text-sm py-3 px-6 rounded-lg bg-red text-white shadow-[0_4px_0_#800] hover:opacity-90 transition-opacity"
       >
         Contact us directly
       </a>

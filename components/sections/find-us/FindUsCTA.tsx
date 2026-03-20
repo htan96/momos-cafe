@@ -49,7 +49,7 @@ export default function FindUsCTA() {
             <motion.div {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.08 }}>
               <Link
                 href="/menu"
-                className="block bg-red border border-red rounded-2xl p-6 md:p-7 text-left shadow-[0_4px_0_#a01e23,0_8px_32px_rgba(200,39,45,0.25)] hover:shadow-[0_2px_0_#a01e23,0_12px_40px_rgba(200,39,45,0.3)] hover:-translate-y-1 transition-all"
+                className="block bg-red border border-red rounded-2xl p-6 md:p-7 text-left shadow-[0_4px_0_#800,0_8px_32px_rgba(200,39,45,0.25)] hover:shadow-[0_2px_0_#800,0_12px_40px_rgba(200,39,45,0.3)] hover:-translate-y-1 transition-all"
               >
                 <span className="text-4xl block mb-4">🍳</span>
                 <span className="inline-block bg-white/20 text-white/90 font-semibold text-[10px] tracking-[0.2em] uppercase py-1 px-2.5 rounded mb-3">
@@ -223,7 +223,7 @@ export default function FindUsCTA() {
             <div className="flex gap-3.5 flex-wrap justify-center">
               <Link
                 href="/menu"
-                className="inline-flex items-center justify-center font-semibold text-base tracking-wider uppercase py-4 px-8 rounded-lg bg-red text-white shadow-[0_4px_0_#a01e23,0_6px_20px_rgba(200,39,45,0.35)] hover:opacity-90 transition-all"
+                className="inline-flex items-center justify-center font-semibold text-base tracking-wider uppercase py-4 px-8 rounded-lg bg-red text-white shadow-[0_4px_0_#800,0_6px_20px_rgba(200,39,45,0.35)] hover:opacity-90 transition-all"
               >
                 🍳 Order Pickup Now
               </Link>

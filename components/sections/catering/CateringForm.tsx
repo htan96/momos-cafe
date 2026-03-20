@@ -176,7 +176,7 @@ export default function CateringForm({
 
         <button
           type="submit"
-          className={`bg-red text-white font-semibold py-3.5 rounded-lg shadow-[0_4px_0_#a01e23] hover:opacity-90 transition-opacity ${isInline ? "w-full text-[15px] tracking-wider uppercase" : "md:col-span-2"}`}
+          className={`bg-red text-white font-semibold py-3.5 rounded-lg shadow-[0_4px_0_#800] hover:opacity-90 transition-opacity ${isInline ? "w-full text-[15px] tracking-wider uppercase" : "md:col-span-2"}`}
         >
           Submit Catering Request
         </button>

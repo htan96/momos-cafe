@@ -14,12 +14,22 @@ function getCartTotalCents(items: CartItem[]): number {
   return Math.round((subtotal + tax) * 100);
 }
 
+function isValidPhone(value: string): boolean {
+  const digits = value.replace(/\D/g, "");
+  return digits.length >= 10;
+}
+
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { cart, customer, token } = body as {
+    const { cart, customer, fulfillment_type, token } = body as {
       cart: CartItem[];
       customer: { name: string; phone?: string; email?: string; notes?: string };
+      fulfillment_type?: string;
       token: string;
     };
 
@@ -37,6 +47,27 @@ export async function POST(request: Request) {
       );
     }
 
+    const name = customer?.name?.trim() ?? "";
+    const phone = customer?.phone?.trim() ?? "";
+    const email = customer?.email?.trim() ?? "";
+    const notes = customer?.notes?.trim() ?? "";
+
+    if (!name) {
+      return NextResponse.json({ error: "Name is required" }, { status: 400 });
+    }
+    if (!phone) {
+      return NextResponse.json({ error: "Phone is required" }, { status: 400 });
+    }
+    if (!isValidPhone(phone)) {
+      return NextResponse.json({ error: "Invalid phone number" }, { status: 400 });
+    }
+    if (!email) {
+      return NextResponse.json({ error: "Email is required" }, { status: 400 });
+    }
+    if (!isValidEmail(email)) {
+      return NextResponse.json({ error: "Invalid email address" }, { status: 400 });
+    }
+
     const totalCents = getCartTotalCents(cart);
     if (totalCents < 1) {
       return NextResponse.json(
@@ -44,6 +75,17 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    const orderType = fulfillment_type === "PICKUP" ? "PICKUP" : "PICKUP";
+
+    const orderData = {
+      cart,
+      customer: { name, phone, email, notes },
+      fulfillment_type: orderType,
+      totalCents,
+      subtotal: cart.reduce((s, i) => s + (i.price + (i.modifiers?.reduce((m, mod) => m + mod.price, 0) ?? 0)) * i.quantity, 0),
+    };
+    console.log("[Order]", JSON.stringify(orderData, null, 2));
 
     const accessToken = process.env.SQUARE_ACCESS_TOKEN;
     const locationId = process.env.SQUARE_LOCATION_ID;
@@ -66,6 +108,14 @@ export async function POST(request: Request) {
       environment,
     });
 
+    const note = [
+      `Customer: ${name}`,
+      `Phone: ${phone}`,
+      `Email: ${email}`,
+      `Type: Pickup`,
+      `Notes: ${notes || "None"}`,
+    ].join("\n");
+
     const response = await client.payments.create({
       sourceId: token,
       idempotencyKey: crypto.randomUUID(),
@@ -75,9 +125,7 @@ export async function POST(request: Request) {
       },
       locationId,
       autocomplete: true,
-      note: customer?.notes
-        ? `Customer: ${customer.name} | ${customer.notes}`
-        : `Customer: ${customer?.name ?? "Guest"}`,
+      note,
     });
 
     const payment = (response as { body?: { payment?: { id?: string } } }).body?.payment;

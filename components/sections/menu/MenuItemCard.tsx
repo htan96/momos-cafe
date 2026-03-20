@@ -94,8 +94,8 @@ export default function MenuItemCard({
               orderingDisabled
                 ? "bg-gray-mid text-white/80 cursor-not-allowed shadow-none"
                 : hasModifiers
-                  ? "bg-red px-3.5 py-2 text-xs tracking-wider gap-1.5 text-white shadow-[0_3px_0_#A01E23] hover:-translate-y-0.5"
-                  : "w-9 h-9 bg-red text-white text-xl shadow-[0_3px_0_#A01E23] hover:-translate-y-0.5"
+                  ? "bg-red px-3.5 py-2 text-xs tracking-wider gap-1.5 text-white shadow-[0_3px_0_#800] hover:-translate-y-0.5"
+                  : "w-9 h-9 bg-red text-white text-xl shadow-[0_3px_0_#800] hover:-translate-y-0.5"
             }`}
           >
             {orderingDisabled ? "Ordering Closed" : hasModifiers ? "Customize +" : "+"}

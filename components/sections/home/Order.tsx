@@ -32,7 +32,7 @@ export default function Order() {
             initial={{ opacity: 0, y: 24 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="rounded-2xl p-8 md:p-10 bg-red shadow-[0_8px_0_#a01e23,0_20px_60px_rgba(200,39,45,0.3)]"
+            className="rounded-2xl p-8 md:p-10 bg-red shadow-[0_8px_0_#800,0_20px_60px_rgba(200,39,45,0.3)]"
           >
             <span className="inline-flex items-center gap-1.5 bg-white/15 border border-white/25 text-white font-semibold text-xs tracking-wider uppercase py-1 px-3 rounded-full mb-5">
               ⭐ Recommended

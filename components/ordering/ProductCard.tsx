@@ -137,7 +137,7 @@ export default function ProductCard({
               className={`rounded-lg flex items-center justify-center leading-none transition-all ${
                 orderingDisabled
                   ? "bg-gray-mid text-white/80 cursor-not-allowed shadow-none"
-                  : "bg-red text-white shadow-[0_3px_0_#a01e23] hover:opacity-90 hover:-translate-y-0.5"
+                  : "bg-red text-white shadow-[0_3px_0_#800] hover:opacity-90 hover:-translate-y-0.5"
               } ${isCompact ? "w-8 h-8 text-lg" : "w-9 h-9 text-xl"}`}
               aria-label={orderingDisabled ? "Ordering closed" : `Add ${item.name}`}
             >

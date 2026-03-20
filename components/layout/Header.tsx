@@ -48,7 +48,7 @@ export default function Header() {
           ))}
           <Link
             href="/order"
-            className="font-semibold text-[13px] tracking-[0.15em] uppercase py-2.5 px-4 rounded-md bg-red text-white hover:bg-red-dark hover:shadow-[0_2px_8px_rgba(200,39,45,0.35)] transition-all duration-200 ml-2"
+            className="font-semibold text-[13px] tracking-[0.15em] uppercase py-2.5 px-4 rounded-md bg-red text-white hover:bg-red-dark hover:shadow-[0_2px_8px_rgba(128,0,0,0.35)] transition-all duration-200 ml-2"
           >
             Order Now
           </Link>

@@ -50,7 +50,7 @@ export default function CartSummary({ onNext, orderingDisabled = false }: CartSu
             className={`w-full py-3 rounded-lg font-semibold text-sm tracking-wider uppercase transition-all ${
               orderingDisabled
                 ? "bg-gray-mid text-white/80 cursor-not-allowed shadow-none"
-                : "bg-red text-white shadow-[0_3px_0_#a01e23] hover:opacity-90"
+                : "bg-red text-white shadow-[0_3px_0_#800] hover:opacity-90"
             }`}
           >
             {orderingDisabled ? "Ordering is unavailable" : "Continue to Checkout →"}

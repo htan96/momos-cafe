@@ -71,7 +71,7 @@ export default function ProductCard({ product, index = 0 }: ProductCardProps) {
           <button
             type="button"
             onClick={isBuyNow ? handleBuyNow : handleAddToCart}
-            className="bg-red text-white border-none rounded-lg cursor-pointer font-semibold text-xs tracking-wider uppercase py-2 px-4 shadow-[0_3px_0_#a01e23] transition-all hover:opacity-90 hover:-translate-y-0.5"
+            className="bg-red text-white border-none rounded-lg cursor-pointer font-semibold text-xs tracking-wider uppercase py-2 px-4 shadow-[0_3px_0_#800] transition-all hover:opacity-90 hover:-translate-y-0.5"
           >
             {product.buttonLabel ?? "Add to Cart"}
           </button>

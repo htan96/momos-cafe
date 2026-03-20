@@ -6,12 +6,18 @@ module.exports = {
   ],
   theme: {
     extend: {
+      boxShadow: {
+        "red-btn": "0 3px 0 #800",
+        "red-btn-lg": "0 4px 0 #800",
+        "red-btn-xl": "0 4px 0 #800, 0 6px 20px rgba(128,0,0,0.35)",
+        "red-card": "0 8px 0 #800, 0 20px 60px rgba(128,0,0,0.3)",
+      },
       colors: {
         teal: "#2f6d66",
         "teal-dark": "#2D6B6B",
         "teal-light": "#8FC4C4",
-        red: "#c62828",
-        "red-dark": "#A01E23",
+        red: "#a00",
+        "red-dark": "#800",
         aqua: "#82b6b0",
         gold: "#d4af37",
         cream: "#f5e5c0",

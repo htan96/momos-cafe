@@ -116,7 +116,7 @@ export default function CartSidebar({
             className={`w-full py-3.5 px-4 rounded-lg font-semibold text-base transition-all ${
               orderingDisabled
                 ? "bg-gray-mid text-white/80 cursor-not-allowed shadow-none"
-                : "bg-red text-white shadow-[0_3px_0_#A01E23] hover:-translate-y-0.5"
+                : "bg-red text-white shadow-[0_3px_0_#800] hover:-translate-y-0.5"
             }`}
           >
             {orderingDisabled ? "Ordering is unavailable" : "Place Order →"}

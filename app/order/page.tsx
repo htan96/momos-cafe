@@ -166,7 +166,7 @@ export default function OrderPage() {
                 {count} item{count !== 1 ? "s" : ""} · ${total.toFixed(2)}
               </p>
             </div>
-            <span className="py-2.5 px-5 rounded-lg bg-red text-white font-semibold text-sm tracking-wider uppercase shadow-[0_3px_0_#a01e23]">
+            <span className="py-2.5 px-5 rounded-lg bg-red text-white font-semibold text-sm tracking-wider uppercase shadow-[0_3px_0_#800]">
               View →
             </span>
           </div>

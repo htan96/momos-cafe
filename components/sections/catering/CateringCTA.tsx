@@ -38,7 +38,7 @@ export default function CateringCTA() {
           <div className="flex gap-3.5 flex-wrap justify-center">
             <Link
               href="#catering-inquiry"
-              className="inline-flex items-center justify-center font-semibold text-base tracking-wider uppercase py-4 px-9 rounded-lg bg-red text-white shadow-[0_4px_0_#a01e23] hover:opacity-90 transition-opacity"
+              className="inline-flex items-center justify-center font-semibold text-base tracking-wider uppercase py-4 px-9 rounded-lg bg-red text-white shadow-[0_4px_0_#800] hover:opacity-90 transition-opacity"
             >
               Request Catering
             </Link>

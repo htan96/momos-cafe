@@ -3,17 +3,23 @@
 import { useState, useRef, useMemo, useCallback } from "react";
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/context/ToastContext";
-import { useAdminSettings, DEFAULT_SETTINGS } from "@/lib/useAdminSettings";
 import { getEstimatedPickupTime, formatPickupTime } from "@/lib/pickupTime";
 import SquarePaymentForm from "./SquarePaymentForm";
+
+function isValidPhone(value: string): boolean {
+  const digits = value.replace(/\D/g, "");
+  return digits.length >= 10;
+}
+
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
 
 interface CheckoutPanelProps {
   onCartClick?: () => void;
   onBackToMenu?: () => void;
-  /** When in step flow: go back to step 1 */
   onBack?: () => void;
-  /** When order is placed: transition to step 3 */
-  onOrderPlaced?: (orderNum: string) => void;
+  onOrderPlaced?: (orderNum: string, estimatedPickupTime?: string) => void;
   orderingDisabled?: boolean;
 }
 
@@ -24,16 +30,15 @@ const SQUARE_ENV = (process.env.NEXT_PUBLIC_SQUARE_ENVIRONMENT ?? "production") 
 export default function CheckoutPanel({ onCartClick, onBackToMenu, onBack, onOrderPlaced, orderingDisabled = false }: CheckoutPanelProps) {
   const { items, total, count } = useCart();
   const showToast = useToast();
-  const { settings } = useAdminSettings();
-  const deliveryComingSoon =
-    settings?.deliveryComingSoon ?? DEFAULT_SETTINGS.deliveryComingSoon;
-  const [fulfillment, setFulfillment] = useState<"pickup" | "delivery">("pickup");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [notes, setNotes] = useState("");
   const [placing, setPlacing] = useState(false);
+  const [errors, setErrors] = useState<{ name?: string; phone?: string; email?: string }>({});
   const nameRef = useRef<HTMLInputElement>(null);
+  const phoneRef = useRef<HTMLInputElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
 
   const taxRate = 0.0925;
   const tax = total * taxRate;
@@ -50,12 +55,16 @@ export default function CheckoutPanel({ onCartClick, onBackToMenu, onBack, onOrd
   const submitOrder = useCallback(
     async (token: string) => {
       const trimmedName = name.trim();
+      const trimmedPhone = phone.trim();
+      const trimmedEmail = email.trim();
+      const trimmedNotes = notes.trim();
       const res = await fetch("/api/order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           cart: items,
-          customer: { name: trimmedName, phone, email, notes },
+          customer: { name: trimmedName, phone: trimmedPhone, email: trimmedEmail, notes: trimmedNotes || undefined },
+          fulfillment_type: "PICKUP",
           token,
         }),
       });
@@ -66,18 +75,25 @@ export default function CheckoutPanel({ onCartClick, onBackToMenu, onBack, onOrd
       }
       const orderId = data.orderId ?? data.paymentId ?? "unknown";
       showToast(`Order placed! #${orderId.slice(-8).toUpperCase()}`);
-      onOrderPlaced?.(orderId);
+      onOrderPlaced?.(orderId, estimatedPickupTime ? formatPickupTime(estimatedPickupTime) : undefined);
     },
-    [items, name, phone, email, notes, onOrderPlaced, showToast]
+    [items, name, phone, email, notes, estimatedPickupTime, onOrderPlaced, showToast]
   );
 
-  const handlePlaceOrderWithToken = useCallback(
+  const validateAndSubmit = useCallback(
     async (token: string) => {
       const trimmedName = name.trim();
-      if (!trimmedName) {
-        nameRef.current?.focus();
-        nameRef.current?.classList.add("border-red");
-        showToast("Please enter your name");
+      const trimmedPhone = phone.trim();
+      const trimmedEmail = email.trim();
+      const newErrors: { name?: string; phone?: string; email?: string } = {};
+      if (!trimmedName) newErrors.name = "Name is required";
+      if (!trimmedPhone) newErrors.phone = "Phone is required";
+      else if (!isValidPhone(trimmedPhone)) newErrors.phone = "Enter a valid phone number (at least 10 digits)";
+      if (!trimmedEmail) newErrors.email = "Email is required";
+      else if (!isValidEmail(trimmedEmail)) newErrors.email = "Enter a valid email address";
+      setErrors(newErrors);
+      if (Object.keys(newErrors).length > 0) {
+        (newErrors.name && nameRef.current?.focus()) || (newErrors.phone && phoneRef.current?.focus()) || (newErrors.email && emailRef.current?.focus());
         return;
       }
       if (count === 0) {
@@ -93,29 +109,34 @@ export default function CheckoutPanel({ onCartClick, onBackToMenu, onBack, onOrd
         setPlacing(false);
       }
     },
-    [count, name, showToast, submitOrder]
+    [count, name, phone, email, showToast, submitOrder]
   );
 
   const handlePlaceOrder = useCallback(async () => {
     if (orderingDisabled) return;
     const trimmedName = name.trim();
-    if (!trimmedName) {
-      nameRef.current?.focus();
-      nameRef.current?.classList.add("border-red");
-      showToast("Please enter your name");
+    const trimmedPhone = phone.trim();
+    const trimmedEmail = email.trim();
+    const newErrors: { name?: string; phone?: string; email?: string } = {};
+    if (!trimmedName) newErrors.name = "Name is required";
+    if (!trimmedPhone) newErrors.phone = "Phone is required";
+    else if (!isValidPhone(trimmedPhone)) newErrors.phone = "Enter a valid phone number (at least 10 digits)";
+    if (!trimmedEmail) newErrors.email = "Email is required";
+    else if (!isValidEmail(trimmedEmail)) newErrors.email = "Enter a valid email address";
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) {
+      (newErrors.name && nameRef.current?.focus()) || (newErrors.phone && phoneRef.current?.focus()) || (newErrors.email && emailRef.current?.focus());
       return;
     }
     if (count === 0) {
       showToast("Add items to your cart first");
       return;
     }
-
     const tokenize = squareTokenizeRef.current;
     if (!tokenize) {
       showToast("Payment form is still loading. Please wait.");
       return;
     }
-
     setPlacing(true);
     try {
       const token = await tokenize();
@@ -123,13 +144,13 @@ export default function CheckoutPanel({ onCartClick, onBackToMenu, onBack, onOrd
         setPlacing(false);
         return;
       }
-      await submitOrder(token);
+      await validateAndSubmit(token);
     } catch {
       showToast("Something went wrong. Please try again.");
     } finally {
       setPlacing(false);
     }
-  }, [orderingDisabled, count, name, showToast, submitOrder]);
+  }, [orderingDisabled, count, name, phone, email, showToast, validateAndSubmit]);
 
   return (
     <section className="scroll-mt-4" aria-label="Checkout">
@@ -158,88 +179,31 @@ export default function CheckoutPanel({ onCartClick, onBackToMenu, onBack, onOrd
 
       <div className="p-6">
         <h3 className="font-display text-[22px] text-charcoal mb-3">
-          How are you getting your order?
+          Pickup only
         </h3>
 
         <div className="bg-teal/10 border border-teal/20 rounded-lg p-4 mb-6 flex gap-2.5">
           <span>ℹ️</span>
           <p className="text-[13px] text-teal-dark leading-relaxed">
-            <strong>Pickup is currently available.</strong>{" "}
-            {deliveryComingSoon
-              ? "Delivery will be available soon — we'll announce it on Instagram @momoscafe."
-              : "Delivery is available via DoorDash and Uber Eats."}
+            <strong>Pickup only.</strong>{" "}
+            Order ahead and pick up at the window. Delivery coming soon — we&apos;ll announce on Instagram @momoscafe.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-          <button
-            type="button"
-            onClick={() => setFulfillment("pickup")}
-            className={`relative border-2 rounded-2xl p-4 text-left transition-all ${
-              fulfillment === "pickup"
-                ? "border-teal bg-teal/5"
-                : "border-cream-dark hover:border-teal-light"
-            }`}
-          >
-            {fulfillment === "pickup" && (
-              <span className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-teal text-white flex items-center justify-center text-xs">
-                ✓
+        <div className="border-2 border-teal bg-teal/5 rounded-2xl p-4 mb-6">
+          <span className="text-3xl block mb-2">🏃</span>
+          <h4 className="font-semibold text-[15px] text-charcoal mb-1">Pickup</h4>
+          <p className="text-xs text-gray-mid leading-relaxed">
+            Order ahead and pick up at the window.
+            {estimatedPickupTime && (
+              <span className="block mt-1 font-semibold text-teal-dark">
+                Est. pickup: {formatPickupTime(estimatedPickupTime)}
               </span>
             )}
-            <span className="text-3xl block mb-2">🏃</span>
-            <h4 className="font-semibold text-[15px] text-charcoal mb-1">Pickup</h4>
-            <p className="text-xs text-gray-mid leading-relaxed">
-              Order ahead and pick up at the window.
-              {estimatedPickupTime && (
-                <span className="block mt-1 font-semibold text-teal-dark">
-                  Est. pickup: {formatPickupTime(estimatedPickupTime)}
-                </span>
-              )}
-            </p>
-            <span className="inline-block mt-2 text-[10px] font-semibold tracking-wider uppercase bg-teal text-white px-2 py-1 rounded">
-              Available Now
-            </span>
-          </button>
-
-          {deliveryComingSoon ? (
-            <div
-              className="border-2 border-cream-dark rounded-2xl p-4 opacity-55 cursor-not-allowed bg-cream"
-              aria-disabled="true"
-            >
-              <span className="text-3xl block mb-2">🛵</span>
-              <h4 className="font-semibold text-[15px] text-charcoal mb-1">Delivery</h4>
-              <p className="text-xs text-gray-mid leading-relaxed mb-2">
-                Get Momo&apos;s delivered to your door.
-              </p>
-              <span className="inline-flex items-center gap-1 text-[10px] font-semibold tracking-wider uppercase text-gray-mid bg-charcoal/5 px-2 py-1 rounded">
-                🔜 Coming Soon
-              </span>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setFulfillment("delivery")}
-              className={`relative border-2 rounded-2xl p-4 text-left transition-all ${
-                fulfillment === "delivery"
-                  ? "border-teal bg-teal/5"
-                  : "border-cream-dark hover:border-teal-light"
-              }`}
-            >
-              {fulfillment === "delivery" && (
-                <span className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-teal text-white flex items-center justify-center text-xs">
-                  ✓
-                </span>
-              )}
-              <span className="text-3xl block mb-2">🛵</span>
-              <h4 className="font-semibold text-[15px] text-charcoal mb-1">Delivery</h4>
-              <p className="text-xs text-gray-mid leading-relaxed">
-                Get Momo&apos;s delivered to your door via DoorDash or Uber Eats.
-              </p>
-              <span className="inline-block mt-2 text-[10px] font-semibold tracking-wider uppercase bg-teal text-white px-2 py-1 rounded">
-                Available
-              </span>
-            </button>
-          )}
+          </p>
+          <span className="inline-block mt-2 text-[10px] font-semibold tracking-wider uppercase bg-teal text-white px-2 py-1 rounded">
+            Available Now
+          </span>
         </div>
 
         {items.length > 0 && (
@@ -267,7 +231,7 @@ export default function CheckoutPanel({ onCartClick, onBackToMenu, onBack, onOrd
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
           <div>
             <label htmlFor="co-name" className="block font-semibold text-[10px] tracking-wider uppercase text-teal-dark mb-1">
-              Full Name
+              Full Name <span className="text-red">*</span>
             </label>
             <input
               ref={nameRef}
@@ -275,42 +239,53 @@ export default function CheckoutPanel({ onCartClick, onBackToMenu, onBack, onOrd
               type="text"
               value={name}
               onChange={(e) => {
-              setName(e.target.value);
-              nameRef.current?.classList.remove("border-red");
-            }}
+                setName(e.target.value);
+                setErrors((prev) => ({ ...prev, name: undefined }));
+              }}
               placeholder="Your name for pickup"
               autoComplete="name"
-              className="w-full px-3.5 py-2.5 rounded-lg border border-cream-dark bg-cream text-charcoal text-[15px] placeholder:text-charcoal/35 focus:outline-none focus:border-teal focus:ring-2 focus:ring-teal/10"
+              className={`w-full px-3.5 py-2.5 rounded-lg border bg-cream text-charcoal text-[15px] placeholder:text-charcoal/35 focus:outline-none focus:ring-2 focus:ring-teal/10 ${errors.name ? "border-red" : "border-cream-dark focus:border-teal"}`}
             />
+            {errors.name && <p className="text-red text-xs mt-1">{errors.name}</p>}
           </div>
           <div>
             <label htmlFor="co-phone" className="block font-semibold text-[10px] tracking-wider uppercase text-teal-dark mb-1">
-              Phone Number
+              Phone Number <span className="text-red">*</span>
             </label>
             <input
+              ref={phoneRef}
               id="co-phone"
               type="tel"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => {
+                setPhone(e.target.value);
+                setErrors((prev) => ({ ...prev, phone: undefined }));
+              }}
               placeholder="(707) 000-0000"
               autoComplete="tel"
-              className="w-full px-3.5 py-2.5 rounded-lg border border-cream-dark bg-cream text-charcoal text-[15px] placeholder:text-charcoal/35 focus:outline-none focus:border-teal focus:ring-2 focus:ring-teal/10"
+              className={`w-full px-3.5 py-2.5 rounded-lg border bg-cream text-charcoal text-[15px] placeholder:text-charcoal/35 focus:outline-none focus:ring-2 focus:ring-teal/10 ${errors.phone ? "border-red" : "border-cream-dark focus:border-teal"}`}
             />
+            {errors.phone && <p className="text-red text-xs mt-1">{errors.phone}</p>}
           </div>
         </div>
         <div className="mb-4">
           <label htmlFor="co-email" className="block font-semibold text-[10px] tracking-wider uppercase text-teal-dark mb-1">
-            Email (optional — for receipt)
+            Email <span className="text-red">*</span>
           </label>
           <input
+            ref={emailRef}
             id="co-email"
             type="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              setErrors((prev) => ({ ...prev, email: undefined }));
+            }}
             placeholder="your@email.com"
             autoComplete="email"
-            className="w-full px-3.5 py-2.5 rounded-lg border border-cream-dark bg-cream text-charcoal text-[15px] placeholder:text-charcoal/35 focus:outline-none focus:border-teal focus:ring-2 focus:ring-teal/10"
+            className={`w-full px-3.5 py-2.5 rounded-lg border bg-cream text-charcoal text-[15px] placeholder:text-charcoal/35 focus:outline-none focus:ring-2 focus:ring-teal/10 ${errors.email ? "border-red" : "border-cream-dark focus:border-teal"}`}
           />
+          {errors.email && <p className="text-red text-xs mt-1">{errors.email}</p>}
         </div>
         <div className="mb-6">
           <label htmlFor="co-note" className="block font-semibold text-[10px] tracking-wider uppercase text-teal-dark mb-1">
@@ -345,7 +320,7 @@ export default function CheckoutPanel({ onCartClick, onBackToMenu, onBack, onOrd
                 }}
                 onError={(msg) => showToast(msg)}
                 onWalletToken={(token) => {
-                  handlePlaceOrderWithToken(token);
+                  validateAndSubmit(token);
                 }}
                 placing={placing}
               />
@@ -369,7 +344,7 @@ export default function CheckoutPanel({ onCartClick, onBackToMenu, onBack, onOrd
           className={`w-full py-4 rounded-lg font-semibold text-base tracking-wider uppercase transition-all ${
             orderingDisabled
               ? "bg-gray-mid text-white/80 cursor-not-allowed shadow-none"
-              : "bg-red text-white shadow-[0_4px_0_#a01e23] disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none hover:opacity-90"
+              : "bg-red text-white shadow-[0_4px_0_#800] disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none hover:opacity-90"
           }`}
         >
           {orderingDisabled ? "Ordering is unavailable" : placing ? "Placing Order..." : `Place Order — $${grandTotal.toFixed(2)}`}

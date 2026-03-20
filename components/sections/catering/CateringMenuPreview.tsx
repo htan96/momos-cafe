@@ -217,7 +217,7 @@ export default function CateringMenuPreview() {
           </p>
           <Link
             href="#catering-inquiry"
-            className="inline-flex items-center justify-center font-semibold text-[15px] tracking-wider uppercase py-3.5 px-8 rounded-lg bg-red text-white shadow-[0_4px_0_#a01e23] hover:opacity-90 transition-opacity"
+            className="inline-flex items-center justify-center font-semibold text-[15px] tracking-wider uppercase py-3.5 px-8 rounded-lg bg-red text-white shadow-[0_4px_0_#800] hover:opacity-90 transition-opacity"
           >
             Get a Custom Quote
           </Link>

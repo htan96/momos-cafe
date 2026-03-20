@@ -44,7 +44,7 @@ export default function CartSidebar({ onCheckoutClick, className = "" }: CartSid
           <button
             type="button"
             onClick={onCheckoutClick}
-            className="w-full py-3 rounded-lg bg-red text-white font-semibold text-sm tracking-wider uppercase shadow-[0_3px_0_#a01e23] hover:opacity-90 transition-all"
+            className="w-full py-3 rounded-lg bg-red text-white font-semibold text-sm tracking-wider uppercase shadow-[0_3px_0_#800] hover:opacity-90 transition-all"
           >
             Go to Checkout →
           </button>

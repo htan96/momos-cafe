@@ -81,7 +81,7 @@ export default function CartDrawer({
               className={`w-full py-3.5 rounded-lg font-semibold text-[15px] tracking-wider uppercase transition-all ${
                 orderingDisabled
                   ? "bg-gray-mid text-white/80 cursor-not-allowed shadow-none"
-                  : "bg-red text-white shadow-[0_3px_0_#a01e23] hover:opacity-90"
+                  : "bg-red text-white shadow-[0_3px_0_#800] hover:opacity-90"
               }`}
             >
               {orderingDisabled ? "Ordering is unavailable" : "Checkout →"}

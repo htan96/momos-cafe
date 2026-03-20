@@ -18,6 +18,7 @@ interface CheckoutFlowProps {
 export default function CheckoutFlow({ onCartClick, onBackToMenu, checkoutRef, orderingDisabled = false }: CheckoutFlowProps) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [orderNum, setOrderNum] = useState("");
+  const [estimatedPickupTime, setEstimatedPickupTime] = useState<string | undefined>();
   const { clearCart, count } = useCart();
 
   const goToCheckout = () => {
@@ -33,8 +34,9 @@ export default function CheckoutFlow({ onCartClick, onBackToMenu, checkoutRef, o
     }
   }, [step]);
 
-  const handleOrderPlaced = (num: string) => {
+  const handleOrderPlaced = (num: string, pickupTime?: string) => {
     setOrderNum(num);
+    setEstimatedPickupTime(pickupTime);
     setStep(3);
     clearCart();
   };
@@ -89,7 +91,7 @@ export default function CheckoutFlow({ onCartClick, onBackToMenu, checkoutRef, o
             onOrderPlaced={handleOrderPlaced}
           />
         )}
-        {step === 3 && <OrderConfirmation orderNum={orderNum} onOrderAgain={handleOrderAgain} />}
+        {step === 3 && <OrderConfirmation orderNum={orderNum} estimatedPickupTime={estimatedPickupTime} onOrderAgain={handleOrderAgain} />}
       </div>
 
       {/* Sticky checkout CTA — visible when on step 1 with items */}

@@ -28,7 +28,7 @@ export default function ShopComingSoon() {
           </p>
           <Link
             href="/menu"
-            className="inline-flex items-center justify-center font-semibold text-base tracking-wider uppercase py-4 px-8 rounded-lg bg-red text-white shadow-[0_4px_0_#a01e23,0_6px_20px_rgba(200,39,45,0.25)] hover:opacity-90 hover:-translate-y-0.5 transition-all"
+            className="inline-flex items-center justify-center font-semibold text-base tracking-wider uppercase py-4 px-8 rounded-lg bg-red text-white shadow-[0_4px_0_#800,0_6px_20px_rgba(200,39,45,0.25)] hover:opacity-90 hover:-translate-y-0.5 transition-all"
           >
             View Menu
           </Link>

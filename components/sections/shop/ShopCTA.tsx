@@ -42,7 +42,7 @@ export default function ShopCTA() {
             <div className="flex gap-3 flex-wrap justify-center md:justify-end flex-shrink-0">
               <Link
                 href="/menu"
-                className="inline-flex items-center justify-center font-semibold text-[15px] tracking-wider uppercase py-3.5 px-7 rounded-lg bg-red text-white shadow-[0_4px_0_#a01e23,0_6px_20px_rgba(200,39,45,0.35)] hover:opacity-90 transition-all"
+                className="inline-flex items-center justify-center font-semibold text-[15px] tracking-wider uppercase py-3.5 px-7 rounded-lg bg-red text-white shadow-[0_4px_0_#800,0_6px_20px_rgba(200,39,45,0.35)] hover:opacity-90 transition-all"
               >
                 🍳 Order Pickup →
               </Link>

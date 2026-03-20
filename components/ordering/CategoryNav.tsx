@@ -65,6 +65,17 @@ export default function CategoryNav({ categories, onScrollTo, embeddedInHeader =
     };
   }, [categories]);
 
+  // When activeId changes, scroll the nav so the active pill is centered
+  useEffect(() => {
+    if (!activeId) return;
+    const btn = scrollRef.current?.querySelector(`[data-slug="${activeId}"]`) as HTMLElement | null;
+    const container = scrollRef.current;
+    if (btn && container) {
+      const scrollLeft = btn.offsetLeft - container.offsetWidth / 2 + btn.offsetWidth / 2;
+      container.scrollTo({ left: Math.max(0, scrollLeft), behavior: "smooth" });
+    }
+  }, [activeId]);
+
   const scrollTo = useCallback(
     (slug: string) => {
       onScrollTo?.(slug);

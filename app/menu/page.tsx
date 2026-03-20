@@ -82,15 +82,6 @@ export default function MenuPage() {
 
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
   const { setSubNav } = useHeaderSubNav() ?? { setSubNav: () => {} };
-  const [isDesktop, setIsDesktop] = useState(false);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(min-width: 1024px)");
-    setIsDesktop(mq.matches);
-    const handler = () => setIsDesktop(mq.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
 
   // Header (64px) + category bar (~56px) = ~120px
   const SCROLL_OFFSET = 120;
@@ -103,7 +94,6 @@ export default function MenuPage() {
   }, []);
 
   useEffect(() => {
-    if (!isDesktop) return;
     setSubNav(
       <CategoryNav
         categories={categories}
@@ -112,7 +102,7 @@ export default function MenuPage() {
       />
     );
     return () => setSubNav(null);
-  }, [isDesktop, categories, scrollToSection, setSubNav]);
+  }, [categories, scrollToSection, setSubNav]);
 
   if (loading) {
     return (
@@ -130,10 +120,6 @@ export default function MenuPage() {
       {!canAcceptOrders && orderingStatus.closedMessage && (
         <OrderingClosedBanner message={orderingStatus.closedMessage} />
       )}
-      <div className="lg:hidden">
-        <CategoryNav categories={categories} onScrollTo={scrollToSection} />
-      </div>
-
       <div className="max-w-[1200px] mx-auto px-5 py-8 pb-32 lg:pb-8 grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-8 items-start">
         <main className="min-w-0">
           {categories.length === 0 ? (

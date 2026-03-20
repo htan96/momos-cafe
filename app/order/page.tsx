@@ -93,14 +93,13 @@ export default function OrderPage() {
   }, []);
 
   useEffect(() => {
-    if (!isDesktop) return;
     setSubNav(
       <div className="max-w-7xl mx-auto h-full px-4 flex items-center min-w-0">
         <CategoryNav categories={categories} onScrollTo={scrollToSection} embeddedInHeader />
       </div>
     );
     return () => setSubNav(null);
-  }, [isDesktop, categories, scrollToSection, setSubNav]);
+  }, [categories, scrollToSection, setSubNav]);
 
   const orderingStatus = getOrderingStatus(settings);
   const canAcceptOrders = orderingStatus.canAccept;
@@ -110,16 +109,6 @@ export default function OrderPage() {
       {!canAcceptOrders && orderingStatus.closedMessage && (
         <OrderingClosedBanner message={orderingStatus.closedMessage} />
       )}
-      {/* Category nav — in header on desktop, here on mobile */}
-      <nav
-        className="lg:hidden w-full h-12 bg-teal-dark border-b-2 border-white/10 sticky top-16 z-[800] shadow-[0_2px_8px_rgba(0,0,0,0.08)] overflow-hidden -mt-2"
-        aria-label="Menu categories"
-      >
-        <div className="max-w-7xl mx-auto h-full px-4 flex items-center min-w-0">
-          <CategoryNav categories={categories} onScrollTo={scrollToSection} />
-        </div>
-      </nav>
-
       <div className="flex-1 max-w-7xl w-full mx-auto px-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-6 items-start">
           {/* LEFT: Menu — full width on mobile */}

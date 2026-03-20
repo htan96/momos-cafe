@@ -18,11 +18,11 @@ export default function Header() {
   const pathname = usePathname();
   const { subNav } = useHeaderSubNav() ?? { subNav: null };
 
-  const headerHeight = subNav ? "h-[116px]" : "h-16";
-
   return (
-    <>
-    <header className="fixed top-0 left-0 right-0 z-[900] bg-cream border-b-[3px] border-gold">
+    <header
+      className="sticky top-0 left-0 right-0 z-[900] w-full bg-cream border-b-[3px] border-gold"
+      style={{ transform: "translateZ(0)", WebkitBackfaceVisibility: "hidden" as const }}
+    >
       <div className="max-w-[1140px] mx-auto px-5 h-16 flex items-center justify-center md:justify-between">
         {/* Logo — centered on mobile, left on desktop */}
         <Link href="/" className="flex items-center hover:opacity-90 transition-opacity">
@@ -60,13 +60,10 @@ export default function Header() {
         </nav>
       </div>
       {subNav && (
-        <div className="hidden lg:block h-[52px] border-t border-gold/30 bg-teal-dark">
+        <div className="h-[52px] border-t border-gold/30 bg-teal-dark">
           {subNav}
         </div>
       )}
     </header>
-    {/* Spacer so content isn't hidden under fixed header */}
-    <div className={headerHeight} aria-hidden="true" />
-    </>
   );
 }

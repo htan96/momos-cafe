@@ -37,6 +37,9 @@ export const metadata = {
   openGraph: {
     type: "website",
     url: "https://momovallejo.com",
+    title: "Momo's Café Vallejo — Big Breakfast. Bold Flavor. Bay Area Soul.",
+    description:
+      "Hearty breakfast plates, loaded burritos, stacked burgers, and Mexican-American comfort food — served fast, fresh, and with love in Vallejo. Order pickup at Morgen's Kitchen.",
     siteName: "Momo's Café Vallejo",
     images: [
       {
@@ -49,6 +52,9 @@ export const metadata = {
   },
   twitter: {
     card: "summary_large_image",
+    title: "Momo's Café Vallejo — Big Breakfast. Bold Flavor. Bay Area Soul.",
+    description:
+      "Hearty breakfast plates, loaded burritos, stacked burgers, and Mexican-American comfort food — served fast, fresh, and with love in Vallejo. Order pickup at Morgen's Kitchen.",
     images: ["https://momovallejo.com/images/icon.png"],
   },
 };

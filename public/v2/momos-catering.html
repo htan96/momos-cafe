@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Catering — Momo's Café Vallejo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;500;600;700&family=Barlow:ital,wght@0,400;0,500;0,600;0,700;1,400;1,700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   DESIGN SYSTEM — Momo's Café v2 (exact shared tokens)
+   ============================================================ */
+:root {
+  --cream:       #F5EDCA;
+  --cream-dark:  #EDE3B2;
+  --cream-mid:   #F9F4E3;
+  --red:         #C8272D;
+  --red-dark:    #A01E23;
+  --red-light:   #E0383F;
+  --teal:        #4A8B8C;
+  --teal-dark:   #2D6B6B;
+  --teal-light:  #8FC4C4;
+  --gold:        #C19A35;
+  --charcoal:    #1E1E1E;
+  --white:       #FFFDF5;
+  --font-display: 'Bebas Neue', sans-serif;
+  --font-heading: 'Oswald', sans-serif;
+  --font-body:    'Barlow', sans-serif;
+  --radius:    8px;
+  --radius-lg: 16px;
+  --shadow:    0 4px 20px rgba(0,0,0,0.10);
+  --shadow-lg: 0 12px 48px rgba(0,0,0,0.18);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--cream);
+  color: var(--charcoal);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+/* ── Layout ── */
+.container { max-width: 1140px; margin: 0 auto; padding: 0 20px; }
+
+/* ── Shared tokens ── */
+.section-label {
+  font-family: var(--font-heading); font-size: 11px; font-weight: 600;
+  letter-spacing: 3px; text-transform: uppercase; color: var(--teal);
+}
+.divider-line { display: flex; align-items: center; gap: 16px; margin: 8px 0; }
+.divider-line::before,
+.divider-line::after { content: ''; flex: 1; height: 1.5px; background: var(--gold); }
+
+.tag {
+  display: inline-block; background: var(--teal); color: var(--white);
+  font-family: var(--font-heading); font-size: 11px; font-weight: 600;
+  letter-spacing: 1.5px; text-transform: uppercase; padding: 4px 10px; border-radius: 3px;
+}
+.tag.red  { background: var(--red); }
+.tag.gold { background: var(--gold); color: var(--charcoal); }
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font-family: var(--font-heading); font-size: 15px; font-weight: 600;
+  letter-spacing: 1.5px; text-transform: uppercase; text-decoration: none;
+  border: none; border-radius: var(--radius); cursor: pointer;
+  transition: all 0.2s ease; padding: 14px 28px; white-space: nowrap;
+}
+.btn:active { transform: scale(0.97); }
+.btn-primary {
+  background: var(--red); color: var(--white);
+  box-shadow: 0 4px 0 var(--red-dark), 0 6px 20px rgba(200,39,45,0.35);
+}
+.btn-primary:hover { background: var(--red-light); transform: translateY(-2px); }
+.btn-secondary {
+  background: transparent; color: var(--teal-dark); border: 2.5px solid var(--teal);
+}
+.btn-secondary:hover { background: var(--teal); color: var(--white); }
+.btn-outline-white {
+  background: transparent; color: var(--white); border: 2px solid rgba(255,255,255,0.7);
+}
+.btn-outline-white:hover { background: rgba(255,255,255,0.15); }
+.btn-gold {
+  background: var(--gold); color: var(--charcoal);
+  box-shadow: 0 4px 0 rgba(0,0,0,0.2);
+}
+.btn-gold:hover { filter: brightness(1.08); transform: translateY(-2px); }
+
+/* ── Section header ── */
+.section-header { text-align: center; margin-bottom: 48px; }
+.section-header h2 {
+  font-family: var(--font-display); font-size: clamp(38px, 6vw, 64px);
+  line-height: 1; color: var(--charcoal); margin: 8px 0 14px;
+}
+.section-header p {
+  font-size: 16px; color: rgba(30,30,30,0.65);
+  max-width: 520px; margin: 0 auto; line-height: 1.65;
+}
+
+/* ── Scroll animations ── */
+.fade-up { opacity: 0; transform: translateY(28px); transition: opacity 0.55s ease, transform 0.55s ease; }
+.fade-up.visible { opacity: 1; transform: translateY(0); }
+.fade-up:nth-child(2) { transition-delay: 0.08s; }
+.fade-up:nth-child(3) { transition-delay: 0.16s; }
+.fade-up:nth-child(4) { transition-delay: 0.24s; }
+
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.6;transform:scale(1.3)} }
+
+/* ============================================================
+   NAV — exact v2 pattern
+   ============================================================ */
+nav {
+  position: sticky; top: 0; z-index: 900;
+  background: var(--cream); border-bottom: 3px solid var(--gold);
+}
+.nav-inner {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 20px; height: 64px; max-width: 1140px; margin: 0 auto;
+}
+.nav-logo {
+  font-family: var(--font-display); font-size: 22px;
+  color: var(--teal-dark); letter-spacing: 1px; text-decoration: none;
+}
+.nav-logo span { color: var(--red); }
+.nav-links { display: flex; gap: 6px; list-style: none; }
+.nav-links a {
+  font-family: var(--font-heading); font-size: 13px; font-weight: 600;
+  letter-spacing: 1.5px; text-transform: uppercase; color: var(--teal-dark);
+  text-decoration: none; padding: 8px 14px; border-radius: 5px; transition: all 0.2s;
+}
+.nav-links a:hover { background: rgba(74,139,140,0.12); }
+.nav-links a.active { color: var(--red); }
+.nav-order { background: var(--red) !important; color: #fff !important; border-radius: var(--radius); }
+.nav-order:hover { background: var(--red-light) !important; }
+.nav-hamburger { display: none; flex-direction: column; cursor: pointer; }
+.nav-hamburger span { display: block; width: 24px; height: 2px; background: var(--teal-dark); margin: 5px 0; border-radius: 2px; }
+
+/* ============================================================
+   HERO
+   ============================================================ */
+#catering-hero {
+  background: var(--teal-dark);
+  position: relative; overflow: hidden;
+  min-height: 88vh; display: flex; align-items: center;
+}
+.hero-bg {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 75% 65% at 68% 42%, rgba(74,139,140,0.28) 0%, transparent 60%),
+    linear-gradient(175deg, var(--teal-dark) 0%, #1a4a4a 100%);
+}
+/* Bridge watermark */
+.hero-bridge {
+  position: absolute; top: 0; right: -5%;
+  width: 65%; height: 100%; opacity: 0.07; pointer-events: none;
+}
+.hero-content {
+  position: relative; z-index: 2; width: 100%; padding: 80px 0 100px;
+}
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 100px; padding: 6px 16px 6px 8px; margin-bottom: 28px;
+}
+.hero-badge .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--gold); animation: pulse 2s infinite; flex-shrink: 0;
+}
+.hero-badge span {
+  font-family: var(--font-heading); font-size: 12px; font-weight: 500;
+  letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.9);
+}
+.hero-h1 {
+  font-family: var(--font-display);
+  font-size: clamp(56px, 10vw, 114px);
+  line-height: 0.92; color: var(--cream); margin-bottom: 12px;
+}
+.hero-h1 .accent   { color: var(--red); display: block; }
+.hero-h1 .gold-txt { color: var(--gold); }
+.hero-sub {
+  font-size: clamp(15px, 2vw, 18px); color: rgba(255,255,255,0.75);
+  max-width: 500px; line-height: 1.65; margin: 22px 0 38px;
+}
+.hero-sub strong { color: var(--teal-light); font-weight: 700; }
+.hero-ctas { display: flex; gap: 14px; flex-wrap: wrap; }
+
+/* Hero feature pills */
+.hero-pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 44px; }
+.hero-pill {
+  background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+  color: rgba(255,255,255,0.75); font-size: 13px; padding: 6px 14px; border-radius: 100px;
+}
+.hero-pill::before { content: '✓ '; color: var(--gold); }
+
+/* Hero floating event-type cards */
+.hero-cards {
+  position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+  width: 420px; display: grid; grid-template-columns: 1fr 1fr;
+  gap: 16px; padding: 20px; z-index: 2;
+}
+.hero-event-card {
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: var(--radius-lg); padding: 20px 16px;
+  text-align: center; backdrop-filter: blur(8px);
+  transition: transform 0.3s;
+}
+.hero-event-card:hover { transform: translateY(-4px); }
+.hero-event-card:nth-child(2) { margin-top: 32px; }
+.hero-event-card:nth-child(4) { margin-top: -32px; }
+.event-emoji { font-size: 40px; display: block; margin-bottom: 10px; }
+.hero-event-card h4 {
+  font-family: var(--font-heading); font-size: 13px; font-weight: 600;
+  color: rgba(255,255,255,0.9); letter-spacing: 0.5px;
+}
+.hero-event-card p { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 3px; }
+
+/* ============================================================
+   SECTION 2 — EVENT TYPES (white bg)
+   ============================================================ */
+#event-types { padding: 80px 0; background: var(--white); }
+
+.event-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+}
+.event-card {
+  background: var(--cream);
+  border: 1.5px solid var(--cream-dark);
+  border-radius: var(--radius-lg); padding: 30px 26px;
+  display: flex; flex-direction: column;
+  transition: all 0.22s ease; cursor: default;
+}
+.event-card:hover {
+  border-color: var(--teal-light);
+  box-shadow: 0 6px 28px rgba(74,139,140,0.15);
+  transform: translateY(-3px);
+}
+.event-card-icon {
+  font-size: 44px; margin-bottom: 16px; display: block;
+}
+.event-card-tag {
+  font-family: var(--font-heading); font-size: 10px; font-weight: 600;
+  letter-spacing: 2px; text-transform: uppercase;
+  padding: 3px 10px; border-radius: 3px; margin-bottom: 12px;
+  display: inline-block;
+}
+.event-card h3 {
+  font-family: var(--font-display); font-size: 26px;
+  color: var(--charcoal); line-height: 1.05; margin-bottom: 10px;
+}
+.event-card p {
+  font-size: 14px; color: rgba(30,30,30,0.62);
+  line-height: 1.6; flex: 1;
+}
+.event-card-footer {
+  margin-top: 20px; padding-top: 16px;
+  border-top: 1.5px solid var(--cream-dark);
+  font-family: var(--font-heading); font-size: 12px; font-weight: 600;
+  letter-spacing: 1px; text-transform: uppercase;
+  color: var(--teal); display: flex; align-items: center; gap: 6px;
+}
+
+/* ============================================================
+   SECTION 3 — CATERING MENU PREVIEW (cream bg)
+   ============================================================ */
+#catering-menu { padding: 80px 0; background: var(--cream); }
+
+.menu-preview-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 28px;
+}
+.menu-block {
+  background: var(--white);
+  border: 1.5px solid var(--cream-dark);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: all 0.22s;
+}
+.menu-block:hover {
+  border-color: var(--teal-light);
+  box-shadow: var(--shadow);
+}
+.menu-block-header {
+  padding: 22px 26px 18px;
+  display: flex; align-items: center; gap: 14px;
+  border-bottom: 1.5px solid var(--cream-dark);
+}
+.menu-block-header .block-icon { font-size: 36px; flex-shrink: 0; }
+.menu-block-header h3 {
+  font-family: var(--font-display); font-size: 28px;
+  color: var(--charcoal); line-height: 1;
+}
+.menu-block-header .block-tag { margin-top: 4px; }
+
+.menu-block-body { padding: 22px 26px 26px; }
+.menu-sub-section { margin-bottom: 22px; }
+.menu-sub-section:last-child { margin-bottom: 0; }
+.menu-sub-label {
+  font-family: var(--font-heading); font-size: 11px; font-weight: 600;
+  letter-spacing: 2px; text-transform: uppercase; color: var(--gold);
+  margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
+}
+.menu-sub-label::after { content: ''; flex: 1; height: 1px; background: var(--cream-dark); }
+
+.menu-pills { display: flex; flex-wrap: wrap; gap: 7px; }
+.menu-pill {
+  background: var(--cream); border: 1.5px solid var(--cream-dark);
+  color: var(--charcoal); font-size: 13px; font-family: var(--font-body);
+  padding: 5px 12px; border-radius: 100px;
+  transition: all 0.15s;
+}
+.menu-pill:hover { border-color: var(--teal-light); background: rgba(74,139,140,0.06); }
+.menu-pill.highlight {
+  background: var(--teal-dark); color: var(--white);
+  border-color: var(--teal-dark); font-weight: 600;
+}
+
+/* Protein list */
+.protein-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+}
+.protein-item {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13.5px; color: rgba(30,30,30,0.7); padding: 4px 0;
+}
+.protein-item::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--teal); flex-shrink: 0;
+}
+
+/* ============================================================
+   SECTION 4 — HOW IT WORKS (teal-dark bg)
+   ============================================================ */
+#how-it-works {
+  padding: 80px 0;
+  background: var(--teal-dark);
+  position: relative; overflow: hidden;
+}
+#how-it-works::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 80% 80% at 50% 50%, rgba(74,139,140,0.4) 0%, transparent 70%);
+  pointer-events: none;
+}
+#how-it-works .section-header h2  { color: var(--cream); }
+#how-it-works .section-header p   { color: rgba(255,255,255,0.65); }
+#how-it-works .section-label      { color: var(--gold); }
+#how-it-works .divider-line::before,
+#how-it-works .divider-line::after { background: rgba(193,154,53,0.5); }
+
+.steps-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 2px;
+  position: relative; z-index: 1;
+}
+/* Connector line between steps (desktop) */
+.steps-grid::before {
+  content: '';
+  position: absolute; top: 44px; left: 10%; right: 10%; height: 2px;
+  background: linear-gradient(to right, var(--gold), rgba(193,154,53,0.3));
+  pointer-events: none; z-index: 0;
+}
+
+.step-card {
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: var(--radius-lg); padding: 32px 24px;
+  text-align: center; backdrop-filter: blur(4px);
+  transition: transform 0.3s, background 0.3s;
+  position: relative; z-index: 1;
+}
+.step-card:hover { transform: translateY(-5px); background: rgba(255,255,255,0.12); }
+.step-num {
+  font-family: var(--font-display); font-size: 52px;
+  color: var(--gold); line-height: 1;
+  display: block; margin-bottom: 12px;
+}
+.step-icon { font-size: 28px; display: block; margin-bottom: 14px; }
+.step-card h3 {
+  font-family: var(--font-display); font-size: 22px;
+  color: var(--cream); margin-bottom: 10px; line-height: 1.1;
+}
+.step-card p { font-size: 14px; color: rgba(255,255,255,0.62); line-height: 1.6; }
+
+/* ============================================================
+   SECTION 5 — TRUST / SOCIAL PROOF (white bg)
+   ============================================================ */
+#trust { padding: 72px 0; background: var(--white); }
+
+.trust-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px;
+}
+.trust-card {
+  background: var(--cream);
+  border: 1.5px solid var(--cream-dark);
+  border-radius: var(--radius-lg); padding: 28px 24px;
+  transition: all 0.2s;
+}
+.trust-card:hover {
+  border-color: var(--teal-light);
+  box-shadow: 0 4px 20px rgba(74,139,140,0.12);
+  transform: translateY(-2px);
+}
+.trust-stat {
+  font-family: var(--font-display); font-size: 48px;
+  color: var(--red); line-height: 1; display: block; margin-bottom: 6px;
+}
+.trust-card h4 {
+  font-family: var(--font-display); font-size: 20px;
+  color: var(--charcoal); margin-bottom: 8px;
+}
+.trust-card p { font-size: 14px; color: rgba(30,30,30,0.6); line-height: 1.6; }
+
+/* Testimonial */
+.testimonial-block {
+  margin-top: 32px;
+  background: var(--teal-dark);
+  border-radius: var(--radius-lg); padding: 36px 40px;
+  display: flex; gap: 24px; align-items: flex-start;
+  position: relative; overflow: hidden;
+}
+.testimonial-block::before {
+  content: '"';
+  position: absolute; top: -10px; left: 24px;
+  font-family: var(--font-display); font-size: 120px;
+  color: rgba(255,255,255,0.07); line-height: 1; pointer-events: none;
+}
+.testimonial-text {
+  flex: 1; position: relative; z-index: 1;
+}
+.testimonial-text p {
+  font-family: var(--font-heading); font-size: 17px; font-weight: 500;
+  color: var(--cream); line-height: 1.65; font-style: italic;
+  margin-bottom: 14px;
+}
+.testimonial-author {
+  font-family: var(--font-heading); font-size: 12px; font-weight: 600;
+  letter-spacing: 2px; text-transform: uppercase; color: var(--gold);
+}
+.testimonial-icon { font-size: 40px; flex-shrink: 0; opacity: 0.8; }
+
+/* ============================================================
+   SECTION 6 — INQUIRY FORM + CTA (red bg)
+   ============================================================ */
+#catering-inquiry {
+  padding: 80px 0;
+  background: var(--red);
+  position: relative; overflow: hidden;
+}
+#catering-inquiry::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(
+    -45deg, transparent, transparent 40px,
+    rgba(0,0,0,0.04) 40px, rgba(0,0,0,0.04) 80px
+  );
+  pointer-events: none;
+}
+
+.inquiry-inner {
+  position: relative; z-index: 1;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: start;
+}
+.inquiry-text .section-label { color: rgba(255,255,255,0.7); letter-spacing: 3px; }
+.inquiry-text .divider-line::before,
+.inquiry-text .divider-line::after { background: rgba(255,255,255,0.3); }
+.inquiry-text h2 {
+  font-family: var(--font-display); font-size: clamp(38px, 5.5vw, 62px);
+  color: var(--white); line-height: 1; margin: 10px 0 18px;
+}
+.inquiry-text p {
+  font-size: 16px; color: rgba(255,255,255,0.78);
+  line-height: 1.7; margin-bottom: 12px;
+}
+.inquiry-contact-row {
+  display: flex; align-items: center; gap: 10px; margin-top: 6px;
+  font-family: var(--font-heading); font-size: 14px; font-weight: 500;
+  color: rgba(255,255,255,0.85); text-decoration: none;
+  letter-spacing: 0.5px;
+}
+.inquiry-contact-row:hover { color: var(--cream); }
+.inquiry-contact-icon {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: rgba(255,255,255,0.15);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; flex-shrink: 0;
+}
+
+/* Form card */
+.inquiry-form-card {
+  background: var(--white);
+  border-radius: var(--radius-lg); padding: 36px 32px;
+  box-shadow: 0 8px 0 rgba(0,0,0,0.15), 0 24px 64px rgba(0,0,0,0.2);
+}
+.inquiry-form-card h3 {
+  font-family: var(--font-display); font-size: 26px;
+  color: var(--charcoal); margin-bottom: 22px; line-height: 1;
+}
+.form-group { margin-bottom: 16px; }
+.form-label {
+  display: block; font-family: var(--font-heading); font-size: 11px;
+  font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--teal-dark); margin-bottom: 6px;
+}
+.form-input, .form-select, .form-textarea {
+  width: 100%; padding: 11px 14px;
+  background: var(--cream); border: 1.5px solid var(--cream-dark);
+  border-radius: var(--radius); font-family: var(--font-body); font-size: 15px;
+  color: var(--charcoal); transition: border-color 0.2s, box-shadow 0.2s;
+  appearance: none; -webkit-appearance: none;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(74,139,140,0.12);
+}
+.form-input::placeholder { color: rgba(30,30,30,0.35); }
+.form-textarea { resize: vertical; min-height: 100px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.form-submit {
+  width: 100%; background: var(--red); color: var(--white);
+  font-family: var(--font-heading); font-size: 15px; font-weight: 600;
+  letter-spacing: 1.5px; text-transform: uppercase; border: none;
+  border-radius: var(--radius); padding: 15px; cursor: pointer;
+  box-shadow: 0 4px 0 var(--red-dark), 0 6px 20px rgba(200,39,45,0.3);
+  transition: all 0.2s; margin-top: 4px;
+}
+.form-submit:hover { background: var(--red-light); transform: translateY(-2px); }
+.form-note {
+  text-align: center; font-size: 12px; color: rgba(30,30,30,0.45);
+  margin-top: 10px; font-family: var(--font-heading); letter-spacing: 0.5px;
+}
+
+/* ============================================================
+   CLOSING CTA
+   ============================================================ */
+#catering-close {
+  padding: 80px 0;
+  background: var(--teal-dark);
+  position: relative; overflow: hidden;
+}
+#catering-close::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 80% 80% at 50% 50%, rgba(74,139,140,0.4) 0%, transparent 70%);
+  pointer-events: none;
+}
+.close-inner {
+  position: relative; z-index: 1; text-align: center; max-width: 680px; margin: 0 auto;
+}
+.close-inner .section-label { color: var(--gold); }
+.close-inner .divider-line::before,
+.close-inner .divider-line::after { background: rgba(193,154,53,0.45); max-width: 200px; }
+.close-title {
+  font-family: var(--font-display); font-size: clamp(44px, 7vw, 74px);
+  color: var(--cream); line-height: 0.95; margin: 12px 0 20px;
+}
+.close-title .accent { color: var(--gold); display: block; }
+.close-sub {
+  font-size: 17px; color: rgba(255,255,255,0.7);
+  line-height: 1.7; margin-bottom: 36px;
+}
+.close-ctas { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+footer { background: var(--charcoal); padding: 60px 0 40px; }
+.footer-inner {
+  display: grid; grid-template-columns: 1.5fr 1fr 1fr;
+  gap: 40px; margin-bottom: 48px;
+}
+.footer-brand .logo-text { font-family: var(--font-display); font-size: 28px; color: var(--cream); margin-bottom: 4px; }
+.footer-brand .logo-text span { color: var(--gold); }
+.footer-brand .tagline { font-size: 13px; color: rgba(255,255,255,0.45); margin-bottom: 20px; }
+.footer-col h5 {
+  font-family: var(--font-heading); font-size: 12px; font-weight: 600;
+  letter-spacing: 2px; text-transform: uppercase; color: var(--gold); margin-bottom: 16px;
+}
+.footer-links { list-style: none; }
+.footer-links li { margin-bottom: 10px; }
+.footer-links a { font-size: 14px; color: rgba(255,255,255,0.55); text-decoration: none; transition: color 0.2s; }
+.footer-links a:hover { color: var(--teal-light); }
+.footer-bottom {
+  border-top: 1px solid rgba(255,255,255,0.08); padding-top: 24px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.footer-bottom p { font-size: 12px; color: rgba(255,255,255,0.3); }
+.footer-bridge { font-family: var(--font-display); font-size: 13px; color: rgba(255,255,255,0.2); letter-spacing: 2px; }
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 960px) {
+  .hero-cards { display: none; }
+  .inquiry-inner { grid-template-columns: 1fr; gap: 40px; }
+  .menu-preview-grid { grid-template-columns: 1fr; }
+  .footer-inner { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 640px) {
+  .nav-links { display: none; }
+  .nav-links.open {
+    display: flex; flex-direction: column;
+    position: absolute; top: 64px; left: 0; right: 0;
+    background: var(--cream); padding: 12px 0;
+    border-bottom: 3px solid var(--gold);
+  }
+  .nav-links.open a { border-radius: 0; padding: 12px 24px; }
+  .nav-hamburger { display: flex; }
+  .hero-h1 { font-size: 54px; }
+  .steps-grid::before { display: none; }
+  .form-row { grid-template-columns: 1fr; }
+  .protein-grid { grid-template-columns: 1fr; }
+  .testimonial-block { flex-direction: column; padding: 28px 24px; }
+  .footer-inner { grid-template-columns: 1fr; }
+  .event-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════
+     NAVIGATION
+══════════════════════════════════════════════════════════ -->
+<nav>
+  <div class="nav-inner">
+    <a href="momos-cafe.html" class="nav-logo">MOMO'S <span>CAFÉ</span></a>
+    <ul class="nav-links" id="nav-links">
+      <li><a href="momos-cafe.html">Home</a></li>
+      <li><a href="momos-menu.html">Menu</a></li>
+      <li><a href="momos-our-story.html">Our Story</a></li>
+      <li><a href="#" class="active">Catering</a></li>
+      <li><a href="momos-cafe.html#location">Location</a></li>
+      <li><a href="momos-menu.html" class="nav-order">Order Now</a></li>
+    </ul>
+    <div class="nav-hamburger" id="hamburger" onclick="document.getElementById('nav-links').classList.toggle('open')">
+      <span></span><span></span><span></span>
+    </div>
+  </div>
+</nav>
+
+<!-- ══════════════════════════════════════════════════════════
+     1. HERO
+══════════════════════════════════════════════════════════ -->
+<section id="catering-hero">
+  <div class="hero-bg"></div>
+
+  <!-- Bridge watermark -->
+  <svg class="hero-bridge" viewBox="0 0 800 400" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <path d="M0 300 Q200 120 400 160 Q600 200 800 80" stroke="#8FC4C4" stroke-width="4" fill="none"/>
+    <path d="M0 320 Q200 140 400 180 Q600 220 800 100" stroke="#8FC4C4" stroke-width="2" fill="none"/>
+    <rect x="190" y="100" width="28" height="200" fill="#4A8B8C"/>
+    <rect x="570" y="60" width="28" height="240" fill="#4A8B8C"/>
+    <line x1="230" y1="130" x2="230" y2="280" stroke="#8FC4C4" stroke-width="1" opacity="0.7"/>
+    <line x1="270" y1="112" x2="270" y2="280" stroke="#8FC4C4" stroke-width="1" opacity="0.7"/>
+    <line x1="310" y1="108" x2="310" y2="280" stroke="#8FC4C4" stroke-width="1" opacity="0.7"/>
+    <line x1="350" y1="112" x2="350" y2="280" stroke="#8FC4C4" stroke-width="1" opacity="0.7"/>
+    <line x1="390" y1="122" x2="390" y2="280" stroke="#8FC4C4" stroke-width="1" opacity="0.7"/>
+    <line x1="430" y1="130" x2="430" y2="280" stroke="#8FC4C4" stroke-width="1" opacity="0.7"/>
+    <line x1="470" y1="130" x2="470" y2="280" stroke="#8FC4C4" stroke-width="1" opacity="0.7"/>
+    <line x1="510" y1="120" x2="510" y2="280" stroke="#8FC4C4" stroke-width="1" opacity="0.7"/>
+    <line x1="550" y1="108" x2="550" y2="280" stroke="#8FC4C4" stroke-width="1" opacity="0.7"/>
+    <rect x="185" y="88" width="38" height="22" rx="2" fill="none" stroke="#4A8B8C" stroke-width="2"/>
+    <rect x="565" y="48" width="38" height="22" rx="2" fill="none" stroke="#4A8B8C" stroke-width="2"/>
+    <line x1="0" y1="295" x2="800" y2="295" stroke="#4A8B8C" stroke-width="3"/>
+  </svg>
+
+  <div class="container">
+    <div class="hero-content">
+      <div class="hero-badge">
+        <span class="dot"></span>
+        <span>Serving Vallejo &amp; the Bay Area Since 2000</span>
+      </div>
+
+      <h1 class="hero-h1">
+        <span>Catering</span>
+        <span class="accent">By Momo's.</span>
+        <span style="color:var(--cream); font-size:0.6em; display:block; margin-top:8px;">Real Food. Big Portions.</span>
+      </h1>
+
+      <p class="hero-sub">
+        Hearty breakfast spreads and Mexican favorites for your next event.
+        <strong>Fajita bars, taco spreads, pancake stations</strong> —
+        built for groups of 10 to 200.
+      </p>
+
+      <div class="hero-ctas">
+        <a href="#catering-inquiry" class="btn btn-primary" style="font-size:16px; padding:16px 34px;">
+          📋 Request a Quote
+        </a>
+        <a href="#catering-menu" class="btn btn-outline-white">
+          See Catering Menu
+        </a>
+      </div>
+
+      <div class="hero-pills">
+        <span class="hero-pill">Corporate Events</span>
+        <span class="hero-pill">Private Parties</span>
+        <span class="hero-pill">Office Breakfast</span>
+        <span class="hero-pill">Custom Menus Available</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Desktop floating cards -->
+  <div class="hero-cards">
+    <div class="hero-event-card">
+      <span class="event-emoji">🌮</span>
+      <h4>Taco Bar</h4>
+      <p>Steak, chicken or shrimp</p>
+    </div>
+    <div class="hero-event-card">
+      <span class="event-emoji">🥞</span>
+      <h4>Breakfast Spread</h4>
+      <p>Pancakes, eggs & more</p>
+    </div>
+    <div class="hero-event-card">
+      <span class="event-emoji">🫔</span>
+      <h4>Fajita Bar</h4>
+      <p>Full toppings station</p>
+    </div>
+    <div class="hero-event-card">
+      <span class="event-emoji">🏢</span>
+      <h4>Corporate</h4>
+      <p>Office-ready setup</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     2. EVENT TYPES
+══════════════════════════════════════════════════════════ -->
+<section id="event-types">
+  <div class="container">
+    <div class="section-header fade-up">
+      <span class="section-label">What We Offer</span>
+      <div class="divider-line"><span></span></div>
+      <h2>Events We Cater</h2>
+      <p>From early morning office breakfasts to weekend parties — we bring the food, you enjoy the event.</p>
+    </div>
+
+    <div class="event-grid">
+
+      <div class="event-card fade-up">
+        <span class="event-card-icon">🏢</span>
+        <span class="event-card-tag tag teal">Corporate</span>
+        <h3>Corporate Events &amp; Office Meals</h3>
+        <p>Morning kickoffs, team lunches, company celebrations. We set up, serve, and keep it professional. Great for offices across Vallejo and the greater Bay Area.</p>
+        <div class="event-card-footer">
+          ✓ Ideal for 15–200 guests
+        </div>
+      </div>
+
+      <div class="event-card fade-up">
+        <span class="event-card-icon">🎉</span>
+        <span class="event-card-tag tag" style="background:var(--gold);color:var(--charcoal);">Celebrations</span>
+        <h3>Private Parties &amp; Celebrations</h3>
+        <p>Birthdays, graduations, quinceañeras, family reunions. Generous portions that feel like home cooking — because they are. Customizable menus to fit your occasion.</p>
+        <div class="event-card-footer">
+          ✓ Fully customizable menu
+        </div>
+      </div>
+
+      <div class="event-card fade-up">
+        <span class="event-card-icon">🍳</span>
+        <span class="event-card-tag tag" style="background:var(--teal-dark);">Breakfast</span>
+        <h3>Breakfast &amp; Brunch Spreads</h3>
+        <p>Full breakfast stations with waffles, pancakes, eggs, and every protein you need. The same morning energy that makes Momo's a Vallejo staple — scaled for your crowd.</p>
+        <div class="event-card-footer">
+          ✓ Waffle &amp; pancake stations available
+        </div>
+      </div>
+
+      <div class="event-card fade-up">
+        <span class="event-card-icon">🌮</span>
+        <span class="event-card-tag tag red">Mexican Favorites</span>
+        <h3>Taco Bar &amp; Fajita Bar</h3>
+        <p>Interactive food stations that guests love. Full toppings setup, multiple protein choices, flour and corn tortillas. The flavor people come to Momo's for — now at your venue.</p>
+        <div class="event-card-footer">
+          ✓ Full toppings station included
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     3. CATERING MENU PREVIEW
+══════════════════════════════════════════════════════════ -->
+<section id="catering-menu">
+  <div class="container">
+    <div class="section-header fade-up">
+      <span class="section-label">The Food</span>
+      <div class="divider-line"><span></span></div>
+      <h2>Catering Favorites</h2>
+      <p>Everything is made fresh. Every option is the same quality you get at the restaurant — just scaled up.</p>
+    </div>
+
+    <div class="menu-preview-grid">
+
+      <!-- Mexican Catering -->
+      <div class="menu-block fade-up">
+        <div class="menu-block-header">
+          <span class="block-icon">🌮</span>
+          <div>
+            <div class="tag red block-tag">Mexican Catering</div>
+            <h3>Fajita Bar &amp; Taco Bar</h3>
+          </div>
+        </div>
+        <div class="menu-block-body">
+
+          <div class="menu-sub-section">
+            <div class="menu-sub-label">Proteins — Choose Any</div>
+            <div class="menu-pills">
+              <span class="menu-pill highlight">Carne Asada (Steak)</span>
+              <span class="menu-pill highlight">Chicken</span>
+              <span class="menu-pill highlight">Shrimp</span>
+            </div>
+          </div>
+
+          <div class="menu-sub-section">
+            <div class="menu-sub-label">Fajita Vegetables</div>
+            <div class="menu-pills">
+              <span class="menu-pill">Tomatoes</span>
+              <span class="menu-pill">Bell Peppers</span>
+              <span class="menu-pill">Onions</span>
+              <span class="menu-pill">Potatoes</span>
+            </div>
+          </div>
+
+          <div class="menu-sub-section">
+            <div class="menu-sub-label">Sides</div>
+            <div class="menu-pills">
+              <span class="menu-pill">Mexican Rice</span>
+              <span class="menu-pill">Black Beans</span>
+              <span class="menu-pill">Refried Beans</span>
+            </div>
+          </div>
+
+          <div class="menu-sub-section">
+            <div class="menu-sub-label">Tortillas &amp; Toppings</div>
+            <div class="menu-pills">
+              <span class="menu-pill">Flour Tortillas</span>
+              <span class="menu-pill">Corn Tortillas</span>
+              <span class="menu-pill">Guacamole</span>
+              <span class="menu-pill">Sour Cream</span>
+              <span class="menu-pill">Shredded Cheese</span>
+              <span class="menu-pill">Salsa</span>
+              <span class="menu-pill">Onions</span>
+              <span class="menu-pill">Cilantro</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Breakfast Catering -->
+      <div class="menu-block fade-up">
+        <div class="menu-block-header">
+          <span class="block-icon">🥞</span>
+          <div>
+            <div class="tag block-tag" style="background:var(--teal-dark);">Breakfast Catering</div>
+            <h3>Breakfast &amp; Brunch Station</h3>
+          </div>
+        </div>
+        <div class="menu-block-body">
+
+          <div class="menu-sub-section">
+            <div class="menu-sub-label">Griddle Station — Choose Base</div>
+            <div class="menu-pills">
+              <span class="menu-pill highlight">Waffles</span>
+              <span class="menu-pill highlight">Pancakes</span>
+              <span class="menu-pill highlight">French Toast</span>
+              <span class="menu-pill">Chicken &amp; Waffles</span>
+            </div>
+          </div>
+
+          <div class="menu-sub-section">
+            <div class="menu-sub-label">Eggs — Any Style</div>
+            <div class="menu-pills">
+              <span class="menu-pill">Scrambled</span>
+              <span class="menu-pill">Fried</span>
+              <span class="menu-pill">Over Easy</span>
+              <span class="menu-pill">Over Medium</span>
+              <span class="menu-pill">Over Hard</span>
+            </div>
+          </div>
+
+          <div class="menu-sub-section">
+            <div class="menu-sub-label">Breakfast Proteins</div>
+            <div class="protein-grid">
+              <span class="protein-item">Bacon</span>
+              <span class="protein-item">Sausage</span>
+              <span class="protein-item">Ham</span>
+              <span class="protein-item">Canadian Bacon</span>
+              <span class="protein-item">Linguica</span>
+              <span class="protein-item">Fried Chicken</span>
+              <span class="protein-item">NY Strip Steak</span>
+            </div>
+          </div>
+
+          <div class="menu-sub-section">
+            <div class="menu-sub-label">Sides</div>
+            <div class="menu-pills">
+              <span class="menu-pill">Country Potatoes</span>
+              <span class="menu-pill">Mexican Rice</span>
+              <span class="menu-pill">Refried Beans</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div><!-- /menu-preview-grid -->
+
+    <!-- CTA below menu -->
+    <div style="text-align:center; margin-top:40px;" class="fade-up">
+      <p style="font-size:14px; color:rgba(30,30,30,0.55); font-family:var(--font-heading); letter-spacing:0.5px; margin-bottom:16px; text-transform:uppercase;">Custom menus available — just ask</p>
+      <a href="#catering-inquiry" class="btn btn-primary" style="font-size:15px; padding:15px 32px;">
+        📋 Get a Custom Quote
+      </a>
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     4. HOW IT WORKS
+══════════════════════════════════════════════════════════ -->
+<section id="how-it-works">
+  <div class="container">
+    <div class="section-header fade-up">
+      <span class="section-label">How It Works</span>
+      <div class="divider-line"><span></span></div>
+      <h2 style="color:var(--cream);">Simple Process</h2>
+      <p style="color:rgba(255,255,255,0.65);">We handle the food. You focus on your event. Here's what ordering catering looks like.</p>
+    </div>
+
+    <div class="steps-grid">
+
+      <div class="step-card fade-up">
+        <span class="step-num">01</span>
+        <span class="step-icon">📋</span>
+        <h3>Tell Us About Your Event</h3>
+        <p>Fill out the inquiry form below or give us a call. Tell us the date, guest count, and what type of food you have in mind.</p>
+      </div>
+
+      <div class="step-card fade-up">
+        <span class="step-num">02</span>
+        <span class="step-icon">💬</span>
+        <h3>We Send a Custom Quote</h3>
+        <p>We'll get back to you with a menu recommendation and pricing based on your group size and preferences. No surprises.</p>
+      </div>
+
+      <div class="step-card fade-up">
+        <span class="step-num">03</span>
+        <span class="step-icon">✅</span>
+        <h3>Confirm &amp; We Prepare</h3>
+        <p>Once you confirm, we start planning. We handle all the prep — you'll get a reminder 24 hours before your event.</p>
+      </div>
+
+      <div class="step-card fade-up">
+        <span class="step-num">04</span>
+        <span class="step-icon">🍽️</span>
+        <h3>Pickup or We Deliver</h3>
+        <p>Pick up from our location or ask about delivery for your event. Food arrives hot, portioned, and ready to serve.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     5. TRUST / SOCIAL PROOF
+══════════════════════════════════════════════════════════ -->
+<section id="trust">
+  <div class="container">
+    <div class="section-header fade-up">
+      <span class="section-label">Why Momo's</span>
+      <div class="divider-line"><span></span></div>
+      <h2>Vallejo Trusts Us</h2>
+      <p>We've been feeding this community since 2000. Catering is just that same kitchen — at scale.</p>
+    </div>
+
+    <div class="trust-grid fade-up">
+      <div class="trust-card">
+        <span class="trust-stat">25+</span>
+        <h4>Years Cooking in Vallejo</h4>
+        <p>We've cooked for families, offices, schools, and celebrations across the Bay Area since 2000.</p>
+      </div>
+      <div class="trust-card">
+        <span class="trust-stat">200</span>
+        <h4>Guests, No Problem</h4>
+        <p>Our catering handles groups from 10 to 200. Same quality regardless of the count.</p>
+      </div>
+      <div class="trust-card">
+        <span class="trust-stat">2</span>
+        <h4>Complete Menus to Choose From</h4>
+        <p>Mexican catering or breakfast catering — or combine both for an event that covers everyone.</p>
+      </div>
+    </div>
+
+    <!-- Testimonial -->
+    <div class="testimonial-block fade-up" style="margin-top:28px;">
+      <span class="testimonial-icon">⭐</span>
+      <div class="testimonial-text">
+        <p>"We ordered the fajita bar for our company lunch and the whole office was talking about it for a week. Portions were huge, everything arrived hot, and they made it easy from start to finish."</p>
+        <span class="testimonial-author">— Local Vallejo Business, Google Review</span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     6. INQUIRY FORM + CTA
+══════════════════════════════════════════════════════════ -->
+<section id="catering-inquiry">
+  <div class="container">
+    <div class="inquiry-inner">
+
+      <!-- Left: Text -->
+      <div class="inquiry-text fade-up">
+        <span class="section-label" style="color:rgba(255,255,255,0.7);">Get Started</span>
+        <div class="divider-line"><span></span></div>
+        <h2>Ready to Plan Your Event?</h2>
+        <p>Fill out the form and we'll get back to you within 24 hours with a menu recommendation and quote. No commitment required.</p>
+        <p>Prefer to talk? We're happy to go over options by phone.</p>
+
+        <div style="margin-top:28px; display:flex; flex-direction:column; gap:12px;">
+          <a href="tel:+17071234567" class="inquiry-contact-row">
+            <span class="inquiry-contact-icon">📞</span>
+            (707) 123-4567
+          </a>
+          <a href="mailto:catering@momoscafe.com" class="inquiry-contact-row">
+            <span class="inquiry-contact-icon">✉️</span>
+            catering@momoscafe.com
+          </a>
+          <div class="inquiry-contact-row" style="cursor:default;">
+            <span class="inquiry-contact-icon">📍</span>
+            Vallejo, CA — Serving the Bay Area
+          </div>
+        </div>
+
+        <!-- Trust pills -->
+        <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:32px;">
+          <span style="background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.2); color:rgba(255,255,255,0.8); font-size:12px; padding:5px 14px; border-radius:100px; font-family:var(--font-heading); letter-spacing:0.5px;">Response within 24 hours</span>
+          <span style="background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.2); color:rgba(255,255,255,0.8); font-size:12px; padding:5px 14px; border-radius:100px; font-family:var(--font-heading); letter-spacing:0.5px;">No commitment to inquire</span>
+          <span style="background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.2); color:rgba(255,255,255,0.8); font-size:12px; padding:5px 14px; border-radius:100px; font-family:var(--font-heading); letter-spacing:0.5px;">Custom menus available</span>
+        </div>
+      </div>
+
+      <!-- Right: Form card -->
+      <div class="fade-up">
+        <div class="inquiry-form-card">
+          <h3>Request Catering 📋</h3>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="f-name">Your Name</label>
+              <input class="form-input" id="f-name" type="text" placeholder="First &amp; last name">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="f-phone">Phone Number</label>
+              <input class="form-input" id="f-phone" type="tel" placeholder="(707) 000-0000">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="f-email">Email Address</label>
+            <input class="form-input" id="f-email" type="email" placeholder="your@email.com">
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="f-date">Event Date</label>
+              <input class="form-input" id="f-date" type="date">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="f-guests">Guest Count</label>
+              <select class="form-select form-input" id="f-guests">
+                <option value="">How many guests?</option>
+                <option>10–25 guests</option>
+                <option>25–50 guests</option>
+                <option>50–100 guests</option>
+                <option>100–200 guests</option>
+                <option>200+ guests</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="f-type">Catering Style</label>
+            <select class="form-select form-input" id="f-type">
+              <option value="">What are you interested in?</option>
+              <option>Mexican — Fajita Bar</option>
+              <option>Mexican — Taco Bar</option>
+              <option>Breakfast / Brunch Spread</option>
+              <option>Combination (Mexican + Breakfast)</option>
+              <option>Custom / Not Sure Yet</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="f-notes">Event Details</label>
+            <textarea class="form-textarea" id="f-notes" placeholder="Tell us about your event — location, occasion, any special requests..."></textarea>
+          </div>
+
+          <button type="button" class="form-submit" onclick="handleCateringSubmit()">
+            Submit Catering Request →
+          </button>
+          <p class="form-note">We'll respond within 24 hours with a custom quote.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     7. CLOSING CTA
+══════════════════════════════════════════════════════════ -->
+<section id="catering-close">
+  <div class="container">
+    <div class="close-inner fade-up">
+      <span class="section-label" style="color:var(--gold);">Momo's Catering</span>
+      <div class="divider-line" style="max-width:320px; margin:8px auto;"><span></span></div>
+      <h2 class="close-title">
+        Feed Your People
+        <span class="accent">The Right Way.</span>
+      </h2>
+      <p class="close-sub">
+        Big portions, honest food, and a family that's been cooking for Vallejo
+        for over 25 years. That's what comes with every catering order.
+      </p>
+      <div class="close-ctas">
+        <a href="#catering-inquiry" class="btn btn-primary" style="font-size:16px; padding:16px 36px;">
+          📋 Request Catering
+        </a>
+        <a href="momos-menu.html" class="btn btn-outline-white" style="font-size:15px; padding:15px 28px;">
+          Browse Full Menu
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     FOOTER
+══════════════════════════════════════════════════════════ -->
+<footer>
+  <div class="container">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <div class="logo-text">MOMO'S <span>CAFÉ</span></div>
+        <div class="tagline">Breakfast &amp; Lunch · Vallejo, CA</div>
+      </div>
+      <div class="footer-col">
+        <h5>Navigate</h5>
+        <ul class="footer-links">
+          <li><a href="momos-cafe.html">Home</a></li>
+          <li><a href="momos-cafe.html#deals">Deals</a></li>
+          <li><a href="momos-menu.html">Full Menu</a></li>
+          <li><a href="momos-our-story.html">Our Story</a></li>
+          <li><a href="#">Catering</a></li>
+          <li><a href="momos-cafe.html#location">Location &amp; Hours</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h5>Contact</h5>
+        <ul class="footer-links">
+          <li><a href="tel:+17071234567">(707) 123-4567</a></li>
+          <li><a href="mailto:catering@momoscafe.com">catering@momoscafe.com</a></li>
+          <li><a href="#">Vallejo, CA</a></li>
+          <li><a href="#">DoorDash</a></li>
+          <li><a href="#">Uber Eats</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2025 Momo's Café Vallejo. All rights reserved.</p>
+      <div class="footer-bridge">VALLEJO · BAY AREA · EST. 2000</div>
+    </div>
+  </div>
+</footer>
+
+<!-- ══════════════════════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════════════════════ -->
+<script>
+// Scroll-triggered fade-up (same observer pattern across all v2 pages)
+var observer = new IntersectionObserver(function(entries) {
+  entries.forEach(function(e) {
+    if (e.isIntersecting) e.target.classList.add('visible');
+  });
+}, { threshold: 0.08 });
+document.querySelectorAll('.fade-up').forEach(function(el) { observer.observe(el); });
+
+// Form submission placeholder
+function handleCateringSubmit() {
+  var name  = document.getElementById('f-name').value.trim();
+  var email = document.getElementById('f-email').value.trim();
+  var date  = document.getElementById('f-date').value;
+  var guests = document.getElementById('f-guests').value;
+
+  if (!name || !email) {
+    alert('Please fill in your name and email to submit.');
+    return;
+  }
+  // Replace with real backend / Square / email integration
+  var btn = document.querySelector('.form-submit');
+  btn.textContent = '✓ Request Received — We\'ll be in touch!';
+  btn.style.background = 'var(--teal-dark)';
+  btn.style.boxShadow  = '0 4px 0 #1a4040';
+  btn.disabled = true;
+}
+
+// Smooth scroll for in-page anchors
+document.querySelectorAll('a[href^="#"]').forEach(function(a) {
+  a.addEventListener('click', function(e) {
+    var target = document.querySelector(this.getAttribute('href'));
+    if (target) {
+      e.preventDefault();
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
+});
+</script>
+
+</body>
+</html>

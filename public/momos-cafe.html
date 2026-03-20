@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Momo's Café Vallejo — Breakfast & Lunch Done Right</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;500;600;700&family=Barlow:ital,wght@0,400;0,500;0,600;0,700;1,400;1,700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --cream:      #F5EDCA;
+  --cream-dark: #EDE3B2;
+  --red:        #C8272D;
+  --red-dark:   #A01E23;
+  --red-light:  #E0383F;
+  --teal:       #4A8B8C;
+  --teal-dark:  #2D6B6B;
+  --teal-light: #8FC4C4;
+  --gold:       #C19A35;
+  --charcoal:   #1E1E1E;
+  --white:      #FFFDF5;
+  --font-display: 'Bebas Neue', sans-serif;
+  --font-heading: 'Oswald', sans-serif;
+  --font-body:    'Barlow', sans-serif;
+  --radius: 8px;
+  --radius-lg: 16px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { background: var(--cream); color: var(--charcoal); font-family: var(--font-body); font-size: 16px; line-height: 1.5; overflow-x: hidden; }
+.container { max-width: 1140px; margin: 0 auto; padding: 0 20px; }
+.section-label { font-family: var(--font-heading); font-size: 11px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: var(--teal); }
+.divider-line { display: flex; align-items: center; gap: 16px; margin: 8px 0; }
+.divider-line::before, .divider-line::after { content: ''; flex: 1; height: 1.5px; background: var(--gold); }
+.tag { display: inline-block; background: var(--teal); color: var(--white); font-family: var(--font-heading); font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; padding: 4px 10px; border-radius: 3px; }
+.tag.red { background: var(--red); }
+.tag.gold { background: var(--gold); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-family: var(--font-heading); font-size: 15px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; text-decoration: none; border: none; border-radius: var(--radius); cursor: pointer; transition: all 0.2s ease; padding: 14px 28px; }
+.btn:active { transform: scale(0.97); }
+.btn-primary { background: var(--red); color: var(--white); box-shadow: 0 4px 0 var(--red-dark), 0 6px 20px rgba(200,39,45,0.35); }
+.btn-primary:hover { background: var(--red-light); transform: translateY(-2px); }
+.btn-secondary { background: transparent; color: var(--teal-dark); border: 2.5px solid var(--teal); }
+.btn-secondary:hover { background: var(--teal); color: var(--white); }
+.btn-outline-white { background: transparent; color: var(--white); border: 2px solid rgba(255,255,255,0.7); }
+.btn-outline-white:hover { background: rgba(255,255,255,0.15); }
+
+/* STICKY */
+#sticky-bar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--red); z-index: 1000; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 -4px 20px rgba(0,0,0,0.2); transform: translateY(100%); transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1); }
+#sticky-bar.visible { transform: translateY(0); }
+#sticky-bar span { font-family: var(--font-heading); font-size: 14px; font-weight: 500; letter-spacing: 1px; color: rgba(255,255,255,0.85); }
+#sticky-bar strong { color: #fff; font-size: 16px; }
+.sticky-btn { background: var(--white); color: var(--red); font-family: var(--font-heading); font-size: 13px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; text-decoration: none; padding: 10px 22px; border-radius: var(--radius); }
+
+/* NAV */
+nav { position: sticky; top: 0; z-index: 900; background: var(--cream); border-bottom: 3px solid var(--gold); }
+.nav-inner { display: flex; align-items: center; justify-content: space-between; padding: 0 20px; height: 64px; max-width: 1140px; margin: 0 auto; }
+.nav-logo { font-family: var(--font-display); font-size: 22px; color: var(--teal-dark); letter-spacing: 1px; text-decoration: none; }
+.nav-logo span { color: var(--red); }
+.nav-links { display: flex; gap: 6px; list-style: none; }
+.nav-links a { font-family: var(--font-heading); font-size: 13px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--teal-dark); text-decoration: none; padding: 8px 14px; border-radius: 5px; transition: all 0.2s; }
+.nav-links a:hover { background: rgba(74,139,140,0.12); }
+.nav-order { background: var(--red) !important; color: #fff !important; }
+.nav-order:hover { background: var(--red-light) !important; }
+.nav-hamburger { display: none; flex-direction: column; cursor: pointer; }
+.nav-hamburger span { display: block; width: 24px; height: 2px; background: var(--teal-dark); margin: 5px 0; border-radius: 2px; }
+
+/* HERO */
+#hero { background: var(--teal-dark); position: relative; overflow: hidden; min-height: 92vh; display: flex; align-items: center; }
+.hero-bg { position: absolute; inset: 0; background: radial-gradient(ellipse 80% 60% at 70% 40%, rgba(74,139,140,0.3) 0%, transparent 60%), linear-gradient(180deg, var(--teal-dark) 0%, #1a4a4a 100%); }
+.hero-bridge { position: absolute; top: 0; right: -5%; width: 65%; height: 100%; opacity: 0.08; }
+.hero-content { position: relative; z-index: 2; width: 100%; padding: 80px 0 120px; }
+.hero-badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 100px; padding: 6px 16px 6px 8px; margin-bottom: 28px; }
+.hero-badge .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); animation: pulse 2s infinite; }
+.hero-badge span { font-family: var(--font-heading); font-size: 12px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.9); }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.6;transform:scale(1.3)} }
+.hero-h1 { font-family: var(--font-display); font-size: clamp(52px, 10vw, 110px); line-height: 0.92; color: var(--cream); margin-bottom: 12px; }
+.hero-h1 .accent { color: var(--red); display: block; }
+.hero-h1 .gold-accent { color: var(--gold); }
+.hero-sub { font-size: clamp(15px, 2vw, 18px); color: rgba(255,255,255,0.75); max-width: 480px; line-height: 1.6; margin: 20px 0 36px; }
+.hero-sub strong { color: var(--teal-light); font-weight: 700; }
+.hero-ctas { display: flex; gap: 14px; flex-wrap: wrap; }
+.hero-pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 44px; }
+.hero-pill { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: rgba(255,255,255,0.75); font-size: 13px; padding: 6px 14px; border-radius: 100px; }
+.hero-pill::before { content: '✓ '; color: var(--gold); }
+.hero-food-cards { position: absolute; right: 0; top: 50%; transform: translateY(-50%); width: 420px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 20px; z-index: 2; }
+.food-card-hero { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12); border-radius: var(--radius-lg); padding: 20px 16px; text-align: center; backdrop-filter: blur(8px); transition: transform 0.3s; }
+.food-card-hero:hover { transform: translateY(-4px); }
+.food-card-hero:nth-child(2) { margin-top: 32px; }
+.food-card-hero:nth-child(4) { margin-top: -32px; }
+.food-emoji { font-size: 48px; display: block; margin-bottom: 10px; }
+.food-card-hero h4 { font-family: var(--font-heading); font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.9); }
+.food-card-hero p { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 3px; }
+
+/* SECTION HEADER */
+.section-header { text-align: center; margin-bottom: 48px; }
+.section-header h2 { font-family: var(--font-display); font-size: clamp(38px, 6vw, 64px); line-height: 1; color: var(--charcoal); margin: 8px 0 14px; }
+.section-header p { font-size: 16px; color: rgba(30,30,30,0.65); max-width: 500px; margin: 0 auto; line-height: 1.65; }
+
+/* DEALS */
+#deals { padding: 72px 0; background: var(--red); position: relative; overflow: hidden; }
+#deals::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(-45deg, transparent, transparent 40px, rgba(0,0,0,0.04) 40px, rgba(0,0,0,0.04) 80px); pointer-events: none; }
+.deals-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
+.deal-card { background: var(--white); border-radius: var(--radius-lg); padding: 28px 24px; display: flex; flex-direction: column; align-items: flex-start; box-shadow: 0 6px 0 rgba(0,0,0,0.15); transition: transform 0.2s; }
+.deal-card:hover { transform: translateY(-4px); }
+.deal-emoji { font-size: 48px; margin-bottom: 14px; }
+.deal-badge { font-family: var(--font-heading); font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--white); padding: 3px 10px; border-radius: 3px; margin-bottom: 12px; }
+.deal-badge.teal { background: var(--teal); }
+.deal-badge.red { background: var(--red); }
+.deal-badge.gold { background: var(--gold); }
+.deal-card h3 { font-family: var(--font-display); font-size: 28px; color: var(--charcoal); line-height: 1.1; margin-bottom: 8px; }
+.deal-card p { font-size: 13px; color: rgba(30,30,30,0.6); line-height: 1.5; margin-bottom: 20px; flex: 1; }
+.deal-price { display: flex; align-items: baseline; gap: 10px; }
+.deal-price .price { font-family: var(--font-display); font-size: 52px; color: var(--red); line-height: 1; }
+.deal-price .was { font-family: var(--font-heading); font-size: 13px; color: rgba(30,30,30,0.4); text-decoration: line-through; }
+
+/* FEATURED */
+#featured { padding: 80px 0; }
+.featured-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.featured-block { border-radius: var(--radius-lg); overflow: hidden; position: relative; min-height: 420px; display: flex; flex-direction: column; justify-content: flex-end; cursor: pointer; }
+.featured-bg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 120px; transition: transform 0.5s ease; }
+.featured-block:hover .featured-bg { transform: scale(1.06); }
+.featured-block.breakfast .featured-bg { background: linear-gradient(145deg, #f7d794, #f0a500); }
+.featured-block.lunch .featured-bg { background: linear-gradient(145deg, #c8272d, #8b1a1d); }
+.featured-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.1) 55%, transparent 100%); }
+.featured-content { position: relative; z-index: 2; padding: 28px; }
+.featured-content .tag { margin-bottom: 12px; }
+.featured-content h3 { font-family: var(--font-display); font-size: clamp(30px, 4vw, 44px); color: var(--white); line-height: 1; margin-bottom: 10px; }
+.featured-content p { font-size: 14px; color: rgba(255,255,255,0.75); line-height: 1.5; margin-bottom: 18px; }
+.featured-items { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
+.featured-item-pill { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25); color: #fff; font-size: 12px; font-family: var(--font-heading); font-weight: 500; padding: 5px 12px; border-radius: 100px; }
+
+/* MENU */
+#menu { padding: 80px 0; background: var(--white); }
+.menu-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 40px; justify-content: center; }
+.menu-tab { font-family: var(--font-heading); font-size: 13px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; padding: 9px 18px; border-radius: 100px; border: 2px solid var(--teal); background: transparent; color: var(--teal-dark); cursor: pointer; transition: all 0.2s; }
+.menu-tab.active, .menu-tab:hover { background: var(--teal-dark); color: var(--white); border-color: var(--teal-dark); }
+.menu-tab.active { box-shadow: 0 4px 16px rgba(45,107,107,0.3); }
+.menu-panel { display: none; }
+.menu-panel.active { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
+.menu-item { background: var(--cream); border-radius: var(--radius-lg); padding: 20px; display: flex; gap: 16px; align-items: flex-start; border: 1.5px solid var(--cream-dark); transition: all 0.2s; }
+.menu-item:hover { border-color: var(--teal-light); box-shadow: 0 4px 20px rgba(74,139,140,0.15); transform: translateY(-2px); }
+.menu-item-emoji { font-size: 36px; flex-shrink: 0; width: 52px; height: 52px; background: var(--white); border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+.menu-item-info { flex: 1; }
+.menu-item-info h4 { font-family: var(--font-heading); font-size: 15px; font-weight: 600; color: var(--charcoal); margin-bottom: 4px; }
+.menu-item-info p { font-size: 12.5px; color: rgba(30,30,30,0.55); line-height: 1.4; }
+.menu-item-price { font-family: var(--font-heading); font-size: 16px; font-weight: 700; color: var(--red); flex-shrink: 0; margin-top: 2px; }
+
+/* WHY */
+#why { padding: 80px 0; background: var(--teal-dark); position: relative; overflow: hidden; }
+#why::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse 80% 80% at 50% 50%, rgba(74,139,140,0.4) 0%, transparent 70%); }
+.love-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 24px; position: relative; z-index: 1; }
+.love-card { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12); border-radius: var(--radius-lg); padding: 32px 24px; text-align: center; backdrop-filter: blur(4px); transition: transform 0.3s, background 0.3s; }
+.love-card:hover { transform: translateY(-6px); background: rgba(255,255,255,0.12); }
+.love-icon { font-size: 52px; display: block; margin-bottom: 16px; }
+.love-card h3 { font-family: var(--font-display); font-size: 26px; color: var(--cream); margin-bottom: 10px; }
+.love-card p { font-size: 14px; color: rgba(255,255,255,0.65); line-height: 1.6; }
+.love-stat { font-family: var(--font-display); font-size: 42px; color: var(--gold); display: block; margin-bottom: 4px; }
+
+/* ORDER */
+#order { padding: 80px 0; }
+.order-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.order-card { border-radius: var(--radius-lg); padding: 40px 36px; }
+.order-card.primary { background: var(--red); box-shadow: 0 8px 0 var(--red-dark), 0 20px 60px rgba(200,39,45,0.3); }
+.order-card.secondary { background: var(--cream-dark); border: 2px solid var(--cream-dark); }
+.order-card-icon { font-size: 52px; display: block; margin-bottom: 16px; }
+.order-card h3 { font-family: var(--font-display); font-size: 34px; line-height: 1; margin-bottom: 10px; }
+.order-card.primary h3 { color: var(--white); }
+.order-card.secondary h3 { color: var(--charcoal); }
+.order-card p { font-size: 14px; line-height: 1.6; margin-bottom: 24px; }
+.order-card.primary p { color: rgba(255,255,255,0.75); }
+.order-card.secondary p { color: rgba(30,30,30,0.6); }
+.order-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25); color: #fff; font-family: var(--font-heading); font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; padding: 5px 12px; border-radius: 100px; margin-bottom: 20px; }
+.order-steps { list-style: none; margin-bottom: 28px; }
+.order-steps li { display: flex; align-items: center; gap: 12px; font-size: 14px; font-family: var(--font-heading); font-weight: 500; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.order-card.secondary .order-steps li { border-color: rgba(0,0,0,0.08); color: rgba(30,30,30,0.7); }
+.order-card.primary .order-steps li { color: rgba(255,255,255,0.85); }
+.step-num { width: 26px; height: 26px; border-radius: 50%; background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; font-family: var(--font-heading); font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0; }
+.order-card.secondary .step-num { background: var(--teal); }
+
+/* LOCATION */
+#location { padding: 80px 0; background: var(--white); }
+.location-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: start; }
+.location-map { background: var(--cream-dark); border-radius: var(--radius-lg); height: 360px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; border: 2px solid var(--cream-dark); cursor: pointer; transition: all 0.3s; }
+.location-map:hover { border-color: var(--teal-light); }
+.location-map h4 { font-family: var(--font-display); font-size: 24px; color: var(--teal-dark); margin-bottom: 6px; }
+.location-map p { font-size: 14px; color: rgba(30,30,30,0.6); }
+.hours-section h3 { font-family: var(--font-display); font-size: 32px; margin-bottom: 6px; color: var(--charcoal); }
+.hours-address { font-size: 15px; color: rgba(30,30,30,0.6); margin-bottom: 28px; line-height: 1.5; }
+.hours-address a { color: var(--teal-dark); text-decoration: none; }
+.hours-table { width: 100%; border-collapse: collapse; }
+.hours-table tr td { padding: 12px 0; border-bottom: 1px solid var(--cream-dark); font-size: 14px; }
+.hours-table tr td:first-child { font-family: var(--font-heading); font-weight: 600; color: var(--charcoal); }
+.hours-table tr td:last-child { text-align: right; color: rgba(30,30,30,0.65); }
+.hours-table tr.today td:first-child { color: var(--red); }
+.status-open { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-heading); font-size: 13px; font-weight: 600; letter-spacing: 1px; color: #2d7a2d; background: rgba(45,122,45,0.1); padding: 5px 14px; border-radius: 100px; margin-bottom: 20px; }
+.status-open::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: #2d7a2d; animation: pulse 2s infinite; }
+
+/* FOOTER */
+footer { background: var(--charcoal); padding: 60px 0 100px; }
+.footer-inner { display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 40px; margin-bottom: 48px; }
+.footer-brand .logo-text { font-family: var(--font-display); font-size: 28px; color: var(--cream); margin-bottom: 4px; }
+.footer-brand .logo-text span { color: var(--gold); }
+.footer-brand .tagline { font-size: 13px; color: rgba(255,255,255,0.45); margin-bottom: 20px; }
+.footer-socials { display: flex; gap: 10px; }
+.social-btn { width: 38px; height: 38px; background: rgba(255,255,255,0.08); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.6); font-size: 16px; text-decoration: none; transition: all 0.2s; }
+.social-btn:hover { background: var(--teal); color: #fff; }
+.footer-col h5 { font-family: var(--font-heading); font-size: 12px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--gold); margin-bottom: 16px; }
+.footer-links { list-style: none; }
+.footer-links li { margin-bottom: 10px; }
+.footer-links a { font-size: 14px; color: rgba(255,255,255,0.55); text-decoration: none; transition: color 0.2s; }
+.footer-links a:hover { color: var(--teal-light); }
+.footer-bottom { border-top: 1px solid rgba(255,255,255,0.08); padding-top: 24px; display: flex; align-items: center; justify-content: space-between; }
+.footer-bottom p { font-size: 12px; color: rgba(255,255,255,0.3); }
+.footer-bridge { font-family: var(--font-display); font-size: 13px; color: rgba(255,255,255,0.2); letter-spacing: 2px; }
+
+/* ANIMATIONS */
+.fade-up { opacity: 0; transform: translateY(30px); transition: opacity 0.6s ease, transform 0.6s ease; }
+.fade-up.visible { opacity: 1; transform: translateY(0); }
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+  .hero-food-cards { display: none; }
+  .featured-grid, .order-grid, .location-grid { grid-template-columns: 1fr; }
+  .footer-inner { grid-template-columns: 1fr 1fr; }
+  .hero-content { padding: 60px 0 100px; }
+}
+@media (max-width: 640px) {
+  .nav-links { display: none; }
+  .nav-links.open { display: flex; flex-direction: column; position: absolute; top: 64px; left: 0; right: 0; background: var(--cream); padding: 12px 0; border-bottom: 3px solid var(--gold); }
+  .nav-links.open a { border-radius: 0; padding: 12px 24px; }
+  .nav-hamburger { display: flex; }
+  .footer-inner { grid-template-columns: 1fr; }
+  .hero-h1 { font-size: 52px; }
+  .order-card { padding: 28px 24px; }
+  .featured-block { min-height: 320px; }
+}
+</style>
+</head>
+<body>
+
+<!-- STICKY BAR -->
+<div id="sticky-bar">
+  <div><strong>Momo's Cafe</strong> <span>— Ready in 15 min</span></div>
+  <a href="#order" class="sticky-btn">Order Now 🍳</a>
+</div>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-inner">
+    <a href="#hero" class="nav-logo">MOMO'S <span>CAFE</span></a>
+    <ul class="nav-links" id="nav-links">
+      <li><a href="#hero">Home</a></li>
+      <li><a href="#deals">Deals</a></li>
+      <li><a href="#menu">Menu</a></li>
+      <li><a href="#order">Order</a></li>
+      <li><a href="#location">Location</a></li>
+      <li><a href="#order" class="nav-order">Order Now</a></li>
+    </ul>
+    <div class="nav-hamburger" id="hamburger" onclick="toggleNav()">
+      <span></span><span></span><span></span>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section id="hero">
+  <div class="hero-bg"></div>
+  <svg class="hero-bridge" viewBox="0 0 800 400" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+    <path d="M0 300 Q200 120 400 160 Q600 200 800 80" stroke="#8FC4C4" stroke-width="4" fill="none"/>
+    <path d="M0 320 Q200 140 400 180 Q600 220 800 100" stroke="#8FC4C4" stroke-width="2" fill="none"/>
+    <rect x="190" y="100" width="28" height="200" fill="#4A8B8C"/>
+    <rect x="570" y="60" width="28" height="240" fill="#4A8B8C"/>
+    <line x1="230" y1="130" x2="230" y2="280" stroke="#8FC4C4" stroke-width="1" opacity="0.7"/>
+    <line x1="270" y1="112" x2="270" y2="280" stroke="#8FC4C4" stroke-width="1" opacity="0.7"/>
+    <line x1="310" y1="108" x2="310" y2="280" stroke="#8FC4C4" stroke-width="1" opacity="0.7"/>
+    <line x1="350" y1="112" x2="350" y2="280" stroke="#8FC4C4" stroke-width="1" opacity="0.7"/>
+    <line x1="390" y1="122" x2="390" y2="280" stroke="#8FC4C4" stroke-width="1" opacity="0.7"/>
+    <line x1="430" y1="130" x2="430" y2="280" stroke="#8FC4C4" stroke-width="1" opacity="0.7"/>
+    <line x1="470" y1="130" x2="470" y2="280" stroke="#8FC4C4" stroke-width="1" opacity="0.7"/>
+    <line x1="510" y1="120" x2="510" y2="280" stroke="#8FC4C4" stroke-width="1" opacity="0.7"/>
+    <line x1="550" y1="108" x2="550" y2="280" stroke="#8FC4C4" stroke-width="1" opacity="0.7"/>
+    <rect x="185" y="88" width="38" height="22" rx="2" fill="none" stroke="#4A8B8C" stroke-width="2"/>
+    <rect x="565" y="48" width="38" height="22" rx="2" fill="none" stroke="#4A8B8C" stroke-width="2"/>
+    <line x1="0" y1="295" x2="800" y2="295" stroke="#4A8B8C" stroke-width="3"/>
+  </svg>
+  <div class="container">
+    <div class="hero-content">
+      <div class="hero-badge">
+        <span class="dot"></span>
+        <span>Vallejo's Breakfast and Lunch Spot</span>
+      </div>
+      <h1 class="hero-h1">
+        <span>Big Breakfast.</span>
+        <span class="accent">Bold Flavor.</span>
+        <span class="gold-accent">Bay Area Soul.</span>
+      </h1>
+      <p class="hero-sub">
+        Hearty breakfast plates, loaded burritos,
+        <strong>stacked burgers</strong>, and Mexican-American comfort food —
+        served fast, fresh, and with love in Vallejo.
+      </p>
+      <div class="hero-ctas">
+        <a href="#order" class="btn btn-primary" style="font-size:16px;padding:16px 32px;">🍳 Order Now</a>
+        <a href="#menu" class="btn btn-outline-white">View Full Menu</a>
+      </div>
+      <div class="hero-pills">
+        <span class="hero-pill">Open 7am to 3pm Daily</span>
+        <span class="hero-pill">Pickup and Delivery</span>
+        <span class="hero-pill">Cash and Card</span>
+        <span class="hero-pill">Family Portions</span>
+      </div>
+    </div>
+  </div>
+  <div class="hero-food-cards">
+    <div class="food-card-hero"><span class="food-emoji">🍳</span><h4>Breakfast Plates</h4><p>Eggs, potatoes and more</p></div>
+    <div class="food-card-hero"><span class="food-emoji">🌯</span><h4>Breakfast Burritos</h4><p>Loaded and wrapped right</p></div>
+    <div class="food-card-hero"><span class="food-emoji">🍔</span><h4>Burgers</h4><p>Crispy, juicy, stacked</p></div>
+    <div class="food-card-hero"><span class="food-emoji">🫔</span><h4>Mexican Plates</h4><p>Authentic flavors</p></div>
+  </div>
+</section>
+
+<!-- DEALS -->
+<section id="deals">
+  <div class="container" style="position:relative;z-index:1;">
+    <div class="section-header fade-up" style="margin-bottom:40px;">
+      <span class="section-label" style="color:var(--gold);">Every Day, All Day</span>
+      <div class="divider-line"><span></span></div>
+      <h2 style="color:var(--white);">Today's Deals</h2>
+      <p style="color:rgba(255,255,255,0.75);">No catches, no expiry — these deals run every single day.</p>
+    </div>
+    <div class="deals-grid">
+      <div class="deal-card fade-up">
+        <div class="deal-emoji">🥪</div>
+        <span class="deal-badge teal">Fan Favorite</span>
+        <h3>2 Breakfast Sandwiches</h3>
+        <p>Mix and match — egg and cheese, bacon, sausage, or ham on your choice of bread.</p>
+        <div class="deal-price"><span class="price">$6</span><span class="was">$9+</span></div>
+      </div>
+      <div class="deal-card fade-up">
+        <div class="deal-emoji">🍔🍟</div>
+        <span class="deal-badge red">Combo Deal</span>
+        <h3>Cheeseburger + Fries</h3>
+        <p>Our classic cheeseburger paired with a full order of crispy golden fries. A true lunch staple.</p>
+        <div class="deal-price"><span class="price">$11</span><span class="was">$15+</span></div>
+      </div>
+      <div class="deal-card fade-up">
+        <div class="deal-emoji">🌯</div>
+        <span class="deal-badge gold">Morning Must</span>
+        <h3>Breakfast Burrito</h3>
+        <p>Loaded with eggs, potatoes, cheese and your choice of meat. Big enough to keep you going all day.</p>
+        <div class="deal-price"><span class="price">$12</span></div>
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:40px;" class="fade-up">
+      <a href="#order" class="btn" style="background:var(--white);color:var(--red);font-size:15px;padding:16px 36px;box-shadow:0 4px 0 rgba(0,0,0,0.15);">🍳 Order and Save Now</a>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURED -->
+<section id="featured" style="padding:80px 0;">
+  <div class="container">
+    <div class="section-header fade-up">
+      <span class="section-label">Our Specialties</span>
+      <div class="divider-line"><span></span></div>
+      <h2>Made to Fill You Up</h2>
+      <p>From sunrise to afternoon, we have got the plate that hits.</p>
+    </div>
+    <div class="featured-grid">
+      <div class="featured-block breakfast fade-up">
+        <div class="featured-bg">🍳</div>
+        <div class="featured-overlay"></div>
+        <div class="featured-content">
+          <span class="tag gold">Breakfast — 7am to Close</span>
+          <h3>Breakfast Favorites</h3>
+          <p>Golden hash browns, farm-fresh eggs, fluffy pancakes, and burritos packed to the edge.</p>
+          <div class="featured-items">
+            <span class="featured-item-pill">Chorizo Plate</span>
+            <span class="featured-item-pill">Huevos Rancheros</span>
+            <span class="featured-item-pill">California Burrito</span>
+            <span class="featured-item-pill">Veggie Omelet</span>
+            <span class="featured-item-pill">Pancake Stack</span>
+          </div>
+          <a href="#menu" class="btn btn-outline-white" style="font-size:13px;padding:10px 22px;">See Breakfast Menu</a>
+        </div>
+      </div>
+      <div class="featured-block lunch fade-up">
+        <div class="featured-bg">🍔</div>
+        <div class="featured-overlay"></div>
+        <div class="featured-content">
+          <span class="tag red">Lunch — Opens Daily</span>
+          <h3>Lunch Favorites</h3>
+          <p>Juicy burgers, carne asada plates, tacos, and everything in between.</p>
+          <div class="featured-items">
+            <span class="featured-item-pill">Momo's Burger</span>
+            <span class="featured-item-pill">Carne Asada Plate</span>
+            <span class="featured-item-pill">Fish Tacos</span>
+            <span class="featured-item-pill">Bacon Cheeseburger</span>
+            <span class="featured-item-pill">Torta de Carnitas</span>
+          </div>
+          <a href="#menu" class="btn btn-outline-white" style="font-size:13px;padding:10px 22px;">See Lunch Menu</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MENU -->
+<section id="menu">
+  <div class="container">
+    <div class="section-header fade-up">
+      <span class="section-label">The Full Spread</span>
+      <div class="divider-line"><span></span></div>
+      <h2>Our Menu</h2>
+      <p>Something for everyone — morning to afternoon, plates to burritos, classic to Mexican.</p>
+    </div>
+    <div class="menu-tabs">
+      <button class="menu-tab active" onclick="showMenu('bp',this)">🍳 Breakfast Plates</button>
+      <button class="menu-tab" onclick="showMenu('bb',this)">🌯 Breakfast Burritos</button>
+      <button class="menu-tab" onclick="showMenu('gr',this)">🥞 Griddle</button>
+      <button class="menu-tab" onclick="showMenu('om',this)">🍽 Omelets</button>
+      <button class="menu-tab" onclick="showMenu('lu',this)">🥙 Lunch</button>
+      <button class="menu-tab" onclick="showMenu('bu',this)">🍔 Burgers</button>
+      <button class="menu-tab" onclick="showMenu('mx',this)">🫔 Mexican</button>
+      <button class="menu-tab" onclick="showMenu('dr',this)">☕ Drinks</button>
+    </div>
+
+    <div class="menu-panel active" id="menu-bp">
+      <div class="menu-item fade-up"><div class="menu-item-emoji">🥚</div><div class="menu-item-info"><h4>2 Eggs Any Style</h4><p>Served with toast and your choice of hash browns or home fries</p></div><span class="menu-item-price">$9</span></div>
+      <div class="menu-item fade-up"><div class="menu-item-emoji">🌶️</div><div class="menu-item-info"><h4>Chorizo and Eggs Plate</h4><p>Mexican chorizo scrambled with eggs, beans, tortillas and potatoes</p></div><span class="menu-item-price">$13</span></div>
+      <div class="menu-item fade-up"><div class="menu-item-emoji">🍳</div><div class="menu-item-info"><h4>Huevos Rancheros</h4><p>Two eggs on tortillas, ranchero sauce, beans and cheese</p></div><span class="menu-item-price">$12</span></div>
+      <div class="menu-item fade-up"><div class="menu-item-emoji">🥓</div><div class="menu-item-info"><h4>Bacon and Eggs Plate</h4><p>Crispy bacon strips, 2 eggs, hash browns and toast</p></div><span class="menu-item-price">$13</span></div>
+      <div class="menu-item fade-up"><div class="menu-item-emoji">🍖</div><div class="menu-item-info"><h4>Carnitas Plate</h4><p>Slow-cooked pork, eggs, beans, tortillas and salsa verde</p></div><span class="menu-item-price">$15</span></div>
+      <div class="menu-item fade-up"><div class="menu-item-emoji">🥑</div><div class="menu-item-info"><h4>Avocado Toast Plate</h4><p>Smashed avo, everything bagel spice, poached eggs and micro greens</p></div><span class="menu-item-price">$14</span></div>
+    </div>
+    <div class="menu-panel" id="menu-bb">
+      <div class="menu-item fade-up"><div class="menu-item-emoji">🌯</div><div class="menu-item-info"><h4>Momo's Classic Burrito</h4><p>Scrambled eggs, cheese, potatoes, choice of meat, salsa</p></div><span class="menu-item-price">$12</span></div>
+      <div class="menu-item fade-up"><div class="menu-item-emoji">🌶️</div><div class="menu-item-info"><h4>Cali Burrito</h4><p>Carne asada, fries, guac, sour cream and cheese</p></div><span class="menu-item-price">$15</span></div>
+      <div class="menu-item fade-up"><div class="menu-item-emoji">🐖</div><div class="menu-item-info"><h4>Carnitas Burrito</h4><p>Slow-cooked pork, eggs, beans, cheese and salsa verde</p></div><span class="menu-item-price">$14</span></div>
+      <div class="menu-item fade-up"><div class="menu-item-emoji">🥦</div><div class="menu-item-info"><h4>Veggie Burrito</h4><p>Eggs, peppers, onions, mushrooms, beans, avocado</p></div><span class="menu-item-price">$12</span></div>
+      <div class="menu-item fade-up"><div class="menu-item-emoji">🍤</div><div class="menu-item-info"><h4>Machaca Burrito</h4><p>Dried shredded beef, eggs, peppers, onions and cheese</p></div><span class="menu-item-price">$13</span></div>
+    </div>
+    <div class="menu-panel" id="menu-gr">
+      <div class="menu-item fade-up"><div class="menu-item-emoji">🥞</div><div class="menu-item-info"><h4>Buttermilk Pancakes</h4><p>Short stack or full stack, butter and maple syrup</p></div><span class="menu-item-price">$9</span></div>
+      <div class="menu-item fade-up"><div class="menu-item-emoji">🫐</div><div class="menu-item-info"><h4>Blueberry Pancakes</h4><p>Fresh blueberries folded in fluffy batter, powdered sugar</p></div><span class="menu-item-price">$11</span></div>
+      <div class="menu-item fade-up"><div class="menu-item-emoji">🧇</div><div class="menu-item-info"><h4>Belgian Waffles</h4><p>Crispy outside, fluffy inside. Add strawberries or bacon</p></div><span class="menu-item-price">$12</span></div>
+      <div class="menu-item fade-up"><div class="menu-item-emoji">🍞</div><div class="menu-item-info"><h4>French Toast</h4><p>Thick-cut brioche, cinnamon, vanilla, powdered sugar</p></div><span class="menu-item-price">$11</span></div>
+    </div>
+    <div class="menu-panel" id="menu-om">
+      <div class="menu-item fade-up"><div class="menu-item-emoji">🧀</div><div class="menu-item-info"><h4>Cheese Omelet</h4><p>Three eggs, cheddar, served with toast and potatoes</p></div><span class="menu-item-price">$11</span></div>
+      <div class="menu-item fade-up"><div class="menu-item-emoji">🌿</div><div class="menu-item-info"><h4>Veggie Omelet</h4><p>Bell peppers, onions, mushrooms, spinach, jack cheese</p></div><span class="menu-item-price">$13</span></div>
+      <div class="menu-item fade-up"><div class="menu-item-emoji">🥩</div><div class="menu-item-info"><h4>Steak and Egg Omelet</h4><p>Tender carne asada strips, onions, peppers, jack cheese</p></div><span class="menu-item-price">$16</span></div>
+      <div class="menu-item fade-up"><div class="menu-item-emoji">🍄</div><div class="menu-item-info"><h4>Mushroom Swiss Omelet</h4><p>Sauteed mushrooms, caramelized onion, Swiss cheese</p></div><span class="menu-item-price">$14</span></div>
+    </div>
+    <div class="menu-panel" id="menu-lu">
+      <div class="menu-item fade-up"><div class="menu-item-emoji">🥗</div><div class="menu-item-info"><h4>Carne Asada Plate</h4><p>Grilled steak, rice, beans, pico de gallo and tortillas</p></div><span class="menu-item-price">$18</span></div>
+      <div class="menu-item fade-up"><div class="menu-item-emoji">🐟</div><div class="menu-item-info"><h4>Fish Tacos (3)</h4><p>Beer-battered cod, cabbage slaw, chipotle crema</p></div><span class="menu-item-price">$15</span></div>
+      <div class="menu-item fade-up"><div class="menu-item-emoji">🥪</div><div class="menu-item-info"><h4>Torta de Carnitas</h4><p>Toasted bolillo, carnitas, avo, jalapeno, crema</p></div><span class="menu-item-price">$14</span></div>
+      <div class="menu-item fade-up"><div class="menu-item-emoji">🍗</div><div class="menu-item-info"><h4>Pollo Asado Plate</h4><p>Grilled chicken, cilantro rice, beans, side salad</p></div><span class="menu-item-price">$16</span></div>
+    </div>
+    <div class="menu-panel" id="menu-bu">
+      <div class="menu-item fade-up"><div class="menu-item-emoji">🍔</div><div class="menu-item-info"><h4>Momo's House Burger</h4><p>Double patty, special sauce, pickles, onion, cheese</p></div><span class="menu-item-price">$15</span></div>
+      <div class="menu-item fade-up"><div class="menu-item-emoji">🥓</div><div class="menu-item-info"><h4>Bacon Cheeseburger</h4><p>1/3 lb patty, crispy bacon, cheddar, LTO, brioche bun</p></div><span class="menu-item-price">$16</span></div>
+      <div class="menu-item fade-up"><div class="menu-item-emoji">🌶️</div><div class="menu-item-info"><h4>Jalapeno Melt</h4><p>Pepper jack, pickled jalapeno, chipotle mayo, caramelized onion</p></div><span class="menu-item-price">$16</span></div>
+      <div class="menu-item fade-up"><div class="menu-item-emoji">🥑</div><div class="menu-item-info"><h4>Avocado Burger</h4><p>Fresh avo, Swiss cheese, tomato, sunflower sprouts</p></div><span class="menu-item-price">$17</span></div>
+    </div>
+    <div class="menu-panel" id="menu-mx">
+      <div class="menu-item fade-up"><div class="menu-item-emoji">🫔</div><div class="menu-item-info"><h4>Chilaquiles Rojos</h4><p>Crispy tortilla chips in red salsa, crema, queso, eggs</p></div><span class="menu-item-price">$13</span></div>
+      <div class="menu-item fade-up"><div class="menu-item-emoji">🍲</div><div class="menu-item-info"><h4>Birria Plate</h4><p>Slow-cooked beef birria, consomme, onion and cilantro</p></div><span class="menu-item-price">$18</span></div>
+      <div class="menu-item fade-up"><div class="menu-item-emoji">🌮</div><div class="menu-item-info"><h4>Street Tacos (3)</h4><p>Choice of carne asada, carnitas, or pollo on corn tortillas</p></div><span class="menu-item-price">$14</span></div>
+      <div class="menu-item fade-up"><div class="menu-item-emoji">🫕</div><div class="menu-item-info"><h4>Chile Verde Plate</h4><p>Pork simmered in green chile, rice, beans and tortillas</p></div><span class="menu-item-price">$17</span></div>
+    </div>
+    <div class="menu-panel" id="menu-dr">
+      <div class="menu-item fade-up"><div class="menu-item-emoji">☕</div><div class="menu-item-info"><h4>Cafe de Olla</h4><p>Traditional Mexican spiced coffee, cinnamon and piloncillo</p></div><span class="menu-item-price">$4</span></div>
+      <div class="menu-item fade-up"><div class="menu-item-emoji">🧃</div><div class="menu-item-info"><h4>Fresh Orange Juice</h4><p>Squeezed to order, large or small</p></div><span class="menu-item-price">$5</span></div>
+      <div class="menu-item fade-up"><div class="menu-item-emoji">🥤</div><div class="menu-item-info"><h4>Agua Fresca</h4><p>Horchata, jamaica, or tamarindo — made fresh daily</p></div><span class="menu-item-price">$4</span></div>
+      <div class="menu-item fade-up"><div class="menu-item-emoji">🧋</div><div class="menu-item-info"><h4>Mexican Hot Chocolate</h4><p>Rich, spiced, and creamy — topped with whipped cream</p></div><span class="menu-item-price">$5</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- WHY -->
+<section id="why">
+  <div class="container">
+    <div class="section-header fade-up">
+      <span class="section-label" style="color:var(--gold);">Why Vallejo Keeps Coming Back</span>
+      <div class="divider-line"><span></span></div>
+      <h2 style="color:var(--cream);">People Love Us Because</h2>
+      <p style="color:rgba(255,255,255,0.65);">We are not a chain. We are your neighborhood spot — and we show up every single day.</p>
+    </div>
+    <div class="love-grid">
+      <div class="love-card fade-up"><span class="love-icon">⚡</span><span class="love-stat">15 min</span><h3>Fast Service</h3><p>We move quick without cutting corners. Your food comes out hot, fast, and right.</p></div>
+      <div class="love-card fade-up"><span class="love-icon">🥊</span><span class="love-stat">BIG</span><h3>Generous Portions</h3><p>No tiny plates here. We believe you should leave full — every single time.</p></div>
+      <div class="love-card fade-up"><span class="love-icon">📍</span><span class="love-stat">Local</span><h3>Community Roots</h3><p>Born and raised in Vallejo. We know our regulars by name and remember your order.</p></div>
+      <div class="love-card fade-up"><span class="love-icon">❤️</span><span class="love-stat">Fresh</span><h3>Made With Love</h3><p>Real ingredients, real recipes, real care. You can taste the difference.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ORDER -->
+<section id="order" style="padding:80px 0;">
+  <div class="container">
+    <div class="section-header fade-up">
+      <span class="section-label">Skip the Wait</span>
+      <div class="divider-line"><span></span></div>
+      <h2>Order Your Way</h2>
+      <p>Pickup is always fastest — but we deliver too.</p>
+    </div>
+    <div class="order-grid">
+      <div class="order-card primary fade-up">
+        <span class="order-badge">⭐ Recommended</span>
+        <span class="order-card-icon">🏃</span>
+        <h3>Pickup</h3>
+        <p>Order ahead online, walk in, grab your bag, and go. No waiting, no fuss.</p>
+        <ul class="order-steps">
+          <li><span class="step-num">1</span> Pick your items online</li>
+          <li><span class="step-num">2</span> Choose your pickup time</li>
+          <li><span class="step-num">3</span> Walk in and grab your bag</li>
+        </ul>
+        <a href="#" class="btn" style="background:#fff;color:var(--red);font-size:15px;padding:14px 28px;">🍳 Order Pickup Now</a>
+      </div>
+      <div class="order-card secondary fade-up">
+        <span class="order-card-icon">🛵</span>
+        <h3>Delivery</h3>
+        <p>Too comfortable to move? Order on DoorDash or Uber Eats and we will bring Momo's to your door.</p>
+        <ul class="order-steps">
+          <li><span class="step-num">1</span> Open your delivery app</li>
+          <li><span class="step-num">2</span> Search Momo's Cafe Vallejo</li>
+          <li><span class="step-num">3</span> Your food comes to you</li>
+        </ul>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+          <a href="#" class="btn btn-primary" style="font-size:13px;padding:11px 20px;">DoorDash</a>
+          <a href="#" class="btn btn-secondary" style="font-size:13px;padding:11px 20px;">Uber Eats</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- LOCATION -->
+<section id="location">
+  <div class="container">
+    <div class="section-header fade-up">
+      <span class="section-label">Find Us</span>
+      <div class="divider-line"><span></span></div>
+      <h2>Come Visit Us</h2>
+    </div>
+    <div class="location-grid">
+      <div class="location-map fade-up">
+        <span style="font-size:64px;display:block;margin-bottom:12px;">📍</span>
+        <h4>Momo's Cafe Vallejo</h4>
+        <p>Click to open in Google Maps</p>
+        <a class="btn btn-primary" style="font-size:13px;padding:10px 22px;margin-top:20px;" href="#">Get Directions</a>
+      </div>
+      <div class="hours-section fade-up">
+        <div class="status-open">Open Now</div>
+        <h3>Hours and Info</h3>
+        <p class="hours-address">
+          📍 123 Broadway Street, Vallejo CA 94590<br>
+          <a href="tel:+17071234567">📞 (707) 123-4567</a>
+        </p>
+        <table class="hours-table">
+          <tr class="today"><td>Thursday</td><td>7:00 AM – 3:00 PM</td></tr>
+          <tr><td>Friday</td><td>7:00 AM – 3:00 PM</td></tr>
+          <tr><td>Saturday</td><td>7:00 AM – 3:00 PM</td></tr>
+          <tr><td>Sunday</td><td>7:00 AM – 3:00 PM</td></tr>
+          <tr><td>Monday</td><td>7:00 AM – 3:00 PM</td></tr>
+          <tr><td>Tuesday</td><td>7:00 AM – 3:00 PM</td></tr>
+          <tr><td>Wednesday</td><td>7:00 AM – 3:00 PM</td></tr>
+        </table>
+        <div style="margin-top:24px;display:flex;gap:12px;flex-wrap:wrap;">
+          <a href="#order" class="btn btn-primary" style="font-size:14px;padding:12px 24px;">Order Ahead</a>
+          <a href="tel:+17071234567" class="btn btn-secondary" style="font-size:14px;padding:12px 24px;">Call Us</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="container">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <div class="logo-text">MOMO'S <span>CAFE</span></div>
+        <div class="tagline">Breakfast and Lunch — Vallejo, CA</div>
+        <div class="footer-socials">
+          <a href="#" class="social-btn">📘</a>
+          <a href="#" class="social-btn">📸</a>
+          <a href="#" class="social-btn">⭐</a>
+        </div>
+      </div>
+      <div class="footer-col">
+        <h5>Navigate</h5>
+        <ul class="footer-links">
+          <li><a href="#hero">Home</a></li>
+          <li><a href="#deals">Deals</a></li>
+          <li><a href="#featured">Our Food</a></li>
+          <li><a href="#menu">Full Menu</a></li>
+          <li><a href="#order">Order Online</a></li>
+          <li><a href="#location">Location and Hours</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h5>Contact</h5>
+        <ul class="footer-links">
+          <li><a href="tel:+17071234567">(707) 123-4567</a></li>
+          <li><a href="#">123 Broadway St, Vallejo</a></li>
+          <li><a href="#">info@momoscafe.com</a></li>
+          <li><a href="#">DoorDash</a></li>
+          <li><a href="#">Uber Eats</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>2025 Momo's Cafe Vallejo. All rights reserved.</p>
+      <div class="footer-bridge">VALLEJO · BAY AREA · EST. 2010</div>
+    </div>
+  </div>
+</footer>
+
+<script>
+var stickyBar = document.getElementById('sticky-bar');
+window.addEventListener('scroll', function() {
+  stickyBar.classList.toggle('visible', window.scrollY > 400);
+});
+
+function toggleNav() {
+  document.getElementById('nav-links').classList.toggle('open');
+}
+
+var observer = new IntersectionObserver(function(entries) {
+  entries.forEach(function(e) { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.1 });
+document.querySelectorAll('.fade-up').forEach(function(el) { observer.observe(el); });
+
+function showMenu(id, btn) {
+  document.querySelectorAll('.menu-panel').forEach(function(p) { p.classList.remove('active'); });
+  document.querySelectorAll('.menu-tab').forEach(function(t) { t.classList.remove('active'); });
+  document.getElementById('menu-' + id).classList.add('active');
+  btn.classList.add('active');
+  document.querySelectorAll('#menu-' + id + ' .fade-up').forEach(function(el) {
+    el.classList.remove('visible');
+    setTimeout(function() { el.classList.add('visible'); }, 60);
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,1167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shop — Momo's Café Vallejo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;500;600;700&family=Barlow:ital,wght@0,400;0,500;0,600;0,700;1,400;1,700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   DESIGN SYSTEM — Momo's Café v2 (exact shared tokens)
+   ============================================================ */
+:root {
+  --cream:       #F5EDCA;
+  --cream-dark:  #EDE3B2;
+  --cream-mid:   #F9F4E3;
+  --red:         #C8272D;
+  --red-dark:    #A01E23;
+  --red-light:   #E0383F;
+  --teal:        #4A8B8C;
+  --teal-dark:   #2D6B6B;
+  --teal-light:  #8FC4C4;
+  --gold:        #C19A35;
+  --charcoal:    #1E1E1E;
+  --white:       #FFFDF5;
+  --font-display: 'Bebas Neue', sans-serif;
+  --font-heading: 'Oswald', sans-serif;
+  --font-body:    'Barlow', sans-serif;
+  --radius:    8px;
+  --radius-lg: 16px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--cream);
+  color: var(--charcoal);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+/* ── Layout ── */
+.container { max-width: 1140px; margin: 0 auto; padding: 0 20px; }
+
+/* ── Shared tokens ── */
+.section-label {
+  font-family: var(--font-heading); font-size: 11px; font-weight: 600;
+  letter-spacing: 3px; text-transform: uppercase; color: var(--teal);
+}
+.divider-line { display: flex; align-items: center; gap: 16px; margin: 8px 0; }
+.divider-line::before,
+.divider-line::after { content: ''; flex: 1; height: 1.5px; background: var(--gold); }
+.tag {
+  display: inline-block; background: var(--teal); color: var(--white);
+  font-family: var(--font-heading); font-size: 11px; font-weight: 600;
+  letter-spacing: 1.5px; text-transform: uppercase; padding: 4px 10px; border-radius: 3px;
+}
+.tag.red  { background: var(--red); }
+.tag.gold { background: var(--gold); color: var(--charcoal); }
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font-family: var(--font-heading); font-size: 15px; font-weight: 600;
+  letter-spacing: 1.5px; text-transform: uppercase; text-decoration: none;
+  border: none; border-radius: var(--radius); cursor: pointer;
+  transition: all 0.2s ease; padding: 14px 28px; white-space: nowrap;
+}
+.btn:active { transform: scale(0.97); }
+.btn-primary {
+  background: var(--red); color: var(--white);
+  box-shadow: 0 4px 0 var(--red-dark), 0 6px 20px rgba(200,39,45,0.35);
+}
+.btn-primary:hover { background: var(--red-light); transform: translateY(-2px); }
+.btn-secondary {
+  background: transparent; color: var(--teal-dark); border: 2.5px solid var(--teal);
+}
+.btn-secondary:hover { background: var(--teal); color: var(--white); }
+.btn-outline-white {
+  background: transparent; color: var(--white); border: 2px solid rgba(255,255,255,0.7);
+}
+.btn-outline-white:hover { background: rgba(255,255,255,0.15); }
+.btn-gold {
+  background: var(--gold); color: var(--charcoal);
+  box-shadow: 0 4px 0 rgba(0,0,0,0.18);
+}
+.btn-gold:hover { filter: brightness(1.08); transform: translateY(-2px); }
+
+/* ── Section header ── */
+.section-header { text-align: center; margin-bottom: 48px; }
+.section-header h2 {
+  font-family: var(--font-display); font-size: clamp(38px, 6vw, 64px);
+  line-height: 1; color: var(--charcoal); margin: 8px 0 14px;
+}
+.section-header p {
+  font-size: 16px; color: rgba(30,30,30,0.65);
+  max-width: 520px; margin: 0 auto; line-height: 1.65;
+}
+
+/* ── Animations ── */
+.fade-up { opacity: 0; transform: translateY(26px); transition: opacity 0.55s ease, transform 0.55s ease; }
+.fade-up.visible { opacity: 1; transform: translateY(0); }
+.fade-up:nth-child(2) { transition-delay: 0.08s; }
+.fade-up:nth-child(3) { transition-delay: 0.16s; }
+.fade-up:nth-child(4) { transition-delay: 0.24s; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.6;transform:scale(1.3)} }
+@keyframes shimmer { 0%{background-position:-800px 0} 100%{background-position:800px 0} }
+
+/* ============================================================
+   NAV
+   ============================================================ */
+nav {
+  position: sticky; top: 0; z-index: 900;
+  background: var(--cream); border-bottom: 3px solid var(--gold);
+}
+.nav-inner {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 20px; height: 64px; max-width: 1140px; margin: 0 auto;
+}
+.nav-logo { font-family: var(--font-display); font-size: 22px; color: var(--teal-dark); letter-spacing: 1px; text-decoration: none; }
+.nav-logo span { color: var(--red); }
+.nav-links { display: flex; gap: 6px; list-style: none; }
+.nav-links a {
+  font-family: var(--font-heading); font-size: 13px; font-weight: 600;
+  letter-spacing: 1.5px; text-transform: uppercase; color: var(--teal-dark);
+  text-decoration: none; padding: 8px 14px; border-radius: 5px; transition: all 0.2s;
+}
+.nav-links a:hover { background: rgba(74,139,140,0.12); }
+.nav-links a.active { color: var(--red); }
+.nav-order { background: var(--red) !important; color: #fff !important; border-radius: var(--radius); }
+.nav-order:hover { background: var(--red-light) !important; }
+.nav-hamburger { display: none; flex-direction: column; cursor: pointer; }
+.nav-hamburger span { display: block; width: 24px; height: 2px; background: var(--teal-dark); margin: 5px 0; border-radius: 2px; }
+
+/* ============================================================
+   HERO
+   ============================================================ */
+#shop-hero {
+  background: var(--teal-dark);
+  position: relative; overflow: hidden;
+  min-height: 80vh; display: flex; align-items: center;
+}
+.hero-bg {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 75% 65% at 68% 42%, rgba(74,139,140,0.28) 0%, transparent 60%),
+    linear-gradient(175deg, var(--teal-dark) 0%, #1a4a4a 100%);
+}
+.hero-bridge {
+  position: absolute; top: 0; right: -5%;
+  width: 65%; height: 100%; opacity: 0.07; pointer-events: none;
+}
+.hero-content {
+  position: relative; z-index: 2; width: 100%; padding: 80px 0 100px;
+}
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 100px; padding: 6px 16px 6px 8px; margin-bottom: 28px;
+}
+.hero-badge .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--gold); animation: pulse 2s infinite; flex-shrink: 0;
+}
+.hero-badge span {
+  font-family: var(--font-heading); font-size: 12px; font-weight: 500;
+  letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.9);
+}
+.hero-h1 {
+  font-family: var(--font-display);
+  font-size: clamp(60px, 11vw, 118px);
+  line-height: 0.92; color: var(--cream); margin-bottom: 12px;
+}
+.hero-h1 .accent { color: var(--red); display: block; }
+.hero-sub {
+  font-size: clamp(15px, 2vw, 18px); color: rgba(255,255,255,0.75);
+  max-width: 480px; line-height: 1.65; margin: 22px 0 38px;
+}
+.hero-sub strong { color: var(--teal-light); font-weight: 700; }
+.hero-ctas { display: flex; gap: 14px; flex-wrap: wrap; }
+.hero-pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 44px; }
+.hero-pill {
+  background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+  color: rgba(255,255,255,0.75); font-size: 13px; padding: 6px 14px; border-radius: 100px;
+}
+.hero-pill::before { content: '✓ '; color: var(--gold); }
+
+/* Hero floating product teasers */
+.hero-products {
+  position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+  width: 400px; display: grid; grid-template-columns: 1fr 1fr;
+  gap: 14px; padding: 20px; z-index: 2;
+}
+.hero-product-card {
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: var(--radius-lg); padding: 18px 14px;
+  text-align: center; backdrop-filter: blur(8px);
+  transition: transform 0.3s;
+}
+.hero-product-card:hover { transform: translateY(-4px); }
+.hero-product-card:nth-child(2) { margin-top: 28px; }
+.hero-product-card:nth-child(4) { margin-top: -28px; }
+.product-emoji { font-size: 36px; display: block; margin-bottom: 10px; }
+.hero-product-card h4 {
+  font-family: var(--font-heading); font-size: 12px; font-weight: 600;
+  color: rgba(255,255,255,0.9); letter-spacing: 0.5px;
+}
+.hero-product-card p { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 3px; }
+
+/* ============================================================
+   PRODUCTS SECTION
+   ============================================================ */
+#shop-products { padding: 80px 0; background: var(--white); }
+
+/* ── Shopify collection container ── */
+#shopify-collection-wrap {
+  position: relative;
+}
+
+/* Grid that Shopify products will populate */
+#shopify-collection {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  min-height: 320px;
+}
+
+/* Loading skeleton shown before Shopify loads */
+.shop-skeleton {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+.skeleton-card {
+  background: var(--cream);
+  border: 1.5px solid var(--cream-dark);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.skeleton-img {
+  width: 100%; height: 200px;
+  background: linear-gradient(90deg, var(--cream-dark) 25%, var(--cream) 50%, var(--cream-dark) 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.6s infinite linear;
+}
+.skeleton-body { padding: 16px; }
+.skeleton-line {
+  height: 14px; border-radius: 4px; margin-bottom: 10px;
+  background: linear-gradient(90deg, var(--cream-dark) 25%, var(--cream) 50%, var(--cream-dark) 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.6s infinite linear;
+}
+.skeleton-line.short { width: 55%; }
+.skeleton-line.price { width: 35%; height: 20px; margin-top: 14px; }
+.skeleton-btn {
+  width: 100%; height: 40px; border-radius: var(--radius); margin-top: 12px;
+  background: linear-gradient(90deg, rgba(200,39,45,0.15) 25%, rgba(200,39,45,0.25) 50%, rgba(200,39,45,0.15) 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.6s infinite linear;
+}
+
+/* ── Shopify Buy Button overrides ──────────────────────────
+   These styles force Shopify's injected components to match
+   the Momo's v2 design system. They target the default class
+   names emitted by the Shopify Buy Button SDK.
+   ─────────────────────────────────────────────────────────── */
+
+/* Product grid wrapper Shopify injects */
+.shopify-buy__collection-products {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 24px !important;
+  list-style: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* Individual product card */
+.shopify-buy__product {
+  background: var(--cream) !important;
+  border: 1.5px solid var(--cream-dark) !important;
+  border-radius: var(--radius-lg) !important;
+  overflow: hidden !important;
+  transition: border-color 0.22s, box-shadow 0.22s, transform 0.22s !important;
+  display: flex !important;
+  flex-direction: column !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+.shopify-buy__product:hover {
+  border-color: var(--teal-light) !important;
+  box-shadow: 0 6px 28px rgba(74,139,140,0.15) !important;
+  transform: translateY(-3px) !important;
+}
+
+/* Product image */
+.shopify-buy__product-img-wrapper {
+  width: 100% !important;
+  aspect-ratio: 1 / 1 !important;
+  overflow: hidden !important;
+  border-radius: 0 !important;
+  background: var(--cream-dark) !important;
+  border-bottom: 1.5px solid var(--cream-dark) !important;
+}
+.shopify-buy__product-img-wrapper img {
+  width: 100% !important; height: 100% !important;
+  object-fit: cover !important;
+  transition: transform 0.4s ease !important;
+}
+.shopify-buy__product:hover .shopify-buy__product-img-wrapper img {
+  transform: scale(1.04) !important;
+}
+
+/* Product body */
+.shopify-buy__product__variant-img + .shopify-buy__product__actual-price,
+.shopify-buy__product__title {
+  font-family: var(--font-heading) !important;
+}
+.shopify-buy__product-description { padding: 16px 16px 0 !important; }
+
+.shopify-buy__product__title {
+  font-family: var(--font-heading) !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  color: var(--charcoal) !important;
+  letter-spacing: 0.3px !important;
+  line-height: 1.25 !important;
+  margin-bottom: 4px !important;
+  padding: 16px 16px 0 !important;
+}
+
+/* Price */
+.shopify-buy__product__actual-price,
+.shopify-buy__product__price {
+  font-family: var(--font-display) !important;
+  font-size: 26px !important;
+  color: var(--red) !important;
+  line-height: 1 !important;
+  padding: 6px 16px 0 !important;
+}
+.shopify-buy__product__compare-price {
+  font-family: var(--font-heading) !important;
+  font-size: 13px !important;
+  color: rgba(30,30,30,0.38) !important;
+  text-decoration: line-through !important;
+  margin-left: 6px !important;
+}
+
+/* Variant selector */
+.shopify-buy__option-select-wrapper {
+  padding: 10px 16px 0 !important;
+}
+.shopify-buy__option-select {
+  width: 100% !important;
+  padding: 9px 12px !important;
+  background: var(--white) !important;
+  border: 1.5px solid var(--cream-dark) !important;
+  border-radius: var(--radius) !important;
+  font-family: var(--font-body) !important;
+  font-size: 14px !important;
+  color: var(--charcoal) !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  cursor: pointer !important;
+  transition: border-color 0.2s !important;
+}
+.shopify-buy__option-select:focus {
+  outline: none !important;
+  border-color: var(--teal) !important;
+  box-shadow: 0 0 0 3px rgba(74,139,140,0.12) !important;
+}
+.shopify-buy__option-select__label {
+  font-family: var(--font-heading) !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  letter-spacing: 2px !important;
+  text-transform: uppercase !important;
+  color: var(--teal) !important;
+  display: block !important;
+  margin-bottom: 5px !important;
+}
+
+/* Add to Cart button */
+.shopify-buy__btn {
+  display: block !important;
+  width: calc(100% - 32px) !important;
+  margin: 14px 16px 16px !important;
+  padding: 12px 20px !important;
+  background: var(--red) !important;
+  color: var(--white) !important;
+  font-family: var(--font-heading) !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  letter-spacing: 1.5px !important;
+  text-transform: uppercase !important;
+  border: none !important;
+  border-radius: var(--radius) !important;
+  cursor: pointer !important;
+  box-shadow: 0 3px 0 var(--red-dark) !important;
+  transition: all 0.18s !important;
+  text-align: center !important;
+}
+.shopify-buy__btn:hover {
+  background: var(--red-light) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 0 var(--red-dark), 0 6px 16px rgba(200,39,45,0.25) !important;
+}
+.shopify-buy__btn:active {
+  transform: scale(0.97) !important;
+  box-shadow: 0 1px 0 var(--red-dark) !important;
+}
+.shopify-buy__btn--disabled {
+  background: var(--cream-dark) !important;
+  color: rgba(30,30,30,0.4) !important;
+  box-shadow: none !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+}
+
+/* Cart icon / count */
+.shopify-buy__cart-toggle {
+  background: var(--red) !important;
+  color: var(--white) !important;
+  font-family: var(--font-heading) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: 0 3px 0 var(--red-dark) !important;
+}
+.shopify-buy__cart-toggle__count {
+  background: var(--gold) !important;
+  color: var(--charcoal) !important;
+  font-family: var(--font-heading) !important;
+  font-weight: 700 !important;
+}
+
+/* Cart drawer */
+.shopify-buy__cart {
+  font-family: var(--font-body) !important;
+  background: var(--white) !important;
+}
+.shopify-buy__cart__title {
+  font-family: var(--font-display) !important;
+  background: var(--teal-dark) !important;
+  color: var(--cream) !important;
+  letter-spacing: 1px !important;
+  font-size: 24px !important;
+  padding: 20px !important;
+  border-bottom: 2px solid var(--gold) !important;
+}
+.shopify-buy__cart-item__title {
+  font-family: var(--font-heading) !important;
+  color: var(--charcoal) !important;
+}
+.shopify-buy__cart-item__price {
+  font-family: var(--font-display) !important;
+  color: var(--red) !important;
+  font-size: 20px !important;
+}
+.shopify-buy__cart__subtotal__price {
+  font-family: var(--font-display) !important;
+  color: var(--charcoal) !important;
+  font-size: 24px !important;
+}
+.shopify-buy__cart__checkout {
+  background: var(--red) !important;
+  font-family: var(--font-heading) !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  letter-spacing: 1.5px !important;
+  border-radius: var(--radius) !important;
+  box-shadow: 0 3px 0 var(--red-dark) !important;
+}
+.shopify-buy__cart__checkout:hover { background: var(--red-light) !important; }
+.shopify-buy__quantity-decrement,
+.shopify-buy__quantity-increment {
+  background: var(--cream-dark) !important;
+  color: var(--charcoal) !important;
+  border: none !important;
+  border-radius: 4px !important;
+}
+.shopify-buy__quantity-decrement:hover,
+.shopify-buy__quantity-increment:hover { background: var(--teal-light) !important; }
+
+/* Pagination / load more */
+.shopify-buy__btn--parent {
+  background: transparent !important;
+  color: var(--teal-dark) !important;
+  border: 2.5px solid var(--teal) !important;
+  box-shadow: none !important;
+  font-family: var(--font-heading) !important;
+  font-size: 13px !important;
+  letter-spacing: 1.5px !important;
+  border-radius: var(--radius) !important;
+  padding: 12px 24px !important;
+  margin: 32px auto 0 !important;
+  display: block !important;
+}
+.shopify-buy__btn--parent:hover {
+  background: var(--teal) !important;
+  color: var(--white) !important;
+}
+
+/* Responsive grid override */
+@media (max-width: 768px) {
+  .shopify-buy__collection-products {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+@media (max-width: 480px) {
+  .shopify-buy__collection-products {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ============================================================
+   FALLBACK PRODUCT CARDS
+   (shown if Shopify fails to load — remove once SDK is live)
+   ============================================================ */
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+.product-card {
+  background: var(--cream);
+  border: 1.5px solid var(--cream-dark);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: all 0.22s ease;
+  display: flex; flex-direction: column;
+}
+.product-card:hover {
+  border-color: var(--teal-light);
+  box-shadow: 0 6px 28px rgba(74,139,140,0.15);
+  transform: translateY(-3px);
+}
+.product-card-img {
+  width: 100%; aspect-ratio: 1/1;
+  background: var(--cream-dark);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 64px;
+  border-bottom: 1.5px solid var(--cream-dark);
+  overflow: hidden;
+}
+.product-card-img img { width: 100%; height: 100%; object-fit: cover; }
+.product-card-body { padding: 18px; flex: 1; display: flex; flex-direction: column; }
+.product-card-tag {
+  font-family: var(--font-heading); font-size: 10px; font-weight: 600;
+  letter-spacing: 2px; text-transform: uppercase; color: var(--teal);
+  margin-bottom: 8px; display: block;
+}
+.product-card-name {
+  font-family: var(--font-heading); font-size: 16px; font-weight: 600;
+  color: var(--charcoal); margin-bottom: 5px; line-height: 1.25;
+}
+.product-card-desc {
+  font-size: 13px; color: rgba(30,30,30,0.58); line-height: 1.5; flex: 1;
+}
+.product-card-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 16px; padding-top: 14px; border-top: 1.5px solid var(--cream-dark);
+}
+.product-price {
+  font-family: var(--font-display); font-size: 28px; color: var(--red); line-height: 1;
+}
+.product-add-btn {
+  background: var(--red); color: var(--white); border: none;
+  border-radius: var(--radius); cursor: pointer;
+  font-family: var(--font-heading); font-size: 12px; font-weight: 600;
+  letter-spacing: 1px; text-transform: uppercase;
+  padding: 9px 16px;
+  box-shadow: 0 3px 0 var(--red-dark);
+  transition: all 0.18s;
+}
+.product-add-btn:hover { background: var(--red-light); transform: translateY(-1px); }
+
+/* ============================================================
+   CROSS-SELL STRIP
+   ============================================================ */
+#crosssell-strip {
+  padding: 64px 0;
+  background: var(--teal-dark);
+  position: relative; overflow: hidden;
+}
+#crosssell-strip::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 70% 70% at 50% 50%, rgba(74,139,140,0.4) 0%, transparent 70%);
+  pointer-events: none;
+}
+.crosssell-inner {
+  position: relative; z-index: 1;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 32px; flex-wrap: wrap;
+}
+.crosssell-text h2 {
+  font-family: var(--font-display); font-size: clamp(32px, 5vw, 52px);
+  color: var(--cream); line-height: 1; margin-bottom: 10px;
+}
+.crosssell-text h2 span { color: var(--gold); }
+.crosssell-text p {
+  font-size: 16px; color: rgba(255,255,255,0.68); line-height: 1.6;
+  max-width: 460px;
+}
+.crosssell-cta { display: flex; gap: 12px; flex-wrap: wrap; flex-shrink: 0; }
+
+/* ============================================================
+   COMMUNITY MESSAGE
+   ============================================================ */
+#shop-message { padding: 72px 0; background: var(--cream); }
+.message-inner {
+  max-width: 720px; margin: 0 auto; text-align: center;
+}
+.message-inner .section-label { margin-bottom: 8px; }
+.message-quote {
+  font-family: var(--font-display); font-size: clamp(26px, 4vw, 40px);
+  color: var(--charcoal); line-height: 1.2; margin: 16px 0 22px;
+}
+.message-quote .gold { color: var(--gold); }
+.message-body {
+  font-size: 16px; color: rgba(30,30,30,0.65); line-height: 1.75;
+  margin-bottom: 32px;
+}
+.social-row {
+  display: flex; align-items: center; justify-content: center;
+  gap: 12px; flex-wrap: wrap;
+}
+.social-pill {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: var(--white); border: 1.5px solid var(--cream-dark);
+  color: var(--charcoal); text-decoration: none;
+  font-family: var(--font-heading); font-size: 12px; font-weight: 600;
+  letter-spacing: 1px; text-transform: uppercase;
+  padding: 9px 18px; border-radius: 100px;
+  transition: all 0.2s;
+}
+.social-pill:hover { border-color: var(--teal-light); box-shadow: 0 2px 10px rgba(74,139,140,0.12); }
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+footer { background: var(--charcoal); padding: 60px 0 40px; }
+.footer-inner {
+  display: grid; grid-template-columns: 1.5fr 1fr 1fr;
+  gap: 40px; margin-bottom: 48px;
+}
+.footer-brand .logo-text { font-family: var(--font-display); font-size: 28px; color: var(--cream); margin-bottom: 4px; }
+.footer-brand .logo-text span { color: var(--gold); }
+.footer-brand .tagline { font-size: 13px; color: rgba(255,255,255,0.45); margin-bottom: 20px; }
+.footer-col h5 {
+  font-family: var(--font-heading); font-size: 12px; font-weight: 600;
+  letter-spacing: 2px; text-transform: uppercase; color: var(--gold); margin-bottom: 16px;
+}
+.footer-links { list-style: none; }
+.footer-links li { margin-bottom: 10px; }
+.footer-links a { font-size: 14px; color: rgba(255,255,255,0.55); text-decoration: none; transition: color 0.2s; }
+.footer-links a:hover { color: var(--teal-light); }
+.footer-bottom {
+  border-top: 1px solid rgba(255,255,255,0.08); padding-top: 24px;
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+}
+.footer-bottom p { font-size: 12px; color: rgba(255,255,255,0.3); }
+.footer-bridge { font-family: var(--font-display); font-size: 13px; color: rgba(255,255,255,0.2); letter-spacing: 2px; }
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 960px) {
+  .hero-products { display: none; }
+  .product-grid { grid-template-columns: repeat(2, 1fr); }
+  .shop-skeleton { grid-template-columns: repeat(2, 1fr); }
+  #shopify-collection { grid-template-columns: repeat(2, 1fr); }
+  .footer-inner { grid-template-columns: 1fr 1fr; }
+  .crosssell-inner { flex-direction: column; text-align: center; }
+  .crosssell-cta { justify-content: center; }
+}
+@media (max-width: 640px) {
+  .nav-links { display: none; }
+  .nav-links.open {
+    display: flex; flex-direction: column;
+    position: absolute; top: 64px; left: 0; right: 0;
+    background: var(--cream); padding: 12px 0;
+    border-bottom: 3px solid var(--gold);
+  }
+  .nav-links.open a { border-radius: 0; padding: 12px 24px; }
+  .nav-hamburger { display: flex; }
+  .hero-h1 { font-size: 62px; }
+  .product-grid { grid-template-columns: 1fr; }
+  .shop-skeleton { grid-template-columns: 1fr; }
+  #shopify-collection { grid-template-columns: 1fr; }
+  .footer-inner { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════
+     NAVIGATION
+══════════════════════════════════════════════════════════ -->
+<nav>
+  <div class="nav-inner">
+    <a href="momos-cafe.html" class="nav-logo">MOMO'S <span>CAFÉ</span></a>
+    <ul class="nav-links" id="nav-links">
+      <li><a href="momos-cafe.html">Home</a></li>
+      <li><a href="momos-menu.html">Menu</a></li>
+      <li><a href="momos-catering.html">Catering</a></li>
+      <li><a href="momos-our-story.html">Our Story</a></li>
+      <li><a href="momos-find-us.html">Find Us</a></li>
+      <li><a href="#" class="active">Shop</a></li>
+      <li><a href="momos-menu.html" class="nav-order">Order Now</a></li>
+    </ul>
+    <div class="nav-hamburger" id="hamburger" onclick="document.getElementById('nav-links').classList.toggle('open')">
+      <span></span><span></span><span></span>
+    </div>
+  </div>
+</nav>
+
+<!-- ══════════════════════════════════════════════════════════
+     HERO
+══════════════════════════════════════════════════════════ -->
+<section id="shop-hero">
+  <div class="hero-bg"></div>
+
+  <!-- Bridge watermark — shared across all v2 teal-dark heroes -->
+  <svg class="hero-bridge" viewBox="0 0 800 400" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <path d="M0 300 Q200 120 400 160 Q600 200 800 80" stroke="#8FC4C4" stroke-width="4" fill="none"/>
+    <path d="M0 320 Q200 140 400 180 Q600 220 800 100" stroke="#8FC4C4" stroke-width="2" fill="none"/>
+    <rect x="190" y="100" width="28" height="200" fill="#4A8B8C"/>
+    <rect x="570" y="60" width="28" height="240" fill="#4A8B8C"/>
+    <line x1="230" y1="130" x2="230" y2="280" stroke="#8FC4C4" stroke-width="1" opacity="0.7"/>
+    <line x1="270" y1="112" x2="270" y2="280" stroke="#8FC4C4" stroke-width="1" opacity="0.7"/>
+    <line x1="310" y1="108" x2="310" y2="280" stroke="#8FC4C4" stroke-width="1" opacity="0.7"/>
+    <line x1="350" y1="112" x2="350" y2="280" stroke="#8FC4C4" stroke-width="1" opacity="0.7"/>
+    <line x1="390" y1="122" x2="390" y2="280" stroke="#8FC4C4" stroke-width="1" opacity="0.7"/>
+    <line x1="430" y1="130" x2="430" y2="280" stroke="#8FC4C4" stroke-width="1" opacity="0.7"/>
+    <line x1="470" y1="130" x2="470" y2="280" stroke="#8FC4C4" stroke-width="1" opacity="0.7"/>
+    <line x1="510" y1="120" x2="510" y2="280" stroke="#8FC4C4" stroke-width="1" opacity="0.7"/>
+    <line x1="550" y1="108" x2="550" y2="280" stroke="#8FC4C4" stroke-width="1" opacity="0.7"/>
+    <rect x="185" y="88" width="38" height="22" rx="2" fill="none" stroke="#4A8B8C" stroke-width="2"/>
+    <rect x="565" y="48" width="38" height="22" rx="2" fill="none" stroke="#4A8B8C" stroke-width="2"/>
+    <line x1="0" y1="295" x2="800" y2="295" stroke="#4A8B8C" stroke-width="3"/>
+  </svg>
+
+  <div class="container">
+    <div class="hero-content">
+      <div class="hero-badge">
+        <span class="dot"></span>
+        <span>Merch &amp; More — Vallejo, CA</span>
+      </div>
+
+      <h1 class="hero-h1">
+        <span>Shop Momo's.</span>
+        <span class="accent">Take It Home.</span>
+      </h1>
+
+      <p class="hero-sub">
+        Apparel, mugs, gift cards, and more —
+        <strong>the same heart we put into every plate</strong>,
+        now something you can keep.
+      </p>
+
+      <div class="hero-ctas">
+        <a href="#shop-products" class="btn btn-primary" style="font-size:16px; padding:16px 32px;">
+          🛍️ Browse Shop
+        </a>
+        <a href="momos-menu.html" class="btn btn-outline-white">
+          Order Food →
+        </a>
+      </div>
+
+      <div class="hero-pills">
+        <span class="hero-pill">Free shipping over $50</span>
+        <span class="hero-pill">Gift cards available</span>
+        <span class="hero-pill">Supports our crew</span>
+        <span class="hero-pill">Ships from Vallejo</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Desktop floating product teasers -->
+  <div class="hero-products" aria-hidden="true">
+    <div class="hero-product-card">
+      <span class="product-emoji">👕</span>
+      <h4>Momo's Tee</h4>
+      <p>Classic logo tee</p>
+    </div>
+    <div class="hero-product-card">
+      <span class="product-emoji">☕</span>
+      <h4>Café Mug</h4>
+      <p>12oz ceramic</p>
+    </div>
+    <div class="hero-product-card">
+      <span class="product-emoji">🎁</span>
+      <h4>Gift Card</h4>
+      <p>From $10</p>
+    </div>
+    <div class="hero-product-card">
+      <span class="product-emoji">🧢</span>
+      <h4>Snapback</h4>
+      <p>Bridge logo</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     PRODUCTS
+══════════════════════════════════════════════════════════ -->
+<section id="shop-products">
+  <div class="container">
+
+    <div class="section-header fade-up">
+      <span class="section-label">Shop</span>
+      <div class="divider-line"><span></span></div>
+      <h2>From Our Kitchen to Yours</h2>
+      <p>Every purchase supports our crew and the community we've been feeding since 2000.</p>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════
+         SHOPIFY BUY BUTTON INTEGRATION
+         ══════════════════════════════════════════════════════
+         HOW TO INJECT:
+         1. Log into momo-s-cafe.myshopify.com > Sales Channels > Buy Button
+         2. Create a "Collection" Buy Button for your merch collection
+         3. Copy the generated <script> embed code
+         4. Paste it INSIDE the div#shopify-collection below
+         5. Remove the .shop-skeleton block — it's replaced by Shopify's output
+         6. The CSS overrides in <style>.shopify-buy__* above will apply automatically
+         7. Optional: set component.options.layout = 'productGrid' in the SDK options
+            to force Shopify to render a grid matching the .shopify-buy__collection-products
+            override rules above.
+
+         SHOPIFY SDK OPTIONS TO SET (in the UIkit.createComponent call):
+           product: {
+             styles: { disabled: true },  // let our CSS handle all styling
+             text: { button: 'Add to Cart' }
+           },
+           cart: {
+             styles: { disabled: true },
+             text: { total: 'Subtotal', button: 'Checkout' }
+           },
+           toggle: {
+             styles: { disabled: true }
+           }
+
+         The CSS overrides in this file will then fully control all visual output.
+         ════════════════════════════════════════════════════ -->
+    <div id="shopify-collection-wrap" class="fade-up">
+
+      <!-- ── Loading skeleton (remove once Shopify SDK is live) ── -->
+      <div class="shop-skeleton" id="shop-skeleton" aria-label="Loading products...">
+        <div class="skeleton-card">
+          <div class="skeleton-img"></div>
+          <div class="skeleton-body">
+            <div class="skeleton-line"></div>
+            <div class="skeleton-line short"></div>
+            <div class="skeleton-line price"></div>
+            <div class="skeleton-btn"></div>
+          </div>
+        </div>
+        <div class="skeleton-card">
+          <div class="skeleton-img"></div>
+          <div class="skeleton-body">
+            <div class="skeleton-line"></div>
+            <div class="skeleton-line short"></div>
+            <div class="skeleton-line price"></div>
+            <div class="skeleton-btn"></div>
+          </div>
+        </div>
+        <div class="skeleton-card">
+          <div class="skeleton-img"></div>
+          <div class="skeleton-body">
+            <div class="skeleton-line"></div>
+            <div class="skeleton-line short"></div>
+            <div class="skeleton-line price"></div>
+            <div class="skeleton-btn"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Shopify collection injects here ── -->
+      <div id="shopify-collection"></div>
+
+      <!-- ── Fallback product cards (remove once Shopify SDK is live) ── -->
+      <div class="product-grid" id="product-fallback" style="display:none;">
+
+        <div class="product-card fade-up">
+          <div class="product-card-img">👕</div>
+          <div class="product-card-body">
+            <span class="product-card-tag">Apparel</span>
+            <div class="product-card-name">Momo's Classic Tee</div>
+            <div class="product-card-desc">Heavyweight cotton, bridge logo on chest. Unisex fit, sizes S–2XL.</div>
+            <div class="product-card-footer">
+              <span class="product-price">$28</span>
+              <button class="product-add-btn">Add to Cart</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="product-card fade-up">
+          <div class="product-card-img">☕</div>
+          <div class="product-card-body">
+            <span class="product-card-tag">Kitchen</span>
+            <div class="product-card-name">Café de Olla Mug</div>
+            <div class="product-card-desc">12oz ceramic mug with the Momo's logo. Microwave and dishwasher safe.</div>
+            <div class="product-card-footer">
+              <span class="product-price">$16</span>
+              <button class="product-add-btn">Add to Cart</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="product-card fade-up">
+          <div class="product-card-img">🎁</div>
+          <div class="product-card-body">
+            <span class="product-card-tag gift" style="color:var(--gold);">Gift Card</span>
+            <div class="product-card-name">Momo's Gift Card</div>
+            <div class="product-card-desc">The perfect gift for anyone who loves breakfast. Available in $10, $25, and $50.</div>
+            <div class="product-card-footer">
+              <span class="product-price">$10+</span>
+              <button class="product-add-btn">Buy Now</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="product-card fade-up">
+          <div class="product-card-img">🧢</div>
+          <div class="product-card-body">
+            <span class="product-card-tag">Headwear</span>
+            <div class="product-card-name">Bridge Snapback</div>
+            <div class="product-card-desc">Adjustable snapback with embroidered Carquinez Bridge logo. One size.</div>
+            <div class="product-card-footer">
+              <span class="product-price">$32</span>
+              <button class="product-add-btn">Add to Cart</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="product-card fade-up">
+          <div class="product-card-img">🧣</div>
+          <div class="product-card-body">
+            <span class="product-card-tag">Apparel</span>
+            <div class="product-card-name">Momo's Hoodie</div>
+            <div class="product-card-desc">Midweight pullover, teal colorway, Momo's wordmark on back. Sizes S–2XL.</div>
+            <div class="product-card-footer">
+              <span class="product-price">$52</span>
+              <button class="product-add-btn">Add to Cart</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="product-card fade-up">
+          <div class="product-card-img">🛍️</div>
+          <div class="product-card-body">
+            <span class="product-card-tag">Accessories</span>
+            <div class="product-card-name">Canvas Tote Bag</div>
+            <div class="product-card-desc">Heavy-duty canvas, Momo's logo print, natural colorway. Great for market runs.</div>
+            <div class="product-card-footer">
+              <span class="product-price">$18</span>
+              <button class="product-add-btn">Add to Cart</button>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /product-fallback -->
+
+    </div><!-- /shopify-collection-wrap -->
+
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     CROSS-SELL STRIP
+══════════════════════════════════════════════════════════ -->
+<section id="crosssell-strip">
+  <div class="container">
+    <div class="crosssell-inner fade-up">
+      <div class="crosssell-text">
+        <h2>Hungry? <span>We've Got You.</span></h2>
+        <p>Order breakfast or lunch for pickup — same big portions, same Vallejo flavor. Ready in about 15 minutes.</p>
+      </div>
+      <div class="crosssell-cta">
+        <a href="momos-menu.html" class="btn btn-primary" style="font-size:15px; padding:14px 30px;">
+          🍳 Order Pickup →
+        </a>
+        <a href="momos-find-us.html" class="btn btn-outline-white" style="font-size:14px; padding:13px 24px;">
+          Find Us Today
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     COMMUNITY MESSAGE
+══════════════════════════════════════════════════════════ -->
+<section id="shop-message">
+  <div class="container">
+    <div class="message-inner fade-up">
+      <span class="section-label">More Than Merch</span>
+      <div class="divider-line" style="max-width:300px; margin:8px auto;"><span></span></div>
+      <h2 class="message-quote">
+        Every purchase helps us<br>serve <span class="gold">community, comfort,</span><br>and connection.
+      </h2>
+      <p class="message-body">
+        Just like we do at the window — every morning, every day.
+        When you buy from the shop, you're helping a 25-year-old family business
+        keep doing what it loves.
+      </p>
+      <div class="social-row">
+        <a href="https://instagram.com/momoscafe" target="_blank" rel="noopener" class="social-pill">
+          📸 @momoscafe
+        </a>
+        <a href="tel:+17076547180" class="social-pill">
+          📞 (707) 654-7180
+        </a>
+        <a href="momos-our-story.html" class="social-pill">
+          📖 Our Story
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     FOOTER
+══════════════════════════════════════════════════════════ -->
+<footer>
+  <div class="container">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <div class="logo-text">MOMO'S <span>CAFÉ</span></div>
+        <div class="tagline">Breakfast &amp; Lunch · Vallejo, CA</div>
+      </div>
+      <div class="footer-col">
+        <h5>Navigate</h5>
+        <ul class="footer-links">
+          <li><a href="momos-cafe.html">Home</a></li>
+          <li><a href="momos-menu.html">Full Menu</a></li>
+          <li><a href="momos-catering.html">Catering</a></li>
+          <li><a href="momos-our-story.html">Our Story</a></li>
+          <li><a href="momos-find-us.html">Find Us</a></li>
+          <li><a href="#">Shop</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h5>Contact</h5>
+        <ul class="footer-links">
+          <li><a href="tel:+17076547180">(707) 654-7180</a></li>
+          <li><a href="mailto:info@momoscafe.com">info@momoscafe.com</a></li>
+          <li><a href="https://www.google.com/maps/place/1922+Broadway+St,+Vallejo,+CA+94589" target="_blank" rel="noopener">1922 Broadway St, Vallejo</a></li>
+          <li><a href="https://instagram.com/momoscafe" target="_blank" rel="noopener">@momoscafe</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2025 Momo's Café Vallejo. All rights reserved.</p>
+      <div class="footer-bridge">VALLEJO · BAY AREA · EST. 2000</div>
+    </div>
+  </div>
+</footer>
+
+<!-- ══════════════════════════════════════════════════════════
+     SHOPIFY BUY BUTTON SDK
+     ════════════════════════════════════════════════════════
+     INTEGRATION STEPS:
+     1. Replace SHOPIFY_COLLECTION_ID below with your actual
+        collection ID from momo-s-cafe.myshopify.com
+     2. Replace SHOPIFY_STOREFRONT_TOKEN with your real
+        Storefront API access token (32-char string from
+        Apps > Storefront API > Manage tokens)
+     3. Once the SDK loads successfully:
+        - The #shop-skeleton div will be hidden automatically
+        - The #product-fallback div can be removed from the HTML
+        - Shopify will render products inside #shopify-collection
+     ════════════════════════════════════════════════════════ -->
+<script>
+// ── Scroll animations (same observer as all v2 pages) ──
+var observer = new IntersectionObserver(function(entries) {
+  entries.forEach(function(e) {
+    if (e.isIntersecting) e.target.classList.add('visible');
+  });
+}, { threshold: 0.08 });
+document.querySelectorAll('.fade-up').forEach(function(el) { observer.observe(el); });
+
+// ── Shopify Buy Button SDK loader ──────────────────────────
+// Replace the placeholder values below before going live:
+var SHOPIFY_DOMAIN     = 'momo-s-cafe.myshopify.com';
+var SHOPIFY_TOKEN      = 'YOUR_STOREFRONT_ACCESS_TOKEN';  // ← replace
+var SHOPIFY_COLLECTION_ID = 'YOUR_COLLECTION_ID';         // ← replace
+
+function loadShopifySDK(callback) {
+  var script = document.createElement('script');
+  script.async = true;
+  script.src = 'https://sdks.shopifycdn.com/buy-button/latest/buy-button-storefront.min.js';
+  script.onload = callback;
+  script.onerror = function() {
+    console.warn('Shopify SDK failed to load — showing fallback products.');
+    showFallback();
+  };
+  (document.head || document.body).appendChild(script);
+}
+
+function initShopify() {
+  var client = ShopifyBuy.buildClient({
+    domain: SHOPIFY_DOMAIN,
+    storefrontAccessToken: SHOPIFY_TOKEN
+  });
+
+  ShopifyBuy.UI.onReady(client).then(function(ui) {
+    // Hide skeleton, show collection
+    document.getElementById('shop-skeleton').style.display = 'none';
+
+    ui.createComponent('collection', {
+      id: SHOPIFY_COLLECTION_ID,
+      node: document.getElementById('shopify-collection'),
+      moneyFormat: '%24%7B%7Bamount%7D%7D',
+      options: {
+        product: {
+          styles: { product: { disabled: true } }, // CSS overrides handle all styling
+          text: { button: 'Add to Cart' },
+          events: {
+            addVariantToCart: function() {
+              // Cart icon will update automatically via SDK
+            }
+          }
+        },
+        productSet: {
+          styles: { products: { disabled: true } }
+        },
+        cart: {
+          styles: { disabled: true },
+          text: {
+            total: 'Subtotal',
+            button: 'Checkout'
+          }
+        },
+        toggle: {
+          styles: { disabled: true }
+        }
+      }
+    });
+  });
+}
+
+function showFallback() {
+  document.getElementById('shop-skeleton').style.display = 'none';
+  document.getElementById('product-fallback').style.display = 'grid';
+}
+
+// Only initialize when real tokens are set
+if (SHOPIFY_TOKEN !== 'YOUR_STOREFRONT_ACCESS_TOKEN' &&
+    SHOPIFY_COLLECTION_ID !== 'YOUR_COLLECTION_ID') {
+  loadShopifySDK(initShopify);
+} else {
+  // ── Dev mode: show fallback cards immediately ──
+  // Remove this block and call loadShopifySDK(initShopify) in production
+  setTimeout(function() {
+    document.getElementById('shop-skeleton').style.display = 'none';
+    document.getElementById('product-fallback').style.display = 'grid';
+  }, 800); // simulate brief loading delay
+}
+</script>
+
+</body>
+</html>

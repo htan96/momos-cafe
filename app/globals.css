@@ -44,9 +44,10 @@
   scrollbar-width: none;
 }
 
-/* Account for sticky header when scrolling to anchors */
+/* Account for sticky header + category nav when scrolling to anchors */
 html {
   scroll-padding-top: 120px;
+  scroll-behavior: smooth;
 }
 
 /* ------------------------------ */

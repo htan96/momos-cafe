@@ -1,82 +1,59 @@
 "use client";
+
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion } from "framer-motion";
-import { Home, BookOpen, Utensils, Briefcase, MapPin, ShoppingBagIcon } from "lucide-react";
+
+const NAV_LINKS = [
+  { href: "/", label: "Home" },
+  { href: "/menu", label: "Menu" },
+  { href: "/catering", label: "Catering" },
+  { href: "/find-us", label: "Find Us" },
+  { href: "/our-story", label: "Our Story" },
+  { href: "/shop", label: "Shop" },
+];
 
 export default function Header() {
   const pathname = usePathname();
 
-  const links = [
-    { href: "/", label: "Home", icon: <Home size={20} /> },
-    { href: "/our-story", label: "Our Story", icon: <BookOpen size={20} /> },
-    { href: "/menu", label: "Menu", icon: <Utensils size={20} /> },
-    { href: "/catering", label: "Catering", icon: <Briefcase size={20} /> },
-    { href: "/shop", label: "Shop", icon: <ShoppingBagIcon size={20} /> },
-    { href: "/find-us", label: "Find Us", icon: <MapPin size={20} /> }
-
-  ];
-
-
   return (
-    <>
-      {/* ✅ Top Header (Logo Only on Mobile) */}
-      <header className="bg-cream text-teal border-b border-cream/50 shadow-sm sticky top-0 z-50">
-        <div className="w-full flex justify-between items-center py-3 px-4 md:py-2 md:px-8 lg:px-12 xl:px-16">
-          <Link href="/" className="flex items-center space-x-3">
-            <Image
-              src="/images/logo.png"
-              alt="Momo's Café logo"
-              width={160}
-              height={80}
-              className="h-12 sm:h-14 md:h-16 w-auto"
-              priority
-            />
-          </Link>
+    <header className="sticky top-0 z-[900] bg-cream border-b-[3px] border-gold">
+      <div className="max-w-[1140px] mx-auto px-5 h-16 flex items-center justify-center md:justify-between">
+        {/* Logo — centered on mobile, left on desktop */}
+        <Link href="/" className="flex items-center hover:opacity-90 transition-opacity">
+          <Image
+            src="/images/logo.png"
+            alt="Momo's Café"
+            width={140}
+            height={70}
+            className="h-10 md:h-12 w-auto"
+            priority
+          />
+        </Link>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex space-x-8 text-base font-medium tracking-wide">
-            {links.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`transition-colors duration-300 ${
-                  pathname === link.href
-                    ? "text-gold font-semibold"
-                    : "hover:text-gold"
-                }`}
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-        </div>
-      </header>
-
-      {/* ✅ Bottom Navigation Bar for Mobile */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-cream border-t border-cream/60 shadow-inner flex justify-around py-2 sm:hidden">
-        {links.map((link) => {
-          const isActive = pathname === link.href;
-          return (
+        {/* Desktop nav */}
+        <nav className="hidden md:flex items-center gap-1.5">
+          {NAV_LINKS.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className="flex flex-col items-center text-xs text-teal hover:text-gold transition-colors"
+              className={`font-semibold text-[13px] tracking-[0.15em] uppercase py-2 px-3.5 rounded-md transition-colors duration-200 ${
+                pathname === link.href
+                  ? "text-red"
+                  : "text-teal-dark hover:bg-teal/10 hover:text-teal-dark"
+              }`}
             >
-              <motion.div
-                whileTap={{ scale: 0.9 }}
-                className={`flex flex-col items-center ${
-                  isActive ? "text-gold" : "text-teal"
-                }`}
-              >
-                {link.icon}
-                <span className="mt-1">{link.label}</span>
-              </motion.div>
+              {link.label}
             </Link>
-          );
-        })}
-      </nav>
-    </>
+          ))}
+          <Link
+            href="/order"
+            className="font-semibold text-[13px] tracking-[0.15em] uppercase py-2.5 px-4 rounded-md bg-red text-white hover:bg-red-dark hover:shadow-[0_2px_8px_rgba(200,39,45,0.35)] transition-all duration-200 ml-2"
+          >
+            Order Now
+          </Link>
+        </nav>
+      </div>
+    </header>
   );
 }

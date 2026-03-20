@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Our Story — Momo's Café Vallejo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;500;600;700&family=Barlow:ital,wght@0,400;0,500;0,600;0,700;1,400;1,700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   DESIGN SYSTEM — Momo's Café v2 (shared tokens)
+   ============================================================ */
+:root {
+  --cream:      #F5EDCA;
+  --cream-dark: #EDE3B2;
+  --red:        #C8272D;
+  --red-dark:   #A01E23;
+  --red-light:  #E0383F;
+  --teal:       #4A8B8C;
+  --teal-dark:  #2D6B6B;
+  --teal-light: #8FC4C4;
+  --gold:       #C19A35;
+  --charcoal:   #1E1E1E;
+  --white:      #FFFDF5;
+  --font-display: 'Bebas Neue', sans-serif;
+  --font-heading: 'Oswald', sans-serif;
+  --font-body:    'Barlow', sans-serif;
+  --radius:    8px;
+  --radius-lg: 16px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { background: var(--cream); color: var(--charcoal); font-family: var(--font-body); font-size: 16px; line-height: 1.5; overflow-x: hidden; }
+
+/* ── Shared layout ── */
+.container { max-width: 1140px; margin: 0 auto; padding: 0 20px; }
+
+.section-label {
+  font-family: var(--font-heading); font-size: 11px; font-weight: 600;
+  letter-spacing: 3px; text-transform: uppercase; color: var(--teal);
+}
+.divider-line { display: flex; align-items: center; gap: 16px; margin: 8px 0; }
+.divider-line::before,
+.divider-line::after { content: ''; flex: 1; height: 1.5px; background: var(--gold); }
+
+.tag {
+  display: inline-block; background: var(--teal); color: var(--white);
+  font-family: var(--font-heading); font-size: 11px; font-weight: 600;
+  letter-spacing: 1.5px; text-transform: uppercase; padding: 4px 10px; border-radius: 3px;
+}
+.tag.red   { background: var(--red); }
+.tag.gold  { background: var(--gold); }
+.tag.dark  { background: var(--charcoal); }
+
+/* ── Buttons — identical to landing + menu ── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font-family: var(--font-heading); font-size: 15px; font-weight: 600;
+  letter-spacing: 1.5px; text-transform: uppercase; text-decoration: none;
+  border: none; border-radius: var(--radius); cursor: pointer;
+  transition: all 0.2s ease; padding: 14px 28px;
+}
+.btn:active { transform: scale(0.97); }
+.btn-primary {
+  background: var(--red); color: var(--white);
+  box-shadow: 0 4px 0 var(--red-dark), 0 6px 20px rgba(200,39,45,0.35);
+}
+.btn-primary:hover { background: var(--red-light); transform: translateY(-2px); }
+.btn-secondary {
+  background: transparent; color: var(--teal-dark); border: 2.5px solid var(--teal);
+}
+.btn-secondary:hover { background: var(--teal); color: var(--white); }
+.btn-outline-white {
+  background: transparent; color: var(--white); border: 2px solid rgba(255,255,255,0.7);
+}
+.btn-outline-white:hover { background: rgba(255,255,255,0.15); }
+
+/* ── Section header — same as landing/menu ── */
+.section-header { text-align: center; margin-bottom: 48px; }
+.section-header h2 {
+  font-family: var(--font-display); font-size: clamp(38px, 6vw, 64px);
+  line-height: 1; color: var(--charcoal); margin: 8px 0 14px;
+}
+.section-header p {
+  font-size: 16px; color: rgba(30,30,30,0.65);
+  max-width: 500px; margin: 0 auto; line-height: 1.65;
+}
+
+/* ── Animations ── */
+.fade-up { opacity: 0; transform: translateY(30px); transition: opacity 0.6s ease, transform 0.6s ease; }
+.fade-up.visible { opacity: 1; transform: translateY(0); }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.6;transform:scale(1.3)} }
+
+/* ============================================================
+   NAV — exact copy from v2
+   ============================================================ */
+nav { position: sticky; top: 0; z-index: 900; background: var(--cream); border-bottom: 3px solid var(--gold); }
+.nav-inner {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 20px; height: 64px; max-width: 1140px; margin: 0 auto;
+}
+.nav-logo { font-family: var(--font-display); font-size: 22px; color: var(--teal-dark); letter-spacing: 1px; text-decoration: none; }
+.nav-logo span { color: var(--red); }
+.nav-links { display: flex; gap: 6px; list-style: none; }
+.nav-links a {
+  font-family: var(--font-heading); font-size: 13px; font-weight: 600;
+  letter-spacing: 1.5px; text-transform: uppercase; color: var(--teal-dark);
+  text-decoration: none; padding: 8px 14px; border-radius: 5px; transition: all 0.2s;
+}
+.nav-links a:hover { background: rgba(74,139,140,0.12); }
+.nav-links a.active { color: var(--red); }
+.nav-order { background: var(--red) !important; color: #fff !important; }
+.nav-order:hover { background: var(--red-light) !important; }
+.nav-hamburger { display: none; flex-direction: column; cursor: pointer; }
+.nav-hamburger span { display: block; width: 24px; height: 2px; background: var(--teal-dark); margin: 5px 0; border-radius: 2px; }
+
+/* ============================================================
+   HERO — teal-dark background, bridge watermark, same feel
+   ============================================================ */
+#story-hero {
+  background: var(--teal-dark);
+  position: relative; overflow: hidden;
+  min-height: 88vh; display: flex; align-items: center;
+}
+.hero-bg-gradient {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 65% 40%, rgba(74,139,140,0.25) 0%, transparent 60%),
+    linear-gradient(180deg, var(--teal-dark) 0%, #1a4a4a 100%);
+}
+.hero-bridge {
+  position: absolute; top: 0; right: -5%; width: 65%; height: 100%; opacity: 0.07;
+  pointer-events: none;
+}
+.hero-content {
+  position: relative; z-index: 2; width: 100%;
+  padding: 80px 0 100px;
+}
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 100px; padding: 6px 16px 6px 8px; margin-bottom: 28px;
+}
+.hero-badge .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--gold); animation: pulse 2s infinite;
+}
+.hero-badge span {
+  font-family: var(--font-heading); font-size: 12px; font-weight: 500;
+  letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.9);
+}
+.hero-h1 {
+  font-family: var(--font-display);
+  font-size: clamp(54px, 10vw, 112px);
+  line-height: 0.92; color: var(--cream); margin-bottom: 12px;
+}
+.hero-h1 .accent  { color: var(--red); display: block; }
+.hero-h1 .gold-accent { color: var(--gold); }
+.hero-sub {
+  font-size: clamp(15px, 2vw, 18px); color: rgba(255,255,255,0.75);
+  max-width: 520px; line-height: 1.65; margin: 22px 0 38px;
+}
+.hero-sub strong { color: var(--teal-light); font-weight: 700; }
+.hero-ctas { display: flex; gap: 14px; flex-wrap: wrap; }
+
+/* Story stat pills */
+.hero-stats {
+  display: flex; flex-wrap: wrap; gap: 14px;
+  margin-top: 48px; padding-top: 40px;
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+.stat-pill {
+  display: flex; flex-direction: column;
+  gap: 3px;
+}
+.stat-pill .num {
+  font-family: var(--font-display); font-size: 36px;
+  color: var(--gold); line-height: 1;
+}
+.stat-pill .label {
+  font-family: var(--font-heading); font-size: 11px; font-weight: 600;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: rgba(255,255,255,0.55);
+}
+
+/* Right side image card */
+.hero-image-card {
+  position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+  width: 44%; max-width: 500px; z-index: 2;
+  padding: 20px;
+}
+.hero-image-inner {
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  backdrop-filter: blur(8px);
+}
+.hero-image-placeholder {
+  width: 100%; aspect-ratio: 4/3;
+  background: linear-gradient(135deg, rgba(74,139,140,0.4), rgba(45,107,107,0.6));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 80px; position: relative;
+}
+.hero-image-placeholder::after {
+  content: 'Est. 2000';
+  position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+  font-family: var(--font-display); font-size: 22px; letter-spacing: 3px;
+  color: rgba(255,255,255,0.4);
+}
+.hero-image-caption {
+  padding: 18px 20px;
+  display: flex; align-items: center; gap: 10px;
+}
+.hero-image-caption span {
+  font-family: var(--font-heading); font-size: 12px; font-weight: 500;
+  color: rgba(255,255,255,0.65); letter-spacing: 0.5px;
+}
+.hero-image-caption .gold-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--gold); flex-shrink: 0;
+}
+
+/* ============================================================
+   NARRATIVE INTRO — cream background, centered
+   ============================================================ */
+#story-intro { padding: 80px 0; background: var(--white); }
+
+.intro-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 64px; align-items: center;
+}
+.intro-text .section-label { margin-bottom: 8px; }
+.intro-text h2 {
+  font-family: var(--font-display); font-size: clamp(36px, 5vw, 56px);
+  line-height: 1; color: var(--charcoal); margin: 10px 0 20px;
+}
+.intro-text p {
+  font-size: 16px; color: rgba(30,30,30,0.7);
+  line-height: 1.75; margin-bottom: 14px;
+}
+.intro-text p strong { color: var(--charcoal); font-weight: 700; }
+.intro-pull {
+  margin-top: 28px; padding: 20px 24px;
+  border-left: 4px solid var(--gold);
+  background: var(--cream);
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+.intro-pull p {
+  font-family: var(--font-heading); font-size: 17px; font-weight: 500;
+  color: var(--charcoal); line-height: 1.5; margin: 0;
+  font-style: italic;
+}
+
+/* Right side — visual chapter markers */
+.intro-chapters { display: flex; flex-direction: column; gap: 16px; }
+.chapter-card {
+  background: var(--cream);
+  border: 1.5px solid var(--cream-dark);
+  border-radius: var(--radius-lg);
+  padding: 20px 22px;
+  display: flex; gap: 16px; align-items: flex-start;
+  transition: all 0.2s ease;
+}
+.chapter-card:hover {
+  border-color: var(--teal-light);
+  box-shadow: 0 4px 20px rgba(74,139,140,0.15);
+  transform: translateX(4px);
+}
+.chapter-icon {
+  font-size: 28px; flex-shrink: 0;
+  width: 48px; height: 48px;
+  background: var(--white); border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+}
+.chapter-info h4 {
+  font-family: var(--font-heading); font-size: 15px; font-weight: 600;
+  color: var(--charcoal); margin-bottom: 3px;
+}
+.chapter-info p { font-size: 13px; color: rgba(30,30,30,0.55); line-height: 1.4; }
+.chapter-info .year {
+  font-family: var(--font-heading); font-size: 11px; font-weight: 600;
+  letter-spacing: 1.5px; text-transform: uppercase; color: var(--teal);
+  margin-bottom: 5px; display: block;
+}
+
+/* ============================================================
+   TIMELINE — cream bg, gold left border
+   ============================================================ */
+#timeline { padding: 80px 0; background: var(--cream); position: relative; overflow: hidden; }
+#timeline::after {
+  content: '';
+  position: absolute; bottom: 0; left: 0; right: 0; height: 120px;
+  background: linear-gradient(to top, rgba(193,154,53,0.08), transparent);
+  pointer-events: none;
+}
+
+.timeline-inner {
+  display: grid; grid-template-columns: 1fr 2px 1fr;
+  gap: 0 0; position: relative;
+  max-width: 900px; margin: 0 auto;
+}
+/* The center gold line */
+.timeline-spine {
+  width: 2px; background: var(--gold);
+  position: relative; margin: 0 auto;
+}
+
+/* Full-width items (fire, comeback) */
+.timeline-block {
+  padding: 0 40px 48px;
+  position: relative;
+}
+.timeline-block.left { text-align: right; padding-right: 48px; padding-left: 0; }
+.timeline-block.right { text-align: left; padding-left: 48px; padding-right: 0; }
+
+/* Dot on spine */
+.timeline-block::before {
+  content: '';
+  position: absolute; top: 6px;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--teal-dark); border: 2.5px solid var(--gold);
+  z-index: 2;
+}
+.timeline-block.left::before  { right: -7px; }
+.timeline-block.right::before { left: -7px; }
+
+.timeline-year {
+  font-family: var(--font-heading); font-size: 11px; font-weight: 600;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: var(--gold); margin-bottom: 8px; display: block;
+}
+.timeline-title {
+  font-family: var(--font-display); font-size: 24px;
+  color: var(--charcoal); line-height: 1.1; margin-bottom: 8px;
+}
+.timeline-desc {
+  font-size: 14px; color: rgba(30,30,30,0.65); line-height: 1.6;
+}
+
+/* ── FIRE CARD — full-width, visually emphatic ── */
+.timeline-fire-wrapper {
+  grid-column: 1 / -1;
+  padding: 0 0 56px;
+  position: relative;
+}
+.timeline-fire-wrapper::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 50%; transform: translateX(-50%);
+  width: 2px; height: 24px; background: var(--gold);
+}
+.fire-card {
+  background: var(--charcoal);
+  border-radius: var(--radius-lg);
+  padding: 40px 40px;
+  position: relative; overflow: hidden;
+  border: 2px solid rgba(200,39,45,0.3);
+  box-shadow: 0 8px 0 rgba(0,0,0,0.2), 0 20px 60px rgba(0,0,0,0.25);
+}
+/* Diagonal stripe texture */
+.fire-card::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(
+    -45deg, transparent, transparent 40px,
+    rgba(200,39,45,0.04) 40px, rgba(200,39,45,0.04) 80px
+  );
+  pointer-events: none;
+}
+.fire-card-inner { position: relative; z-index: 1; }
+.fire-card-top {
+  display: flex; align-items: flex-start;
+  justify-content: space-between; gap: 32px; flex-wrap: wrap;
+  margin-bottom: 28px;
+}
+.fire-left { flex: 1; min-width: 260px; }
+.fire-tag {
+  font-family: var(--font-heading); font-size: 11px; font-weight: 600;
+  letter-spacing: 2px; text-transform: uppercase;
+  background: var(--red); color: white;
+  padding: 4px 12px; border-radius: 3px;
+  display: inline-block; margin-bottom: 16px;
+}
+.fire-year {
+  font-family: var(--font-heading); font-size: 11px; font-weight: 600;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: rgba(255,255,255,0.4); margin-bottom: 10px; display: block;
+}
+.fire-title {
+  font-family: var(--font-display); font-size: clamp(32px, 5vw, 52px);
+  color: var(--white); line-height: 1; margin-bottom: 16px;
+}
+.fire-desc {
+  font-size: 15px; color: rgba(255,255,255,0.7);
+  line-height: 1.7; max-width: 440px;
+}
+.fire-desc strong { color: var(--white); font-weight: 700; }
+.fire-stat {
+  flex-shrink: 0;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: var(--radius-lg);
+  padding: 24px 28px; text-align: center;
+  min-width: 160px;
+}
+.fire-stat .num {
+  font-family: var(--font-display); font-size: 56px;
+  color: var(--red); line-height: 1; display: block; margin-bottom: 4px;
+}
+.fire-stat .label {
+  font-family: var(--font-heading); font-size: 11px; font-weight: 600;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: rgba(255,255,255,0.45);
+}
+.fire-pull {
+  border-top: 1px solid rgba(255,255,255,0.08);
+  padding-top: 24px;
+  font-family: var(--font-display); font-size: 28px;
+  color: var(--cream); line-height: 1.15;
+  max-width: 500px;
+}
+
+/* ── COMEBACK CARD — teal, optimistic ── */
+.timeline-comeback-wrapper {
+  grid-column: 1 / -1;
+  padding: 0 0 8px;
+  position: relative;
+}
+.timeline-comeback-wrapper::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 50%; transform: translateX(-50%);
+  width: 2px; height: 24px; background: var(--gold);
+}
+.comeback-card {
+  background: var(--teal-dark);
+  border-radius: var(--radius-lg);
+  padding: 40px;
+  position: relative; overflow: hidden;
+  box-shadow: 0 8px 0 rgba(0,0,0,0.15), 0 20px 60px rgba(45,107,107,0.25);
+}
+.comeback-card::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 70% 70% at 80% 50%, rgba(74,139,140,0.25) 0%, transparent 70%);
+  pointer-events: none;
+}
+.comeback-inner { position: relative; z-index: 1; display: flex; gap: 40px; align-items: center; flex-wrap: wrap; }
+.comeback-text { flex: 1; min-width: 260px; }
+.comeback-tag {
+  font-family: var(--font-heading); font-size: 11px; font-weight: 600;
+  letter-spacing: 2px; text-transform: uppercase;
+  background: var(--gold); color: var(--charcoal);
+  padding: 4px 12px; border-radius: 3px;
+  display: inline-block; margin-bottom: 16px;
+}
+.comeback-year {
+  font-family: var(--font-heading); font-size: 11px; font-weight: 600;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: rgba(255,255,255,0.4); margin-bottom: 10px; display: block;
+}
+.comeback-title {
+  font-family: var(--font-display); font-size: clamp(30px, 4vw, 46px);
+  color: var(--cream); line-height: 1; margin-bottom: 14px;
+}
+.comeback-desc {
+  font-size: 15px; color: rgba(255,255,255,0.7); line-height: 1.7;
+}
+.comeback-desc strong { color: var(--teal-light); }
+.comeback-cta { flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
+
+/* ============================================================
+   FIND US NOW — white bg, info card
+   ============================================================ */
+#find-us { padding: 80px 0; background: var(--white); }
+
+.find-us-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 40px; align-items: start;
+}
+.find-us-map {
+  background: var(--cream-dark);
+  border-radius: var(--radius-lg);
+  height: 320px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  text-align: center;
+  border: 2px solid var(--cream-dark);
+  cursor: pointer; transition: all 0.3s;
+  position: relative; overflow: hidden;
+}
+.find-us-map:hover { border-color: var(--teal-light); }
+.find-us-map h4 {
+  font-family: var(--font-display); font-size: 22px;
+  color: var(--teal-dark); margin-bottom: 6px;
+}
+.find-us-map p { font-size: 14px; color: rgba(30,30,30,0.6); }
+
+.find-us-info h3 {
+  font-family: var(--font-display); font-size: 38px;
+  color: var(--charcoal); line-height: 1; margin-bottom: 6px;
+}
+.find-us-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font-heading); font-size: 12px; font-weight: 600;
+  letter-spacing: 1px; text-transform: uppercase;
+  color: #2d7a2d; background: rgba(45,122,45,0.1);
+  padding: 5px 14px; border-radius: 100px; margin-bottom: 20px;
+}
+.find-us-badge::before {
+  content: ''; width: 7px; height: 7px; border-radius: 50%;
+  background: #2d7a2d; animation: pulse 2s infinite;
+}
+.find-us-detail {
+  font-size: 15px; color: rgba(30,30,30,0.65);
+  margin-bottom: 6px; line-height: 1.5;
+}
+.find-us-detail a { color: var(--teal-dark); text-decoration: none; }
+.find-us-detail strong { color: var(--charcoal); font-weight: 600; }
+.find-us-hours {
+  width: 100%; border-collapse: collapse;
+  margin: 24px 0;
+}
+.find-us-hours tr td {
+  padding: 10px 0; border-bottom: 1px solid var(--cream-dark); font-size: 14px;
+}
+.find-us-hours tr td:first-child {
+  font-family: var(--font-heading); font-weight: 600; color: var(--charcoal);
+}
+.find-us-hours tr td:last-child { text-align: right; color: rgba(30,30,30,0.6); }
+.find-us-hours tr.today td:first-child { color: var(--red); }
+
+/* ============================================================
+   CLOSING CTA — teal-dark bg, same as Why Love Us
+   ============================================================ */
+#story-closing {
+  padding: 80px 0;
+  background: var(--teal-dark);
+  position: relative; overflow: hidden;
+}
+#story-closing::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 80% 80% at 50% 50%, rgba(74,139,140,0.4) 0%, transparent 70%);
+}
+.closing-inner {
+  position: relative; z-index: 1; text-align: center; max-width: 700px; margin: 0 auto;
+}
+.closing-inner .section-label { color: var(--gold); }
+.closing-title {
+  font-family: var(--font-display); font-size: clamp(42px, 7vw, 72px);
+  color: var(--cream); line-height: 0.95; margin: 12px 0 20px;
+}
+.closing-title .accent { color: var(--gold); display: block; }
+.closing-sub {
+  font-size: 17px; color: rgba(255,255,255,0.7);
+  line-height: 1.7; margin-bottom: 36px; max-width: 520px; margin-left: auto; margin-right: auto;
+}
+.closing-sub strong { color: var(--teal-light); }
+.closing-ctas { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+
+/* ============================================================
+   FOOTER — identical to landing page
+   ============================================================ */
+footer { background: var(--charcoal); padding: 60px 0 40px; }
+.footer-inner {
+  display: grid; grid-template-columns: 1.5fr 1fr 1fr;
+  gap: 40px; margin-bottom: 48px;
+}
+.footer-brand .logo-text { font-family: var(--font-display); font-size: 28px; color: var(--cream); margin-bottom: 4px; }
+.footer-brand .logo-text span { color: var(--gold); }
+.footer-brand .tagline { font-size: 13px; color: rgba(255,255,255,0.45); margin-bottom: 20px; }
+.footer-col h5 {
+  font-family: var(--font-heading); font-size: 12px; font-weight: 600;
+  letter-spacing: 2px; text-transform: uppercase; color: var(--gold); margin-bottom: 16px;
+}
+.footer-links { list-style: none; }
+.footer-links li { margin-bottom: 10px; }
+.footer-links a { font-size: 14px; color: rgba(255,255,255,0.55); text-decoration: none; transition: color 0.2s; }
+.footer-links a:hover { color: var(--teal-light); }
+.footer-bottom {
+  border-top: 1px solid rgba(255,255,255,0.08);
+  padding-top: 24px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.footer-bottom p { font-size: 12px; color: rgba(255,255,255,0.3); }
+.footer-bridge { font-family: var(--font-display); font-size: 13px; color: rgba(255,255,255,0.2); letter-spacing: 2px; }
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 900px) {
+  .hero-image-card { display: none; }
+  .intro-grid { grid-template-columns: 1fr; gap: 40px; }
+  .timeline-inner { grid-template-columns: 0 2px 1fr; }
+  .timeline-block.left { text-align: left; padding-left: 32px; padding-right: 0; }
+  .timeline-block.left::before { right: auto; left: -7px; }
+  .fire-card-top { flex-direction: column; }
+  .find-us-grid { grid-template-columns: 1fr; }
+  .footer-inner { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 640px) {
+  .nav-links { display: none; }
+  .nav-links.open {
+    display: flex; flex-direction: column;
+    position: absolute; top: 64px; left: 0; right: 0;
+    background: var(--cream); padding: 12px 0;
+    border-bottom: 3px solid var(--gold);
+  }
+  .nav-hamburger { display: flex; }
+  .hero-stats { gap: 24px; }
+  .fire-card, .comeback-card { padding: 28px 24px; }
+  .footer-inner { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════
+     NAVIGATION
+══════════════════════════════════════════════════════════ -->
+<nav>
+  <div class="nav-inner">
+    <a href="momos-cafe.html" class="nav-logo">MOMO'S <span>CAFÉ</span></a>
+    <ul class="nav-links" id="nav-links">
+      <li><a href="momos-cafe.html">Home</a></li>
+      <li><a href="momos-cafe.html#deals">Deals</a></li>
+      <li><a href="momos-menu.html">Menu</a></li>
+      <li><a href="#" class="active">Our Story</a></li>
+      <li><a href="momos-cafe.html#location">Location</a></li>
+      <li><a href="momos-menu.html" class="nav-order">Order Now</a></li>
+    </ul>
+    <div class="nav-hamburger" id="hamburger" onclick="document.getElementById('nav-links').classList.toggle('open')">
+      <span></span><span></span><span></span>
+    </div>
+  </div>
+</nav>
+
+<!-- ══════════════════════════════════════════════════════════
+     HERO
+══════════════════════════════════════════════════════════ -->
+<section id="story-hero">
+  <div class="hero-bg-gradient"></div>
+
+  <!-- Bridge watermark — identical to landing page -->
+  <svg class="hero-bridge" viewBox="0 0 800 400" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <path d="M0 300 Q200 120 400 160 Q600 200 800 80" stroke="#8FC4C4" stroke-width="4" fill="none"/>
+    <path d="M0 320 Q200 140 400 180 Q600 220 800 100" stroke="#8FC4C4" stroke-width="2" fill="none"/>
+    <rect x="190" y="100" width="28" height="200" fill="#4A8B8C"/>
+    <rect x="570" y="60" width="28" height="240" fill="#4A8B8C"/>
+    <line x1="230" y1="130" x2="230" y2="280" stroke="#8FC4C4" stroke-width="1" opacity="0.7"/>
+    <line x1="270" y1="112" x2="270" y2="280" stroke="#8FC4C4" stroke-width="1" opacity="0.7"/>
+    <line x1="310" y1="108" x2="310" y2="280" stroke="#8FC4C4" stroke-width="1" opacity="0.7"/>
+    <line x1="350" y1="112" x2="350" y2="280" stroke="#8FC4C4" stroke-width="1" opacity="0.7"/>
+    <line x1="390" y1="122" x2="390" y2="280" stroke="#8FC4C4" stroke-width="1" opacity="0.7"/>
+    <line x1="430" y1="130" x2="430" y2="280" stroke="#8FC4C4" stroke-width="1" opacity="0.7"/>
+    <line x1="470" y1="130" x2="470" y2="280" stroke="#8FC4C4" stroke-width="1" opacity="0.7"/>
+    <line x1="510" y1="120" x2="510" y2="280" stroke="#8FC4C4" stroke-width="1" opacity="0.7"/>
+    <line x1="550" y1="108" x2="550" y2="280" stroke="#8FC4C4" stroke-width="1" opacity="0.7"/>
+    <rect x="185" y="88" width="38" height="22" rx="2" fill="none" stroke="#4A8B8C" stroke-width="2"/>
+    <rect x="565" y="48" width="38" height="22" rx="2" fill="none" stroke="#4A8B8C" stroke-width="2"/>
+    <line x1="0" y1="295" x2="800" y2="295" stroke="#4A8B8C" stroke-width="3"/>
+  </svg>
+
+  <div class="container">
+    <div class="hero-content">
+      <div class="hero-badge">
+        <span class="dot"></span>
+        <span>Vallejo, California — Since 2000</span>
+      </div>
+
+      <h1 class="hero-h1">
+        <span>25 Years.</span>
+        <span class="accent">One Fire.</span>
+        <span class="gold-accent">Still Here.</span>
+      </h1>
+
+      <p class="hero-sub">
+        Momo's Café wasn't built overnight. It was built by a father who started washing dishes
+        and never stopped working — through <strong>three locations, two decades</strong>,
+        and a fire that could have ended it all.
+      </p>
+
+      <div class="hero-ctas">
+        <a href="momos-menu.html" class="btn btn-primary" style="font-size:16px;padding:16px 32px;">
+          🍳 Order Now
+        </a>
+        <a href="#timeline" class="btn btn-outline-white">
+          Read the Story ↓
+        </a>
+      </div>
+
+      <!-- Key stats -->
+      <div class="hero-stats">
+        <div class="stat-pill">
+          <span class="num">25+</span>
+          <span class="label">Years Serving Vallejo</span>
+        </div>
+        <div class="stat-pill" style="border-left:1px solid rgba(255,255,255,0.1);padding-left:20px;">
+          <span class="num">3</span>
+          <span class="label">Locations Over Time</span>
+        </div>
+        <div class="stat-pill" style="border-left:1px solid rgba(255,255,255,0.1);padding-left:20px;">
+          <span class="num">1</span>
+          <span class="label">Family Behind It All</span>
+        </div>
+        <div class="stat-pill" style="border-left:1px solid rgba(255,255,255,0.1);padding-left:20px;">
+          <span class="num">0</span>
+          <span class="label">Times We Quit</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Desktop image card -->
+  <div class="hero-image-card">
+    <div class="hero-image-inner">
+      <div class="hero-image-placeholder">🍳</div>
+      <div class="hero-image-caption">
+        <span class="gold-dot"></span>
+        <span>Momo's Café — Vallejo's Breakfast &amp; Lunch Institution</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     NARRATIVE INTRO
+══════════════════════════════════════════════════════════ -->
+<section id="story-intro">
+  <div class="container">
+    <div class="intro-grid fade-up">
+
+      <!-- Left: story text -->
+      <div class="intro-text">
+        <span class="section-label">The Beginning</span>
+        <div class="divider-line"><span></span></div>
+        <h2>A Name Built From Scratch</h2>
+
+        <p>
+          Momo's isn't a person. It's a name that became a promise —
+          <strong>a promise that the food would be honest, the portions real, and the welcome genuine.</strong>
+        </p>
+        <p>
+          Behind that name is a father who didn't inherit a restaurant.
+          He earned his way up from the bottom of the kitchen — dishwasher, prep cook, line cook — learning
+          every station before he ever ran one. By the time he opened his own doors in the early 2000s,
+          he had already spent years proving he knew what it took.
+        </p>
+        <p>
+          That work ethic is still in the food. Every burrito, every breakfast plate, every plate of
+          huevos rancheros carries the same standard: cook it right, make it big, send people home full.
+        </p>
+
+        <div class="intro-pull">
+          <p>"He didn't open a restaurant to be famous. He opened one because he knew how to feed people — and Vallejo needed a place like this."</p>
+        </div>
+      </div>
+
+      <!-- Right: chapter overview cards -->
+      <div class="intro-chapters">
+        <div class="chapter-card fade-up">
+          <div class="chapter-icon">🧹</div>
+          <div class="chapter-info">
+            <span class="year">1990s</span>
+            <h4>Dishwasher to Cook</h4>
+            <p>Started at the bottom of the kitchen and worked every station before running his own.</p>
+          </div>
+        </div>
+        <div class="chapter-card fade-up">
+          <div class="chapter-icon">🏠</div>
+          <div class="chapter-info">
+            <span class="year">2001–2006 — South San Francisco</span>
+            <h4>First Restaurant: Country Cottage Café</h4>
+            <p>Purchased and operated his first place. Learned what it really means to run a restaurant.</p>
+          </div>
+        </div>
+        <div class="chapter-card fade-up">
+          <div class="chapter-icon">🌉</div>
+          <div class="chapter-info">
+            <span class="year">2006 — Vallejo</span>
+            <h4>Momo's Café Opens</h4>
+            <p>Moved the operation home. Springs Road. A new name. The Momo's era begins.</p>
+          </div>
+        </div>
+        <div class="chapter-card fade-up">
+          <div class="chapter-icon">🔥</div>
+          <div class="chapter-info">
+            <span class="year">2025</span>
+            <h4>The Fire — and What Came Next</h4>
+            <p>Georgia Street burns. The doors close. The story doesn't end.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     TIMELINE
+══════════════════════════════════════════════════════════ -->
+<section id="timeline">
+  <div class="container">
+    <div class="section-header fade-up">
+      <span class="section-label">The Full Journey</span>
+      <div class="divider-line"><span></span></div>
+      <h2>Chapter by Chapter</h2>
+      <p>Twenty-five years isn't a straight line. Here's how it actually went.</p>
+    </div>
+
+    <div class="timeline-inner">
+
+      <!-- LEFT: 1990s -->
+      <div class="timeline-block left fade-up">
+        <span class="timeline-year">1990s — The Early Years</span>
+        <div class="timeline-title">Started at the Bottom</div>
+        <p class="timeline-desc">
+          Nobody handed him a restaurant. He started as a dishwasher — 
+          the unglamorous entry point for most great cooks. Station by station,
+          he learned every job in the kitchen until he could run them all.
+        </p>
+      </div>
+      <div class="timeline-spine"></div>
+      <div style="padding-bottom:48px;"></div>
+
+      <!-- RIGHT: Country Cottage -->
+      <div style="padding-bottom:48px;"></div>
+      <div class="timeline-spine"></div>
+      <div class="timeline-block right fade-up">
+        <span class="timeline-year">2001–2006 — South San Francisco</span>
+        <div class="timeline-title">Country Cottage Café</div>
+        <p class="timeline-desc">
+          His first restaurant — purchased and operated in South San Francisco.
+          It was the proving ground: managing staff, running a kitchen, building a menu.
+          Everything that would make Momo's possible was learned here.
+        </p>
+      </div>
+
+      <!-- LEFT: Momo's Opens -->
+      <div class="timeline-block left fade-up">
+        <span class="timeline-year">2006 — Springs Road, Vallejo</span>
+        <div class="timeline-title">Momo's Café Is Born</div>
+        <p class="timeline-desc">
+          He came home. Springs Road became the first address.
+          A breakfast and lunch spot with a short menu, big portions,
+          and a name that Vallejo hadn't heard yet — but would soon know well.
+        </p>
+      </div>
+      <div class="timeline-spine"></div>
+      <div style="padding-bottom:48px;"></div>
+
+      <!-- RIGHT: Georgia Street -->
+      <div style="padding-bottom:48px;"></div>
+      <div class="timeline-spine"></div>
+      <div class="timeline-block right fade-up">
+        <span class="timeline-year">2006–2012 — Springs Road</span>
+        <div class="timeline-title">A Neighborhood Staple Takes Root</div>
+        <p class="timeline-desc">
+          Six years at Springs Road. The regulars came every week.
+          Word spread the way good food always does — by someone telling someone else
+          where they ate that morning.
+        </p>
+      </div>
+
+      <!-- LEFT: Georgia Street chapter -->
+      <div class="timeline-block left fade-up">
+        <span class="timeline-year">2012–2025 — Georgia Street, Vallejo</span>
+        <div class="timeline-title">A Vallejo Institution</div>
+        <p class="timeline-desc">
+          Thirteen years at Georgia Street. Long enough to become part of the neighborhood,
+          not just a restaurant in it. Generations of Vallejo families ate here.
+          It became the kind of place people came back to after moving away.
+        </p>
+      </div>
+      <div class="timeline-spine"></div>
+      <div style="padding-bottom:48px;"></div>
+
+      <!-- ── FIRE — Full-width climax card ── -->
+      <div class="timeline-fire-wrapper fade-up">
+        <div class="fire-card">
+          <div class="fire-card-inner">
+            <div class="fire-card-top">
+              <div class="fire-left">
+                <span class="fire-tag">🔥 The Hardest Chapter</span>
+                <span class="fire-year">2025 — Georgia Street</span>
+                <div class="fire-title">A Fire Shut the Doors.</div>
+                <p class="fire-desc">
+                  In 2025, a fire tore through the Georgia Street location.
+                  <strong>Overnight, the doors closed.</strong>
+                  Twenty-plus years of work — the equipment, the space, the rhythm of the kitchen — stopped.
+                </p>
+                <p class="fire-desc" style="margin-top:12px;">
+                  It wasn't planned. There was no soft close, no farewell plate.
+                  Just the reality of what fire does, and the question of what comes next.
+                </p>
+              </div>
+              <div class="fire-stat">
+                <span class="num">13</span>
+                <span class="label">Years at<br>Georgia Street</span>
+              </div>
+            </div>
+            <div class="fire-pull">
+              "Twenty years in, and the work wasn't done.<br>Momo's doesn't close — it adapts."
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── COMEBACK — Full-width optimistic card ── -->
+      <div class="timeline-comeback-wrapper fade-up">
+        <div class="comeback-card">
+          <div class="comeback-inner">
+            <div class="comeback-text">
+              <span class="comeback-tag">✦ Current Chapter</span>
+              <span class="comeback-year">2025–Present — Morgen's Kitchen, Vallejo</span>
+              <div class="comeback-title">The Pop-Up Era. The Comeback in Progress.</div>
+              <p class="comeback-desc">
+                Momo's reopened inside <strong>Morgen's Kitchen</strong> — not as a defeat, but as a move forward.
+                The menu is real, the kitchen is running, and the community that showed up after the fire
+                is being fed again. A permanent new location is in the works.
+                This chapter isn't the ending — it's the setup for what comes next.
+              </p>
+            </div>
+            <div class="comeback-cta">
+              <a href="momos-menu.html" class="btn btn-primary" style="font-size:15px;padding:14px 28px;">
+                🍳 Order Now
+              </a>
+              <a href="#find-us" class="btn btn-outline-white" style="font-size:14px;padding:12px 24px;">
+                Find Us Today →
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /timeline-inner -->
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     FIND US NOW
+══════════════════════════════════════════════════════════ -->
+<section id="find-us">
+  <div class="container">
+    <div class="section-header fade-up">
+      <span class="section-label">We're Still Cooking</span>
+      <div class="divider-line"><span></span></div>
+      <h2>Where to Find Us Now</h2>
+      <p>We're operating out of Morgen's Kitchen while we work toward our next permanent home. Come eat.</p>
+    </div>
+
+    <div class="find-us-grid fade-up">
+      <!-- Map placeholder -->
+      <div class="find-us-map" onclick="window.open('https://maps.google.com')">
+        <span style="font-size:56px;display:block;margin-bottom:12px;">📍</span>
+        <h4>Morgen's Kitchen</h4>
+        <p>Vallejo, CA — Click to open in Maps</p>
+        <a class="btn btn-primary" style="font-size:13px;padding:10px 22px;margin-top:20px;" href="#">Get Directions →</a>
+      </div>
+
+      <!-- Info -->
+      <div>
+        <div class="find-us-badge">Serving Now</div>
+        <h3>Morgen's Kitchen<br><span style="color:var(--teal-dark);font-size:26px;">Vallejo, CA</span></h3>
+
+        <p class="find-us-detail" style="margin-top:16px;">📍 <strong>Address:</strong> [Insert Address], Vallejo, CA</p>
+        <p class="find-us-detail">📞 <strong>Phone:</strong> <a href="tel:+17071234567">(707) 123-4567</a></p>
+        <p class="find-us-detail">✉️ <strong>Email:</strong> <a href="mailto:info@momoscafe.com">info@momoscafe.com</a></p>
+
+        <table class="find-us-hours">
+          <tr class="today"><td>Monday – Friday</td><td>7:00 AM – 3:00 PM</td></tr>
+          <tr><td>Saturday</td><td>7:00 AM – 3:00 PM</td></tr>
+          <tr><td>Sunday</td><td>7:00 AM – 3:00 PM</td></tr>
+        </table>
+
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+          <a href="momos-menu.html" class="btn btn-primary" style="font-size:14px;padding:13px 26px;">Order Pickup</a>
+          <a href="tel:+17071234567" class="btn btn-secondary" style="font-size:14px;padding:13px 26px;">Call Us</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     CLOSING CTA — same feel as Why Love Us section
+══════════════════════════════════════════════════════════ -->
+<section id="story-closing">
+  <div class="container">
+    <div class="closing-inner fade-up">
+      <span class="section-label" style="color:var(--gold);">Vallejo's Café</span>
+      <div class="divider-line" style="max-width:300px;margin:8px auto;"><span></span></div>
+      <h2 class="closing-title">
+        Thank You,
+        <span class="accent">Vallejo.</span>
+      </h2>
+      <p class="closing-sub">
+        You kept asking when we'd be back after the fire.
+        You showed up to the pop-up before we even had a proper sign.
+        <strong>This place exists because of you</strong> —
+        and we plan to keep feeding you for another 25 years.
+      </p>
+      <div class="closing-ctas">
+        <a href="momos-menu.html" class="btn btn-primary" style="font-size:16px;padding:16px 36px;">
+          🍳 Order Now
+        </a>
+        <a href="momos-menu.html" class="btn btn-outline-white" style="font-size:15px;padding:15px 28px;">
+          View Full Menu
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     FOOTER — identical structure to landing page
+══════════════════════════════════════════════════════════ -->
+<footer>
+  <div class="container">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <div class="logo-text">MOMO'S <span>CAFÉ</span></div>
+        <div class="tagline">Breakfast &amp; Lunch · Vallejo, CA</div>
+      </div>
+      <div class="footer-col">
+        <h5>Navigate</h5>
+        <ul class="footer-links">
+          <li><a href="momos-cafe.html">Home</a></li>
+          <li><a href="momos-cafe.html#deals">Deals</a></li>
+          <li><a href="momos-menu.html">Full Menu</a></li>
+          <li><a href="#">Our Story</a></li>
+          <li><a href="momos-cafe.html#location">Location &amp; Hours</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h5>Contact</h5>
+        <ul class="footer-links">
+          <li><a href="tel:+17071234567">(707) 123-4567</a></li>
+          <li><a href="#">Vallejo, CA</a></li>
+          <li><a href="#">info@momoscafe.com</a></li>
+          <li><a href="#">DoorDash</a></li>
+          <li><a href="#">Uber Eats</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2025 Momo's Café Vallejo. All rights reserved.</p>
+      <div class="footer-bridge">VALLEJO · BAY AREA · EST. 2000</div>
+    </div>
+  </div>
+</footer>
+
+<!-- ══════════════════════════════════════════════════════════
+     JAVASCRIPT — scroll animations + nav
+══════════════════════════════════════════════════════════ -->
+<script>
+// Scroll-triggered fade-up (same observer as landing + menu)
+var observer = new IntersectionObserver(function(entries) {
+  entries.forEach(function(e) {
+    if (e.isIntersecting) e.target.classList.add('visible');
+  });
+}, { threshold: 0.1 });
+
+document.querySelectorAll('.fade-up').forEach(function(el) {
+  observer.observe(el);
+});
+</script>
+
+</body>
+</html>

@@ -41,14 +41,19 @@ export async function getMenuFromSquare(): Promise<MenuCategory[]> {
   >();
 
   const types = "ITEM,CATEGORY,ITEM_VARIATION,IMAGE,MODIFIER_LIST,MODIFIER";
-  const catalogPage = await client.catalog.list({ types });
-
-  // First pass: collect all objects and item IDs for batch retrieve
   const allObjects: Array<{ type: string; id: string; [key: string]: unknown }> = [];
-  for await (const obj of catalogPage) {
-    if (obj.isDeleted || !obj.id) continue;
-    allObjects.push(obj as { type: string; id: string; [key: string]: unknown });
-  }
+  let cursor: string | undefined;
+  type CatalogPage = { result?: { objects?: unknown[]; cursor?: string }; objects?: unknown[]; cursor?: string };
+  do {
+    const page = await client.catalog.list({ types, cursor }) as CatalogPage;
+    const body = page.result ?? page;
+    const items = (body?.objects ?? []) as Array<{ type?: string; id?: string; isDeleted?: boolean; [key: string]: unknown }>;
+    for (const obj of items) {
+      if (obj.isDeleted || !obj.id) continue;
+      allObjects.push(obj as { type: string; id: string; [key: string]: unknown });
+    }
+    cursor = body?.cursor;
+  } while (cursor);
 
   // Build modifier maps from MODIFIER and MODIFIER_LIST
   for (const obj of allObjects) {

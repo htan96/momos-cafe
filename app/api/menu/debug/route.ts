@@ -22,37 +22,44 @@ export async function GET() {
 
     const types = "ITEM,MODIFIER_LIST,MODIFIER";
     const objects: unknown[] = [];
-    for await (const obj of client.catalog.list({ types })) {
-      if (obj.isDeleted) continue;
-      objects.push({
-        type: obj.type,
-        id: obj.id,
-        keys: Object.keys(obj),
-        itemDataKeys: obj.itemData ? Object.keys(obj.itemData as object) : null,
-        itemData: obj.itemData
-          ? JSON.parse(
-              JSON.stringify(obj.itemData, (_, v) =>
-                typeof v === "bigint" ? v.toString() : v
+    let cursor: string | undefined;
+    type CatalogPage = { result?: { objects?: unknown[]; cursor?: string }; objects?: unknown[]; cursor?: string };
+    do {
+      const page = await client.catalog.list({ types, cursor }) as CatalogPage;
+      const body = page.result ?? page;
+      const items = (body?.objects ?? []) as Array<{ type?: string; id?: string; isDeleted?: boolean; itemData?: object; modifierListData?: object; modifierData?: object }>;
+      for (const obj of items) {
+        if (obj.isDeleted) continue;
+        objects.push({
+          type: obj.type,
+          id: obj.id,
+          keys: Object.keys(obj),
+          itemDataKeys: obj.itemData ? Object.keys(obj.itemData as object) : null,
+          itemData: obj.itemData
+            ? JSON.parse(
+                JSON.stringify(obj.itemData, (_, v) =>
+                  typeof v === "bigint" ? v.toString() : v
+                )
               )
-            )
-          : null,
-        modifierListDataKeys: (obj as { modifierListData?: object }).modifierListData
-          ? Object.keys((obj as { modifierListData: object }).modifierListData)
-          : null,
-        modifierDataKeys: (obj as { modifierData?: object }).modifierData
-          ? Object.keys((obj as { modifierData: object }).modifierData)
-          : null,
-      });
-    }
+            : null,
+          modifierListDataKeys: obj.modifierListData
+            ? Object.keys(obj.modifierListData as object)
+            : null,
+          modifierDataKeys: obj.modifierData
+            ? Object.keys(obj.modifierData as object)
+            : null,
+        });
+      }
+      cursor = body?.cursor;
+    } while (cursor);
 
     return NextResponse.json({
       count: objects.length,
       sample: objects.slice(0, 5),
-      itemsWithModifierInfo: objects.filter((o: { type?: string; itemData?: { modifierListInfo?: unknown; modifier_list_info?: unknown } }) =>
-        o.type === "ITEM" &&
-        ((o as { itemData?: { modifierListInfo?: unknown; modifier_list_info?: unknown } }).itemData?.modifierListInfo ||
-          (o as { itemData?: { modifierListInfo?: unknown; modifier_list_info?: unknown } }).itemData?.modifier_list_info)
-      ).length,
+      itemsWithModifierInfo: objects.filter((o) => {
+        const x = o as { type?: string; itemData?: { modifierListInfo?: unknown; modifier_list_info?: unknown } };
+        return x.type === "ITEM" && !!(x.itemData?.modifierListInfo || x.itemData?.modifier_list_info);
+      }).length,
     });
   } catch (error) {
     console.error("Debug error:", error);

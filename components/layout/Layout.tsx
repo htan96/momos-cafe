@@ -30,7 +30,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <div className="flex flex-col min-h-screen bg-cream text-charcoal">
             <Header />
 
-            <main className={`flex-1 ${isFullWidth ? "" : "px-6 md:px-12 lg:px-20"}`}>
+            <main className={`flex-1 pt-0 ${isFullWidth ? "" : "px-6 md:px-12 lg:px-20"}`}>
               {children}
             </main>
 

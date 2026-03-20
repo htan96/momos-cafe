@@ -95,7 +95,7 @@ export default function OrderPage() {
       )}
       {/* FULL WIDTH CATEGORY NAV — outside container, sticky, aligned with content */}
       <nav
-        className="w-full h-12 bg-teal-dark border-b-2 border-white/10 sticky top-16 z-[800] shadow-[0_2px_8px_rgba(0,0,0,0.08)] overflow-hidden"
+        className="w-full h-12 bg-teal-dark border-b-2 border-white/10 sticky top-16 z-[800] shadow-[0_2px_8px_rgba(0,0,0,0.08)] overflow-hidden -mt-2"
         aria-label="Menu categories"
       >
         <div className="max-w-7xl mx-auto h-full px-4 flex items-center min-w-0">

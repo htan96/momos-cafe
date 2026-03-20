@@ -106,7 +106,7 @@ export default function CategoryNav({
   return (
     <nav
       id="cat-nav"
-      className="sticky top-[64px] z-[700] bg-teal-dark border-b-2 border-white/[0.08] h-[52px]"
+      className="sticky top-[64px] z-[700] bg-teal-dark border-b-2 border-white/[0.08] h-[52px] -mt-2"
       aria-label="Menu categories"
     >
       <div className="max-w-[1200px] mx-auto h-full flex items-center min-w-0 overflow-hidden">

@@ -6,8 +6,12 @@
 /* 🌿 BASE STYLES       */
 /* -------------------- */
 @layer base {
+  html {
+    overflow-x: hidden;
+  }
   body {
     @apply bg-cream text-charcoal font-sans;
+    overflow-x: hidden;
   }
 }
 

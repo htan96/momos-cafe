@@ -167,40 +167,43 @@ export function useAdminSettings() {
   const [settings, setSettings] = useState<AdminSettings>(DEFAULT_SETTINGS);
   const [mounted, setMounted] = useState(false);
 
+  // Fetch from Supabase on mount; fallback to localStorage if API returns null
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored) as Record<string, unknown>;
-        setSettings(migrateStorage(parsed));
-      } catch {
-        // ignore invalid JSON
-      }
-    }
-    setMounted(true);
+    let cancelled = false;
+    fetch("/api/admin/settings")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        if (data) {
+          setSettings(migrateStorage(data as Record<string, unknown>));
+        } else {
+          const stored = localStorage.getItem(STORAGE_KEY);
+          if (stored) {
+            try {
+              const parsed = JSON.parse(stored) as Record<string, unknown>;
+              setSettings(migrateStorage(parsed));
+            } catch {
+              // ignore
+            }
+          }
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setMounted(true);
+      });
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEY && e.newValue) {
-        try {
-          const parsed = JSON.parse(e.newValue) as Record<string, unknown>;
-          setSettings((prev) => migrateStorage({ ...prev, ...parsed }));
-        } catch {
-          // ignore
-        }
-      }
-    };
     const handleCustom = (e: CustomEvent<AdminSettings>) => {
       setSettings((prev) => ({ ...DEFAULT_SETTINGS, ...prev, ...e.detail }));
     };
-    window.addEventListener("storage", handleStorage);
     window.addEventListener(
       "admin_settings_updated",
       handleCustom as EventListener
     );
     return () => {
-      window.removeEventListener("storage", handleStorage);
       window.removeEventListener(
         "admin_settings_updated",
         handleCustom as EventListener
@@ -216,6 +219,11 @@ export function useAdminSettings() {
         window.dispatchEvent(
           new CustomEvent("admin_settings_updated", { detail: next })
         );
+        fetch("/api/admin/settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(next),
+        }).catch(() => {});
       }
       return next;
     });

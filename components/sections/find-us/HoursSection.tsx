@@ -9,8 +9,7 @@ import {
   formatDayHours,
   getIsOpenToday,
 } from "@/lib/useAdminSettings";
-
-const MAPS_URL = "https://www.google.com/maps/place/1922+Broadway+St,+Vallejo,+CA+94589";
+import { useMapsUrl } from "@/lib/mapsUrl";
 
 const DAY_LABELS: Record<(typeof DAY_ORDER)[number], string> = {
   sunday: "Sunday",
@@ -24,6 +23,7 @@ const DAY_LABELS: Record<(typeof DAY_ORDER)[number], string> = {
 
 export default function HoursSection() {
   const { settings } = useAdminSettings();
+  const mapsUrl = useMapsUrl();
   const weeklyHours = settings?.weeklyHours ?? DEFAULT_SETTINGS.weeklyHours;
   const isOpenToday = getIsOpenToday(weeklyHours);
   const todayKey = getTodayKey();
@@ -87,7 +87,7 @@ export default function HoursSection() {
 
         <div className="px-6 py-4 border-t border-cream-dark bg-cream-mid flex gap-2.5 flex-wrap">
           <a
-            href={MAPS_URL}
+            href={mapsUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center justify-center font-semibold text-[13px] tracking-wider uppercase py-2.5 px-5 rounded-lg bg-red text-white shadow-[0_4px_0_#800,0_6px_20px_rgba(200,39,45,0.35)] hover:opacity-90 transition-all flex-1 min-w-[140px]"

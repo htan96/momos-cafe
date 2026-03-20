@@ -3,8 +3,7 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useAdminSettings, DEFAULT_SETTINGS } from "@/lib/useAdminSettings";
-
-const MAPS_URL = "https://www.google.com/maps/place/1922+Broadway+St,+Vallejo,+CA+94589";
+import { useMapsUrl } from "@/lib/mapsUrl";
 
 const fadeUp = {
   initial: { opacity: 0, y: 26 },
@@ -15,6 +14,7 @@ const fadeUp = {
 
 export default function FindUsCTA() {
   const { settings } = useAdminSettings();
+  const mapsUrl = useMapsUrl();
   const locationNote =
     settings?.locationNote ?? DEFAULT_SETTINGS.locationNote;
   const deliveryComingSoon =
@@ -70,7 +70,7 @@ export default function FindUsCTA() {
             {/* Get Directions */}
             <motion.div {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.16 }}>
               <a
-                href={MAPS_URL}
+                href={mapsUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block bg-white border border-cream-dark rounded-2xl p-6 md:p-7 text-left hover:border-teal-light hover:shadow-[0_6px_28px_rgba(74,139,140,0.15)] hover:-translate-y-0.5 transition-all"
@@ -228,7 +228,7 @@ export default function FindUsCTA() {
                 🍳 Order Pickup Now
               </Link>
               <a
-                href={MAPS_URL}
+                href={mapsUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center justify-center font-semibold text-[15px] tracking-wider uppercase py-3.5 px-7 rounded-lg bg-transparent text-white border-2 border-white/70 hover:bg-white/15 transition-all"

@@ -9,9 +9,11 @@ import {
   formatDayHours,
   getIsOpenToday,
 } from "@/lib/useAdminSettings";
+import { useMapsUrl } from "@/lib/mapsUrl";
 
 export default function Location() {
   const { settings } = useAdminSettings();
+  const mapsUrl = useMapsUrl();
   const weeklyHours = settings?.weeklyHours ?? DEFAULT_SETTINGS.weeklyHours;
   const todayKey = getTodayKey();
   const hoursDisplay = formatDayHours(weeklyHours[todayKey]);
@@ -39,7 +41,7 @@ export default function Location() {
             viewport={{ once: true }}
           >
             <Link
-              href="https://www.google.com/maps/place/1922+Broadway+St,+Vallejo,+CA+94589"
+              href={mapsUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="block bg-cream/80 rounded-2xl h-[360px] flex flex-col items-center justify-center text-center border-2 border-cream/80 hover:border-aqua/30 transition-colors cursor-pointer"
@@ -49,7 +51,7 @@ export default function Location() {
                 Momo&apos;s Café Vallejo
               </h4>
               <p className="text-sm text-charcoal/60 mb-5">
-                Click to open in Google Maps
+                Click to open in Maps
               </p>
               <span className="inline-flex items-center justify-center font-semibold text-sm py-2.5 px-5 rounded-lg bg-red text-white">
                 Get Directions

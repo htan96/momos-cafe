@@ -7,6 +7,7 @@ import {
   DEFAULT_SETTINGS,
   getIsOpenToday,
 } from "@/lib/useAdminSettings";
+import { useMapsUrl } from "@/lib/mapsUrl";
 
 const BRIDGE_SVG = (
   <svg
@@ -38,6 +39,7 @@ const BRIDGE_SVG = (
 
 export default function FindUsHero() {
   const { settings } = useAdminSettings();
+  const mapsUrl = useMapsUrl();
   const locationNote =
     settings?.locationNote ?? DEFAULT_SETTINGS.locationNote;
   const weeklyHours = settings?.weeklyHours ?? DEFAULT_SETTINGS.weeklyHours;
@@ -96,7 +98,7 @@ export default function FindUsHero() {
 
           <div className="flex gap-3.5 flex-wrap">
             <a
-              href="https://www.google.com/maps/place/1922+Broadway+St,+Vallejo,+CA+94589"
+              href={mapsUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center font-semibold text-base tracking-wider uppercase py-4 px-8 rounded-lg bg-red text-white shadow-[0_4px_0_#800,0_6px_20px_rgba(200,39,45,0.35)] hover:opacity-90 hover:-translate-y-0.5 transition-all"

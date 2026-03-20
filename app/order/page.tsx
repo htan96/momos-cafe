@@ -89,16 +89,16 @@ export default function OrderPage() {
   const canAcceptOrders = orderingStatus.canAccept;
 
   return (
-    <div className="min-h-screen bg-cream text-charcoal flex flex-col">
+    <div className="min-h-screen bg-cream text-charcoal flex flex-col overflow-x-hidden">
       {!canAcceptOrders && orderingStatus.closedMessage && (
         <OrderingClosedBanner message={orderingStatus.closedMessage} />
       )}
       {/* FULL WIDTH CATEGORY NAV — outside container, sticky, aligned with content */}
       <nav
-        className="w-full h-12 bg-teal-dark border-b-2 border-white/10 sticky top-16 z-[800] shadow-[0_2px_8px_rgba(0,0,0,0.08)]"
+        className="w-full h-12 bg-teal-dark border-b-2 border-white/10 sticky top-16 z-[800] shadow-[0_2px_8px_rgba(0,0,0,0.08)] overflow-hidden"
         aria-label="Menu categories"
       >
-        <div className="max-w-7xl mx-auto h-full px-4 flex items-center">
+        <div className="max-w-7xl mx-auto h-full px-4 flex items-center min-w-0">
           <CategoryNav categories={categories} onScrollTo={scrollToSection} />
         </div>
       </nav>

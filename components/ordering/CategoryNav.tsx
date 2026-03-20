@@ -105,7 +105,7 @@ export default function CategoryNav({ categories, onScrollTo }: CategoryNavProps
   if (categories.length === 0) return null;
 
   return (
-    <div className="h-12 flex items-center gap-2">
+    <div className="h-12 flex items-center gap-2 min-w-0 w-full overflow-hidden">
       <button
         type="button"
         onClick={() => scrollNav("left")}
@@ -117,7 +117,7 @@ export default function CategoryNav({ categories, onScrollTo }: CategoryNavProps
 
       <div
         ref={scrollRef}
-        className="flex-1 min-w-0 h-full overflow-x-auto overflow-y-hidden scrollbar-hide flex items-center gap-4 px-3 scroll-smooth"
+        className="flex-1 min-w-0 h-full overflow-x-auto overflow-y-hidden scrollbar-hide flex items-center gap-4 px-3 scroll-smooth touch-pan-x"
       >
           {categories.map((cat) => (
             <button

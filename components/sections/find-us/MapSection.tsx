@@ -1,12 +1,12 @@
 "use client";
 
 import { motion } from "framer-motion";
-
-const MAPS_URL = "https://www.google.com/maps/place/1922+Broadway+St,+Vallejo,+CA+94589";
+import { useMapsUrl } from "@/lib/mapsUrl";
 const MAP_EMBED_URL =
   "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3139.337235146166!2d-122.26161732335705!3d38.11783099827836!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x808512f7a26e63b3%3A0xb7d5d9e15dca983a!2s1922%20Broadway%20St%2C%20Vallejo%2C%20CA%2094589!5e0!3m2!1sen!2sus!4v1700000000000!5m2!1sen!2sus";
 
 export default function MapSection() {
+  const mapsUrl = useMapsUrl();
   return (
     <section id="map-section" className="pb-20 bg-white">
       <div className="container max-w-[1140px] mx-auto px-5">
@@ -35,7 +35,7 @@ export default function MapSection() {
                   Parking lot • Patio seating • Order at outdoor windows
                 </p>
                 <a
-                  href={MAPS_URL}
+                  href={mapsUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 mt-3 text-gold font-semibold text-xs tracking-wider uppercase hover:text-cream transition-colors"

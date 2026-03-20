@@ -8,6 +8,7 @@ import {
   DAY_ORDER,
   formatDayHours,
 } from "@/lib/useAdminSettings";
+import { useMapsUrl } from "@/lib/mapsUrl";
 
 const DAY_LABELS: Record<string, string> = {
   sunday: "Sunday",
@@ -21,6 +22,7 @@ const DAY_LABELS: Record<string, string> = {
 
 export default function LocationCallout() {
   const { settings } = useAdminSettings();
+  const mapsUrl = useMapsUrl();
   const weeklyHours = settings?.weeklyHours ?? DEFAULT_SETTINGS.weeklyHours;
   return (
     <section id="find-us" className="py-20 md:py-24 bg-white">
@@ -55,7 +57,7 @@ export default function LocationCallout() {
             transition={{ delay: 0.1 }}
           >
             <Link
-              href="https://www.google.com/maps/place/1922+Broadway+St,+Vallejo,+CA+94589"
+              href={mapsUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="block bg-cream-dark rounded-2xl h-[320px] flex flex-col items-center justify-center text-center border-2 border-cream-dark hover:border-teal-light transition-colors cursor-pointer"
@@ -92,7 +94,7 @@ export default function LocationCallout() {
 
             <p className="text-[15px] text-charcoal/65 mt-4 mb-1.5">
               📍 <strong className="text-charcoal">Address:</strong>{" "}
-              <a href="https://www.google.com/maps/place/1922+Broadway+St,+Vallejo,+CA+94589" className="text-teal-dark hover:underline">
+              <a href={mapsUrl} className="text-teal-dark hover:underline">
                 1922 Broadway St, Vallejo, CA 94589
               </a>
             </p>

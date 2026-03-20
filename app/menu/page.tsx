@@ -103,7 +103,7 @@ export default function MenuPage() {
   const canAcceptOrders = orderingStatus.canAccept;
 
   return (
-    <div className="min-h-screen bg-cream-mid text-charcoal">
+    <div className="min-h-screen bg-cream-mid text-charcoal overflow-x-hidden">
       {!canAcceptOrders && orderingStatus.closedMessage && (
         <OrderingClosedBanner message={orderingStatus.closedMessage} />
       )}

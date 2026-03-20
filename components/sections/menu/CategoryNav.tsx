@@ -109,7 +109,7 @@ export default function CategoryNav({
       className="sticky top-[64px] z-[700] bg-teal-dark border-b-2 border-white/[0.08] h-[52px]"
       aria-label="Menu categories"
     >
-      <div className="max-w-[1200px] mx-auto h-full flex items-center">
+      <div className="max-w-[1200px] mx-auto h-full flex items-center min-w-0 overflow-hidden">
         <button
           type="button"
           onClick={() => scrollNav("left")}
@@ -121,7 +121,7 @@ export default function CategoryNav({
 
         <div
           ref={scrollRef}
-          className="flex-1 min-w-0 h-full overflow-x-auto overflow-y-hidden scrollbar-hide flex items-center gap-1 px-3"
+          className="flex-1 min-w-0 h-full overflow-x-auto overflow-y-hidden scrollbar-hide flex items-center gap-1 px-3 touch-pan-x"
         >
           {categories.map((cat) => (
             <button

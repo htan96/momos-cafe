@@ -2,11 +2,11 @@
 
 import { motion } from "framer-motion";
 import { useAdminSettings, DEFAULT_SETTINGS } from "@/lib/useAdminSettings";
-
-const MAPS_URL = "https://www.google.com/maps/place/1922+Broadway+St,+Vallejo,+CA+94589";
+import { useMapsUrl } from "@/lib/mapsUrl";
 
 export default function LocationDetails() {
   const { settings } = useAdminSettings();
+  const mapsUrl = useMapsUrl();
   const locationNote =
     settings?.locationNote ?? DEFAULT_SETTINGS.locationNote;
 
@@ -38,7 +38,7 @@ export default function LocationDetails() {
                 Address
               </span>
               <a
-                href={MAPS_URL}
+                href={mapsUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-[15px] font-medium text-charcoal hover:text-red transition-colors leading-snug"

@@ -9,6 +9,7 @@ import {
   getTodayKey,
   formatDayHours,
 } from "@/lib/useAdminSettings";
+import { useMapsUrl } from "@/lib/mapsUrl";
 
 const FOOTER_NAV = [
   { href: "/", label: "Home" },
@@ -19,10 +20,9 @@ const FOOTER_NAV = [
   { href: "/shop", label: "Shop" },
 ];
 
-const MAPS_URL = "https://www.google.com/maps/place/1922+Broadway+St,+Vallejo,+CA+94589";
-
 export default function Footer() {
   const { settings } = useAdminSettings();
+  const mapsUrl = useMapsUrl();
   const weeklyHours = settings?.weeklyHours ?? DEFAULT_SETTINGS.weeklyHours;
   const todayKey = getTodayKey();
   const todayHours = weeklyHours[todayKey];
@@ -83,7 +83,7 @@ export default function Footer() {
               </li>
               <li>
                 <a
-                  href={MAPS_URL}
+                  href={mapsUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-[14px] text-charcoal/75 hover:text-teal-dark hover:underline underline-offset-2 transition-colors duration-200"

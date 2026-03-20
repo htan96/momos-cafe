@@ -196,7 +196,7 @@ export default function Hero() {
 
           <h1 className="font-display text-[clamp(52px,10vw,110px)] leading-[0.92] text-cream mb-3">
             <span className="block">Big Breakfast.</span>
-            <span className="block text-red font-[1000] tracking-[-0.045em]">Bold Flavor.</span>
+            <span className="block text-red font-[1000] tracking-[-0.033em]">Bold Flavor.</span>
             <span className="block text-gold">Bay Area Soul.</span>
           </h1>
 

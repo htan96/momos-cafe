@@ -28,6 +28,7 @@ const poppins = Poppins({
 });
 
 export const metadata = {
+  metadataBase: new URL("https://momovallejo.com"),
   title: {
     default: "Momo’s Café",
     template: "%s • Momo’s Café",
@@ -43,7 +44,7 @@ export const metadata = {
     siteName: "Momo's Café Vallejo",
     images: [
       {
-        url: "https://momovallejo.com/images/icon.png",
+        url: "https://momovallejo.com/images/og-image.png",
         width: 1200,
         height: 630,
         alt: "Momo's Café Vallejo",
@@ -55,7 +56,7 @@ export const metadata = {
     title: "Momo's Café Vallejo — Big Breakfast. Bold Flavor. Bay Area Soul.",
     description:
       "Hearty breakfast plates, loaded burritos, stacked burgers, and Mexican-American comfort food — served fast, fresh, and with love in Vallejo. Order pickup at Morgen's Kitchen.",
-    images: ["https://momovallejo.com/images/icon.png"],
+    images: ["https://momovallejo.com/images/og-image.png"],
   },
 };
 

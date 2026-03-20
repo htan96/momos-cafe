@@ -21,37 +21,33 @@ export async function GET() {
     });
 
     const types = "ITEM,MODIFIER_LIST,MODIFIER";
+    const catalogPage = await client.catalog.list({ types });
     const objects: unknown[] = [];
-    let cursor: string | undefined;
-    type CatalogPage = { result?: { objects?: unknown[]; cursor?: string }; objects?: unknown[]; cursor?: string };
-    do {
-      const page = await client.catalog.list({ types, cursor }) as CatalogPage;
-      const body = page.result ?? page;
-      const items = (body?.objects ?? []) as Array<{ type?: string; id?: string; isDeleted?: boolean; itemData?: object; modifierListData?: object; modifierData?: object }>;
-      for (const obj of items) {
-        if (obj.isDeleted) continue;
-        objects.push({
-          type: obj.type,
-          id: obj.id,
-          keys: Object.keys(obj),
-          itemDataKeys: obj.itemData ? Object.keys(obj.itemData as object) : null,
-          itemData: obj.itemData
-            ? JSON.parse(
-                JSON.stringify(obj.itemData, (_, v) =>
-                  typeof v === "bigint" ? v.toString() : v
-                )
+
+    // Use SDK's built-in iteration (works at runtime; types may be incomplete)
+    const iterable = catalogPage as AsyncIterable<{ type?: string; id?: string; isDeleted?: boolean; itemData?: object; modifierListData?: object; modifierData?: object }>;
+    for await (const obj of iterable) {
+      if (obj.isDeleted) continue;
+      objects.push({
+        type: obj.type,
+        id: obj.id,
+        keys: Object.keys(obj),
+        itemDataKeys: obj.itemData ? Object.keys(obj.itemData as object) : null,
+        itemData: obj.itemData
+          ? JSON.parse(
+              JSON.stringify(obj.itemData, (_, v) =>
+                typeof v === "bigint" ? v.toString() : v
               )
-            : null,
-          modifierListDataKeys: obj.modifierListData
-            ? Object.keys(obj.modifierListData as object)
-            : null,
-          modifierDataKeys: obj.modifierData
-            ? Object.keys(obj.modifierData as object)
-            : null,
-        });
-      }
-      cursor = body?.cursor;
-    } while (cursor);
+            )
+          : null,
+        modifierListDataKeys: obj.modifierListData
+          ? Object.keys(obj.modifierListData as object)
+          : null,
+        modifierDataKeys: obj.modifierData
+          ? Object.keys(obj.modifierData as object)
+          : null,
+      });
+    }
 
     return NextResponse.json({
       count: objects.length,

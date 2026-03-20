@@ -243,7 +243,7 @@ export default function Hero() {
       </div>
 
       {/* Food cards - hidden on mobile */}
-      <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[420px] grid grid-cols-2 gap-4 p-5 z-[2] hidden lg:grid">
+      <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[420px] grid grid-cols-2 gap-6 p-5 z-[2] hidden lg:grid">
         {[
           { emoji: "🍳", title: "Breakfast Plates", desc: "Eggs, potatoes and more" },
           { emoji: "🌯", title: "Breakfast Burritos", desc: "Loaded and wrapped right" },
@@ -252,9 +252,7 @@ export default function Hero() {
         ].map((card, i) => (
           <div
             key={card.title}
-            className={`bg-white/5 border border-white/10 rounded-2xl p-5 text-center backdrop-blur-sm hover:-translate-y-1 transition-transform ${
-              i === 1 ? "mt-8" : i === 3 ? "-mt-8" : ""
-            }`}
+            className="bg-white/5 border border-white/10 rounded-2xl p-5 text-center backdrop-blur-sm hover:-translate-y-1 transition-transform"
           >
             <span className="text-4xl block mb-2.5">{card.emoji}</span>
             <h4 className="font-semibold text-sm text-white/90">{card.title}</h4>

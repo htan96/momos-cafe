@@ -7,7 +7,7 @@ interface OrderingClosedBannerProps {
 export default function OrderingClosedBanner({ message }: OrderingClosedBannerProps) {
   return (
     <div
-      className="bg-red/90 text-white px-5 py-3 text-center font-semibold text-sm tracking-wide"
+      className="bg-red/90 text-white px-6 py-4 text-center font-semibold text-sm tracking-wide"
       role="alert"
     >
       {message}

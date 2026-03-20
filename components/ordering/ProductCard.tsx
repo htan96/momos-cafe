@@ -122,7 +122,7 @@ export default function ProductCard({
               disabled={orderingDisabled}
               className={`flex items-center gap-1.5 rounded-lg font-semibold tracking-wider uppercase transition-all ${
                 orderingDisabled
-                  ? "border-cream-dark text-gray-mid bg-cream cursor-not-allowed px-2 py-1.5 text-[10px]"
+                  ? "border-cream-dark text-gray-mid bg-cream cursor-not-allowed px-3.5 py-2 text-[11px]"
                   : `border-[1.5px] border-teal text-teal-dark hover:bg-teal hover:text-white ${isCompact ? "px-2 py-1.5 text-[10px]" : "px-3 py-2 text-[11px]"}`
               }`}
               aria-label={orderingDisabled ? "Ordering closed" : `Customize ${item.name}`}

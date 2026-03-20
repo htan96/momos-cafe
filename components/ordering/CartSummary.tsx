@@ -47,7 +47,7 @@ export default function CartSummary({ onNext, orderingDisabled = false }: CartSu
             type="button"
             onClick={orderingDisabled ? undefined : onNext}
             disabled={orderingDisabled}
-            className={`w-full py-3 rounded-lg font-semibold text-sm tracking-wider uppercase transition-all ${
+            className={`w-full py-3.5 px-6 rounded-lg font-semibold text-sm tracking-wider uppercase transition-all ${
               orderingDisabled
                 ? "bg-gray-mid text-white/80 cursor-not-allowed shadow-none"
                 : "bg-red text-white shadow-[0_3px_0_#800] hover:opacity-90"

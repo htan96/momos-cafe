@@ -33,7 +33,7 @@ export default function StickyCheckoutBar({ onGoToCheckout, visible, orderingDis
           type="button"
           onClick={orderingDisabled ? undefined : onGoToCheckout}
           disabled={orderingDisabled}
-          className={`py-3 px-6 rounded-lg font-semibold text-sm tracking-wider uppercase transition-all ${
+          className={`py-3.5 px-7 rounded-lg font-semibold text-sm tracking-wider uppercase transition-all ${
             orderingDisabled
               ? "bg-gray-mid text-white/80 cursor-not-allowed shadow-none"
               : "bg-red text-white shadow-[0_3px_0_#800] hover:opacity-90"
@@ -63,7 +63,7 @@ export default function StickyCheckoutBar({ onGoToCheckout, visible, orderingDis
               ${total.toFixed(2)}
             </p>
           </div>
-          <span className={`py-2.5 px-5 rounded-lg font-semibold text-sm tracking-wider uppercase transition-opacity ${
+          <span className={`py-3 px-6 rounded-lg font-semibold text-sm tracking-wider uppercase transition-opacity ${
             orderingDisabled
               ? "bg-gray-mid text-white/80"
               : "bg-red text-white shadow-[0_3px_0_#800] group-hover:opacity-90"

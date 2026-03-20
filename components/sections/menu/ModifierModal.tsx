@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { MenuItem } from "@/types/menu";
 import type { ModifierGroup } from "@/types/ordering";
+import { useSwipeToClose } from "@/hooks/useSwipeToClose";
 
 interface ModifierOption {
   id: string;
@@ -57,6 +58,12 @@ export default function ModifierModal({
       onClose();
     }
   };
+
+  const swipe = useSwipeToClose({
+    onClose,
+    enabled: isOpen,
+    direction: "down",
+  });
 
   const selectOption = (groupId: string, optionId: string, type: string) => {
     setSelections((prev) => {
@@ -124,9 +131,19 @@ export default function ModifierModal({
         className={`bg-white rounded-t-[20px] w-full max-w-[600px] max-h-[92vh] flex flex-col transition-transform duration-300 ease-out ${
           isOpen ? "translate-y-0" : "translate-y-full"
         }`}
+        style={isOpen ? swipe.style : undefined}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="w-11 h-1 bg-cream-dark rounded-full mx-auto mt-3 flex-shrink-0" />
+        {/* Drag handle — touch target for swipe-to-close */}
+        <div
+          className="w-full py-3 flex justify-center flex-shrink-0 -mt-1"
+          style={{ touchAction: "none" }}
+          onTouchStart={swipe.onTouchStart}
+          onTouchMove={swipe.onTouchMove}
+          onTouchEnd={swipe.onTouchEnd}
+        >
+          <div className="w-11 h-1 bg-cream-dark rounded-full" />
+        </div>
 
         {/* Image */}
         <div className="w-full h-[180px] bg-cream-dark flex items-center justify-center text-7xl overflow-hidden">

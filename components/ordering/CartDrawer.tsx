@@ -1,6 +1,7 @@
 "use client";
 
 import { useCart } from "@/context/CartContext";
+import { useSwipeToClose } from "@/hooks/useSwipeToClose";
 import CartOrderSummary from "./CartOrderSummary";
 
 interface CartDrawerProps {
@@ -22,6 +23,12 @@ export default function CartDrawer({
     if (e.target === e.currentTarget) onClose();
   };
 
+  const swipe = useSwipeToClose({
+    onClose,
+    enabled: isOpen,
+    direction: "right",
+  });
+
   const handleCheckout = () => {
     if (orderingDisabled) return;
     onClose();
@@ -42,9 +49,16 @@ export default function CartDrawer({
         className={`fixed right-0 top-0 bottom-0 z-[1900] w-full max-w-[400px] bg-white flex flex-col shadow-[0_12px_48px_rgba(0,0,0,0.18)] transition-transform duration-300 ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
+        style={isOpen ? swipe.style : undefined}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="bg-teal-dark px-5 py-4 flex items-center justify-between border-b-2 border-gold flex-shrink-0">
+        <div
+          className="bg-teal-dark px-5 py-4 flex items-center justify-between border-b-2 border-gold flex-shrink-0"
+          style={{ touchAction: "none" }}
+          onTouchStart={swipe.onTouchStart}
+          onTouchMove={swipe.onTouchMove}
+          onTouchEnd={swipe.onTouchEnd}
+        >
           <h3 className="font-display text-2xl text-cream">Your Order</h3>
           <button
             type="button"

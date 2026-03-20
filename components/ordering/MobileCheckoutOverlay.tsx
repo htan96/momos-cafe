@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useCart } from "@/context/CartContext";
+import { useSwipeToClose } from "@/hooks/useSwipeToClose";
 import CartSummary from "./CartSummary";
 import CheckoutPanel from "./CheckoutPanel";
 import OrderConfirmation from "./OrderConfirmation";
@@ -51,15 +52,28 @@ export default function MobileCheckoutOverlay({
     onClose();
   };
 
+  const swipe = useSwipeToClose({
+    onClose: step === 1 ? handleBackFromStep1 : () => setStep(1),
+    enabled: isOpen,
+    direction: "down",
+  });
+
   return (
     <div
       className="lg:hidden fixed inset-0 z-[900] bg-cream flex flex-col"
       role="dialog"
       aria-modal="true"
       aria-label="Checkout"
+      style={swipe.style}
     >
-      {/* Header with step title and back */}
-      <div className="bg-teal-dark px-4 py-4 flex items-center justify-between border-b-2 border-gold flex-shrink-0">
+      {/* Header — touch target for swipe-to-close */}
+      <div
+        className="bg-teal-dark px-4 py-4 flex items-center justify-between border-b-2 border-gold flex-shrink-0"
+        style={{ touchAction: "none" }}
+        onTouchStart={swipe.onTouchStart}
+        onTouchMove={swipe.onTouchMove}
+        onTouchEnd={swipe.onTouchEnd}
+      >
         <button
           type="button"
           onClick={step === 1 ? handleBackFromStep1 : () => setStep(1)}
@@ -77,7 +91,7 @@ export default function MobileCheckoutOverlay({
       </div>
 
       {/* Step content — full height, scrollable */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
         {step === 1 && (
           <div className="bg-white border-[1.5px] border-cream-dark rounded-2xl mx-4 mt-4 overflow-hidden">
             <CartSummary onNext={() => setStep(2)} orderingDisabled={orderingDisabled} />

@@ -5,6 +5,7 @@ import Image from "next/image";
 import type { MenuItem } from "@/types/menu";
 import type { ModifierGroup, SelectedModifier } from "@/types/ordering";
 import { useCart } from "@/context/CartContext";
+import { useSwipeToClose } from "@/hooks/useSwipeToClose";
 
 interface ItemModalProps {
   isOpen: boolean;
@@ -120,6 +121,12 @@ export default function ItemModal({
     if (e.target === e.currentTarget) onClose();
   };
 
+  const swipe = useSwipeToClose({
+    onClose,
+    enabled: isOpen,
+    direction: "down",
+  });
+
   return (
     <div
       className={`fixed inset-0 z-[2000] bg-black/55 backdrop-blur-sm flex items-end justify-center transition-opacity duration-250 ${
@@ -134,9 +141,19 @@ export default function ItemModal({
         className={`bg-white rounded-t-[20px] w-full max-w-[620px] max-h-[94vh] flex flex-col transition-transform duration-300 ease-out ${
           isOpen ? "translate-y-0" : "translate-y-full"
         }`}
+        style={isOpen ? swipe.style : undefined}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="w-11 h-1 bg-cream-dark rounded-full mx-auto mt-3 flex-shrink-0" />
+        {/* Drag handle — touch target for swipe-to-close (padding enlarges hit area) */}
+        <div
+          className="w-full py-3 flex justify-center flex-shrink-0 -mt-1"
+          style={{ touchAction: "none" }}
+          onTouchStart={swipe.onTouchStart}
+          onTouchMove={swipe.onTouchMove}
+          onTouchEnd={swipe.onTouchEnd}
+        >
+          <div className="w-11 h-1 bg-cream-dark rounded-full" />
+        </div>
 
         <div className="w-full h-[170px] bg-cream-dark flex items-center justify-center text-6xl overflow-hidden flex-shrink-0">
           {item.image_url ? (

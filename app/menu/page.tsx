@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { MenuCategory, MenuItem } from "@/types/menu";
 import { useAdminSettings, getOrderingStatus } from "@/lib/useAdminSettings";
 import { useCart } from "@/context/CartContext";
+import { useHeaderSubNav } from "@/context/HeaderSubNavContext";
 import type { SelectedModifier } from "@/types/ordering";
 import OrderingClosedBanner from "@/components/menu/OrderingClosedBanner";
 import CategoryNav from "@/components/sections/menu/CategoryNav";
@@ -80,6 +81,16 @@ export default function MenuPage() {
   );
 
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
+  const { setSubNav } = useHeaderSubNav() ?? { setSubNav: () => {} };
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    setIsDesktop(mq.matches);
+    const handler = () => setIsDesktop(mq.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
 
   // Header (64px) + category bar (~56px) = ~120px
   const SCROLL_OFFSET = 120;
@@ -90,6 +101,18 @@ export default function MenuPage() {
     const y = el.getBoundingClientRect().top + window.scrollY - SCROLL_OFFSET;
     window.scrollTo({ top: y, behavior: "smooth" });
   }, []);
+
+  useEffect(() => {
+    if (!isDesktop) return;
+    setSubNav(
+      <CategoryNav
+        categories={categories}
+        onScrollTo={scrollToSection}
+        embeddedInHeader
+      />
+    );
+    return () => setSubNav(null);
+  }, [isDesktop, categories, scrollToSection, setSubNav]);
 
   if (loading) {
     return (
@@ -107,7 +130,9 @@ export default function MenuPage() {
       {!canAcceptOrders && orderingStatus.closedMessage && (
         <OrderingClosedBanner message={orderingStatus.closedMessage} />
       )}
-      <CategoryNav categories={categories} onScrollTo={scrollToSection} />
+      <div className="lg:hidden">
+        <CategoryNav categories={categories} onScrollTo={scrollToSection} />
+      </div>
 
       <div className="max-w-[1200px] mx-auto px-5 py-8 pb-32 lg:pb-8 grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-8 items-start">
         <main className="min-w-0">

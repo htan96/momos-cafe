@@ -9,11 +9,14 @@ interface CategoryNavProps {
   categories: MenuCategory[];
   headerOffset?: number;
   onScrollTo?: (slug: string) => void;
+  /** When true, nav is inside header — no sticky, no negative margin */
+  embeddedInHeader?: boolean;
 }
 
 export default function CategoryNav({
   categories,
   onScrollTo,
+  embeddedInHeader = false,
 }: CategoryNavProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [activeId, setActiveId] = useState<string>(categories[0]?.slug ?? "");
@@ -106,7 +109,7 @@ export default function CategoryNav({
   return (
     <nav
       id="cat-nav"
-      className="sticky top-[64px] z-[700] bg-teal-dark border-b-2 border-white/[0.08] h-[52px] -mt-2"
+      className={`h-[52px] ${embeddedInHeader ? "" : "sticky top-[64px] z-[700] bg-teal-dark border-b-2 border-white/[0.08] -mt-2"}`}
       aria-label="Menu categories"
     >
       <div className="max-w-[1200px] mx-auto h-full flex items-center min-w-0 overflow-hidden">

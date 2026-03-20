@@ -8,9 +8,10 @@ const STICKY_OFFSET = 140; // header + category nav height
 interface CategoryNavProps {
   categories: MenuCategory[];
   onScrollTo?: (slug: string) => void;
+  embeddedInHeader?: boolean;
 }
 
-export default function CategoryNav({ categories, onScrollTo }: CategoryNavProps) {
+export default function CategoryNav({ categories, onScrollTo, embeddedInHeader = false }: CategoryNavProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [activeId, setActiveId] = useState<string>(categories[0]?.slug ?? "");
   const observerRef = useRef<IntersectionObserver | null>(null);

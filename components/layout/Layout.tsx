@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { CartProvider } from "@/context/CartContext";
 import { CartNavProvider } from "@/context/CartNavContext";
 import { ToastProvider } from "@/context/ToastContext";
+import { HeaderSubNavProvider } from "@/context/HeaderSubNavContext";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -27,6 +28,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     <CartProvider>
       <ToastProvider>
         <CartNavProvider>
+          <HeaderSubNavProvider>
           <div className="flex flex-col min-h-screen bg-cream text-charcoal">
             <Header />
 
@@ -39,6 +41,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             {/* Spacer for fixed bottom nav on mobile */}
             <div className="lg:hidden h-16" aria-hidden="true" />
           </div>
+          </HeaderSubNavProvider>
         </CartNavProvider>
       </ToastProvider>
     </CartProvider>

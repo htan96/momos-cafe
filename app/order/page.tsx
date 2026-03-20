@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import type { MenuCategory } from "@/types/menu";
 import { useCart } from "@/context/CartContext";
 import { useCartNav } from "@/context/CartNavContext";
+import { useHeaderSubNav } from "@/context/HeaderSubNavContext";
 import { useAdminSettings, getOrderingStatus } from "@/lib/useAdminSettings";
 import OrderingClosedBanner from "@/components/menu/OrderingClosedBanner";
 import MenuGrid from "@/components/ordering/MenuGrid";
@@ -45,12 +46,18 @@ export default function OrderPage() {
   const openMobileCheckout = () => setMobileCheckoutOpen(true);
 
   const [isMobile, setIsMobile] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
+  const { setSubNav } = useHeaderSubNav() ?? { setSubNav: () => {} };
+
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 1023px)");
-    setIsMobile(mq.matches);
-    const handler = () => setIsMobile(mq.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
+    const update = () => {
+      setIsMobile(mq.matches);
+      setIsDesktop(!mq.matches);
+    };
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
   }, []);
 
   const handleCartClick = isMobile ? openMobileCheckout : openCart;
@@ -85,6 +92,16 @@ export default function OrderPage() {
     load();
   }, []);
 
+  useEffect(() => {
+    if (!isDesktop) return;
+    setSubNav(
+      <div className="max-w-7xl mx-auto h-full px-4 flex items-center min-w-0">
+        <CategoryNav categories={categories} onScrollTo={scrollToSection} embeddedInHeader />
+      </div>
+    );
+    return () => setSubNav(null);
+  }, [isDesktop, categories, scrollToSection, setSubNav]);
+
   const orderingStatus = getOrderingStatus(settings);
   const canAcceptOrders = orderingStatus.canAccept;
 
@@ -93,9 +110,9 @@ export default function OrderPage() {
       {!canAcceptOrders && orderingStatus.closedMessage && (
         <OrderingClosedBanner message={orderingStatus.closedMessage} />
       )}
-      {/* FULL WIDTH CATEGORY NAV — outside container, sticky, aligned with content */}
+      {/* Category nav — in header on desktop, here on mobile */}
       <nav
-        className="w-full h-12 bg-teal-dark border-b-2 border-white/10 sticky top-16 z-[800] shadow-[0_2px_8px_rgba(0,0,0,0.08)] overflow-hidden -mt-2"
+        className="lg:hidden w-full h-12 bg-teal-dark border-b-2 border-white/10 sticky top-16 z-[800] shadow-[0_2px_8px_rgba(0,0,0,0.08)] overflow-hidden -mt-2"
         aria-label="Menu categories"
       >
         <div className="max-w-7xl mx-auto h-full px-4 flex items-center min-w-0">

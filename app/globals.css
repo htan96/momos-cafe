@@ -7,11 +7,11 @@
 /* -------------------- */
 @layer base {
   html {
-    overflow-x: hidden;
+    overflow-x: clip;
   }
   body {
     @apply bg-cream text-charcoal font-sans;
-    overflow-x: hidden;
+    overflow-x: clip;
   }
 }
 

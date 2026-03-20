@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useHeaderSubNav } from "@/context/HeaderSubNavContext";
 
 const NAV_LINKS = [
   { href: "/", label: "Home" },
@@ -15,6 +16,7 @@ const NAV_LINKS = [
 
 export default function Header() {
   const pathname = usePathname();
+  const { subNav } = useHeaderSubNav() ?? { subNav: null };
 
   return (
     <header className="sticky top-0 z-[900] bg-cream border-b-[3px] border-gold">
@@ -54,6 +56,11 @@ export default function Header() {
           </Link>
         </nav>
       </div>
+      {subNav && (
+        <div className="hidden lg:block h-[52px] border-t border-gold/30 bg-teal-dark">
+          {subNav}
+        </div>
+      )}
     </header>
   );
 }

@@ -183,7 +183,7 @@ export default function Hero() {
             <div
               className={`inline-flex items-center gap-1.5 font-semibold text-[11px] tracking-wider uppercase py-1.5 px-3.5 rounded-full ${
                 isOpenToday
-                  ? "text-[#2d7a2d] bg-white/20 border border-white/30"
+                  ? "text-[#2d7a2d] bg-white border border-teal/20"
                   : "text-white/70 bg-white/10 border border-white/15"
               }`}
             >

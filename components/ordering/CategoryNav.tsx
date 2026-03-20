@@ -14,70 +14,54 @@ interface CategoryNavProps {
 export default function CategoryNav({ categories, onScrollTo, embeddedInHeader = false }: CategoryNavProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [activeId, setActiveId] = useState<string>(categories[0]?.slug ?? "");
-  const observerRef = useRef<IntersectionObserver | null>(null);
-  const visibleRef = useRef<Map<string, number>>(new Map());
 
-  // IntersectionObserver: track which sections are in view, pick the topmost as active
+  // Scroll listener: update active category based on which section is at the top
   useEffect(() => {
     if (categories.length === 0) return;
 
     const updateActive = () => {
-      const visible = visibleRef.current;
-      if (visible.size === 0) return;
-      // Active = section closest to top of viewport (smallest top value)
       let best: string | null = null;
-      let bestTop = Infinity;
-      visible.forEach((top, slug) => {
-        if (top < bestTop && top <= STICKY_OFFSET + 50) {
+      let bestTop = -Infinity;
+      for (const cat of categories) {
+        const el = document.getElementById(cat.slug);
+        if (!el) continue;
+        const top = el.getBoundingClientRect().top;
+        if (top <= STICKY_OFFSET + 80 && top > bestTop) {
           bestTop = top;
-          best = slug;
+          best = cat.slug;
         }
-      });
-      // If none in the "header zone", use the one with smallest top (first visible)
-      if (!best && visible.size > 0) {
-        visible.forEach((top, slug) => {
-          if (top < bestTop) {
-            bestTop = top;
-            best = slug;
+      }
+      if (!best && categories.length > 0) {
+        let closest = categories[0].slug;
+        let closestDist = Infinity;
+        for (const cat of categories) {
+          const el = document.getElementById(cat.slug);
+          if (!el) continue;
+          const top = el.getBoundingClientRect().top;
+          const dist = Math.abs(top - STICKY_OFFSET);
+          if (dist < closestDist) {
+            closestDist = dist;
+            closest = cat.slug;
           }
-        });
+        }
+        best = closest;
       }
       if (best) setActiveId(best);
     };
 
-    observerRef.current = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          const slug = entry.target.getAttribute("data-category-slug");
-          if (!slug) return;
-          if (entry.isIntersecting) {
-            visibleRef.current.set(slug, entry.boundingClientRect.top);
-          } else {
-            visibleRef.current.delete(slug);
-          }
-        });
+    updateActive();
+    let raf = 0;
+    const onScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
         updateActive();
-      },
-      {
-        root: null,
-        rootMargin: `-${STICKY_OFFSET}px 0px -40% 0px`,
-        threshold: 0,
-      }
-    );
-
-    const observer = observerRef.current;
-    categories.forEach((cat) => {
-      const el = document.getElementById(cat.slug);
-      if (el) {
-        el.setAttribute("data-category-slug", cat.slug);
-        observer.observe(el);
-      }
-    });
-
+        raf = 0;
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
     return () => {
-      observer.disconnect();
-      observerRef.current = null;
-      visibleRef.current.clear();
+      window.removeEventListener("scroll", onScroll);
+      if (raf) cancelAnimationFrame(raf);
     };
   }, [categories]);
 

@@ -15,6 +15,8 @@ const FOOTER_NAV = [
   { href: "/menu", label: "Menu" },
   { href: "/catering", label: "Catering" },
   { href: "/find-us", label: "Find Us" },
+  { href: "/our-story", label: "Our Story" },
+  { href: "/shop", label: "Shop" },
 ];
 
 const MAPS_URL = "https://www.google.com/maps/place/1922+Broadway+St,+Vallejo,+CA+94589";

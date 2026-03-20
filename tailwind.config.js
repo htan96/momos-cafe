@@ -37,6 +37,9 @@ module.exports = {
         display: ['"Playfair Display"', "serif"],
         sans: ["Inter", "sans-serif"],
       },
+      fontWeight: {
+        semibold: "800",
+      },
     },
   },
   plugins: [],

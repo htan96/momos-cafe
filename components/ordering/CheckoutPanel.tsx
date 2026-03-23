@@ -44,6 +44,17 @@ export default function CheckoutPanel({ onCartClick, onBackToMenu, onBack, onOrd
   const tax = total * taxRate;
   const grandTotal = total + tax;
 
+  /** Must match /api/order getCartTotalCents (subtotal + tax, rounded cents). */
+  const orderTotalCents = useMemo(() => {
+    let subtotal = 0;
+    for (const item of items) {
+      const modTotal = item.modifiers?.reduce((s, m) => s + m.price, 0) ?? 0;
+      subtotal += (item.price + modTotal) * item.quantity;
+    }
+    const t = subtotal * taxRate;
+    return Math.round((subtotal + t) * 100);
+  }, [items]);
+
   const itemCount = items.reduce((sum, i) => sum + i.quantity, 0);
   const estimatedPickupTime = useMemo(
     () => (itemCount > 0 ? getEstimatedPickupTime(itemCount) : null),
@@ -75,7 +86,13 @@ export default function CheckoutPanel({ onCartClick, onBackToMenu, onBack, onOrd
         return;
       }
       const orderId = data.orderId ?? data.paymentId ?? "unknown";
-      showToast(`Order placed! #${orderId.slice(-8).toUpperCase()}`);
+      if (data.isFreeOrder === true) {
+        showToast(
+          typeof data.message === "string" ? data.message : "Order placed successfully (no charge)"
+        );
+      } else {
+        showToast(`Order placed! #${orderId.slice(-8).toUpperCase()}`);
+      }
       onOrderPlaced?.(orderId, estimatedPickupTime ? formatPickupTime(estimatedPickupTime) : undefined);
     },
     [items, name, phone, email, notes, estimatedPickupTime, onOrderPlaced, showToast]
@@ -133,6 +150,17 @@ export default function CheckoutPanel({ onCartClick, onBackToMenu, onBack, onOrd
       showToast("Add items to your cart first");
       return;
     }
+    if (orderTotalCents <= 0) {
+      setPlacing(true);
+      try {
+        await validateAndSubmit("");
+      } catch {
+        showToast("Something went wrong. Please try again.");
+      } finally {
+        setPlacing(false);
+      }
+      return;
+    }
     const tokenize = squareTokenizeRef.current;
     if (!tokenize) {
       showToast("Payment form is still loading. Please wait.");
@@ -152,7 +180,7 @@ export default function CheckoutPanel({ onCartClick, onBackToMenu, onBack, onOrd
     } finally {
       setPlacing(false);
     }
-  }, [orderingDisabled, count, name, phone, email, showToast, validateAndSubmit]);
+  }, [orderingDisabled, count, name, phone, email, orderTotalCents, showToast, validateAndSubmit]);
 
   return (
     <section className="scroll-mt-4" aria-label="Checkout">

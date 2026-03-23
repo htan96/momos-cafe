@@ -7,8 +7,9 @@ const TAX_RATE = 0.0925;
 function getCartTotalCents(items: CartItem[]): number {
   let subtotal = 0;
   for (const item of items) {
-    const modTotal = item.modifiers?.reduce((s, m) => s + m.price, 0) ?? 0;
-    subtotal += (item.price + modTotal) * item.quantity;
+    const price = Number(item.price) || 0;
+    const modTotal = item.modifiers?.reduce((s, m) => s + (Number(m.price) || 0), 0) ?? 0;
+    subtotal += (price + modTotal) * (item.quantity || 1);
   }
   const tax = subtotal * TAX_RATE;
   return Math.round((subtotal + tax) * 100);
@@ -25,22 +26,30 @@ function isValidEmail(value: string): boolean {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { cart, customer, fulfillment_type, token } = body as {
-      cart: CartItem[];
-      customer: { name: string; phone?: string; email?: string; notes?: string };
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
+
+    const { cart, customer, fulfillment_type, token } = (body ?? {}) as {
+      cart?: CartItem[];
+      customer?: { name?: string; phone?: string; email?: string; notes?: string };
       fulfillment_type?: string;
-      token: string;
+      token?: string;
     };
 
     if (!token || typeof token !== "string") {
+      console.warn("[Order] 400: Missing or invalid payment token");
       return NextResponse.json(
-        { error: "Payment token is required" },
+        { error: "Payment token is required. Please complete the card form." },
         { status: 400 }
       );
     }
 
     if (!Array.isArray(cart) || cart.length === 0) {
+      console.warn("[Order] 400: Empty cart");
       return NextResponse.json(
         { error: "Cart is empty" },
         { status: 400 }
@@ -59,7 +68,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Phone is required" }, { status: 400 });
     }
     if (!isValidPhone(phone)) {
-      return NextResponse.json({ error: "Invalid phone number" }, { status: 400 });
+      return NextResponse.json({ error: "Invalid phone number (need at least 10 digits)" }, { status: 400 });
     }
     if (!email) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
@@ -70,6 +79,7 @@ export async function POST(request: Request) {
 
     const totalCents = getCartTotalCents(cart);
     if (totalCents < 1) {
+      console.warn("[Order] 400: Invalid order total", { totalCents, cartLength: cart.length });
       return NextResponse.json(
         { error: "Invalid order total" },
         { status: 400 }

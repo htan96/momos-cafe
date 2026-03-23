@@ -70,7 +70,8 @@ export default function CheckoutPanel({ onCartClick, onBackToMenu, onBack, onOrd
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        showToast(data.error ?? "Payment failed. Please try again.");
+        const msg = typeof data?.error === "string" ? data.error : "Payment failed. Please try again.";
+        showToast(msg);
         return;
       }
       const orderId = data.orderId ?? data.paymentId ?? "unknown";
@@ -141,6 +142,7 @@ export default function CheckoutPanel({ onCartClick, onBackToMenu, onBack, onOrd
     try {
       const token = await tokenize();
       if (!token) {
+        showToast("Card validation failed. Please check your card details.");
         setPlacing(false);
         return;
       }

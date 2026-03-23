@@ -4,6 +4,7 @@ import { useState, useRef, useMemo, useCallback } from "react";
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/context/ToastContext";
 import { getEstimatedPickupTime, formatPickupTime } from "@/lib/pickupTime";
+import type { OrderPlacedVerification } from "@/types/order";
 import SquarePaymentForm from "./SquarePaymentForm";
 
 function isValidPhone(value: string): boolean {
@@ -19,7 +20,7 @@ interface CheckoutPanelProps {
   onCartClick?: () => void;
   onBackToMenu?: () => void;
   onBack?: () => void;
-  onOrderPlaced?: (orderNum: string, estimatedPickupTime?: string) => void;
+  onOrderPlaced?: (orderNum: string, estimatedPickupTime?: string, verification?: OrderPlacedVerification) => void;
   orderingDisabled?: boolean;
 }
 
@@ -86,14 +87,32 @@ export default function CheckoutPanel({ onCartClick, onBackToMenu, onBack, onOrd
         return;
       }
       const orderId = data.orderId ?? data.paymentId ?? "unknown";
+      const verification: OrderPlacedVerification =
+        data.isFreeOrder === true
+          ? { paymentVerified: true, freeOrder: true }
+          : {
+              paymentVerified: data.paymentVerified === true,
+              squarePaymentStatus:
+                typeof data.squarePaymentStatus === "string" ? data.squarePaymentStatus : undefined,
+              squarePaymentId: typeof data.squarePaymentId === "string" ? data.squarePaymentId : undefined,
+              receiptNumber: typeof data.receiptNumber === "string" ? data.receiptNumber : undefined,
+            };
       if (data.isFreeOrder === true) {
         showToast(
           typeof data.message === "string" ? data.message : "Order placed successfully (no charge)"
         );
       } else {
-        showToast(`Order placed! #${orderId.slice(-8).toUpperCase()}`);
+        const suffix =
+          verification.paymentVerified && verification.squarePaymentStatus
+            ? ` · ${verification.squarePaymentStatus}`
+            : "";
+        showToast(`Order placed! #${orderId.slice(-8).toUpperCase()}${suffix}`);
       }
-      onOrderPlaced?.(orderId, estimatedPickupTime ? formatPickupTime(estimatedPickupTime) : undefined);
+      onOrderPlaced?.(
+        orderId,
+        estimatedPickupTime ? formatPickupTime(estimatedPickupTime) : undefined,
+        verification
+      );
     },
     [items, name, phone, email, notes, estimatedPickupTime, onOrderPlaced, showToast]
   );

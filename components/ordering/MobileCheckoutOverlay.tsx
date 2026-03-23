@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 
 const DEBUG_CHECKOUT = process.env.NODE_ENV === "development";
 import { useCart } from "@/context/CartContext";
+import type { OrderPlacedVerification } from "@/types/order";
 import { useSwipeToClose } from "@/hooks/useSwipeToClose";
 import CartSummary from "./CartSummary";
 import CheckoutPanel from "./CheckoutPanel";
@@ -25,6 +26,7 @@ export default function MobileCheckoutOverlay({
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [orderNum, setOrderNum] = useState("");
   const [estimatedPickupTime, setEstimatedPickupTime] = useState<string | undefined>();
+  const [orderVerification, setOrderVerification] = useState<OrderPlacedVerification | null>(null);
   const { clearCart } = useCart();
 
   useEffect(() => {
@@ -32,6 +34,7 @@ export default function MobileCheckoutOverlay({
       setStep(1);
       setOrderNum("");
       setEstimatedPickupTime(undefined);
+      setOrderVerification(null);
     }
   }, [isOpen]);
 
@@ -53,15 +56,17 @@ export default function MobileCheckoutOverlay({
 
   if (!isOpen) return null;
 
-  const handleOrderPlaced = (num: string, pickupTime?: string) => {
+  const handleOrderPlaced = (num: string, pickupTime?: string, verification?: OrderPlacedVerification) => {
     setOrderNum(num);
     setEstimatedPickupTime(pickupTime);
+    setOrderVerification(verification ?? null);
     setStep(3);
     clearCart();
   };
 
   const handleOrderAgain = () => {
     setOrderNum("");
+    setOrderVerification(null);
     setStep(1);
     onClose();
   };
@@ -117,7 +122,12 @@ export default function MobileCheckoutOverlay({
         )}
         {step === 3 && (
           <div className="bg-white border-[1.5px] border-cream-dark rounded-2xl mx-4 mt-4 overflow-hidden">
-            <OrderConfirmation orderNum={orderNum} estimatedPickupTime={estimatedPickupTime} onOrderAgain={handleOrderAgain} />
+            <OrderConfirmation
+              orderNum={orderNum}
+              estimatedPickupTime={estimatedPickupTime}
+              verification={orderVerification}
+              onOrderAgain={handleOrderAgain}
+            />
           </div>
         )}
       </div>

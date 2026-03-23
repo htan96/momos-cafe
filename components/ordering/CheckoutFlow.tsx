@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useImperativeHandle } from "react";
 import { useCart } from "@/context/CartContext";
+import type { OrderPlacedVerification } from "@/types/order";
 import CartSummary from "./CartSummary";
 import CheckoutPanel from "./CheckoutPanel";
 import OrderConfirmation from "./OrderConfirmation";
@@ -19,6 +20,7 @@ export default function CheckoutFlow({ onCartClick, onBackToMenu, checkoutRef, o
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [orderNum, setOrderNum] = useState("");
   const [estimatedPickupTime, setEstimatedPickupTime] = useState<string | undefined>();
+  const [orderVerification, setOrderVerification] = useState<OrderPlacedVerification | null>(null);
   const { clearCart, count } = useCart();
 
   const goToCheckout = () => {
@@ -34,15 +36,17 @@ export default function CheckoutFlow({ onCartClick, onBackToMenu, checkoutRef, o
     }
   }, [step]);
 
-  const handleOrderPlaced = (num: string, pickupTime?: string) => {
+  const handleOrderPlaced = (num: string, pickupTime?: string, verification?: OrderPlacedVerification) => {
     setOrderNum(num);
     setEstimatedPickupTime(pickupTime);
+    setOrderVerification(verification ?? null);
     setStep(3);
     clearCart();
   };
 
   const handleOrderAgain = () => {
     setOrderNum("");
+    setOrderVerification(null);
     setStep(1);
   };
 
@@ -91,7 +95,14 @@ export default function CheckoutFlow({ onCartClick, onBackToMenu, checkoutRef, o
             onOrderPlaced={handleOrderPlaced}
           />
         )}
-        {step === 3 && <OrderConfirmation orderNum={orderNum} estimatedPickupTime={estimatedPickupTime} onOrderAgain={handleOrderAgain} />}
+        {step === 3 && (
+          <OrderConfirmation
+            orderNum={orderNum}
+            estimatedPickupTime={estimatedPickupTime}
+            verification={orderVerification}
+            onOrderAgain={handleOrderAgain}
+          />
+        )}
       </div>
 
       {/* Sticky checkout CTA — visible when on step 1 with items */}

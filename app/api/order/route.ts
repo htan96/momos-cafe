@@ -12,6 +12,7 @@ import {
   cartHasSquareCatalogBinding,
   squareMoneyAmountToCents,
 } from "@/lib/squareOrderFromCart";
+import { verifySquarePaymentCaptured } from "@/lib/verifySquarePayment";
 
 const TAX_RATE = 0.0925;
 
@@ -116,6 +117,22 @@ function isValidPhone(value: string): boolean {
 
 function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+/**
+ * Supabase/PostgREST when `cafe_orders` was never migrated.
+ * In that case we still complete Square payment and return an ephemeral id (no row in your DB).
+ */
+function isMissingCafeOrdersTable(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  const lower = msg.toLowerCase();
+  if (!lower.includes("cafe_orders")) return false;
+  return (
+    lower.includes("pgrst205") ||
+    lower.includes("schema cache") ||
+    lower.includes("could not find the table") ||
+    lower.includes("does not exist")
+  );
 }
 
 export async function POST(request: Request) {
@@ -259,38 +276,78 @@ export async function POST(request: Request) {
       paymentAmountBigInt = BigInt(totalCents);
     }
 
+    /** When false, no `cafe_orders` row — Square is still charged; id is ephemeral (UUID). */
+    let persistOrdersToDb = true;
+    const skipPersistEnv =
+      process.env.SKIP_CAFE_ORDER_PERSIST === "1" ||
+      process.env.SKIP_CAFE_ORDER_PERSIST === "true";
+
     let orderId: string;
-    try {
-      const created = await createCafeOrder({
-        cart,
-        customer: { name, phone, email, notes: notes || undefined },
-        totalCents,
-        fulfillmentType,
-        scheduledForIso: scheduledFor ?? null,
-        estimatedPickupAtIso: estimatedPickupAt.toISOString(),
-        squareOrderId: squareOrderId ?? null,
-      });
-      orderId = created.id;
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "Order storage failed";
-      const isConfig =
-        msg.includes("SUPABASE") ||
-        msg.includes("SERVICE_ROLE") ||
-        msg.includes("NEXT_PUBLIC_SUPABASE");
-      console.error("[Order] createCafeOrder failed:", msg);
-      return NextResponse.json(
-        {
-          error: isConfig
-            ? "Order system not configured. Add Supabase env vars and run migrations (cafe_orders)."
-            : msg,
-        },
-        { status: 503 }
+    if (skipPersistEnv) {
+      persistOrdersToDb = false;
+      orderId = crypto.randomUUID();
+      console.warn(
+        "[Order] SKIP_CAFE_ORDER_PERSIST is set — checkout works via Square only; orders are not saved to Supabase."
       );
+    } else {
+      try {
+        const created = await createCafeOrder({
+          cart,
+          customer: { name, phone, email, notes: notes || undefined },
+          totalCents,
+          fulfillmentType,
+          scheduledForIso: scheduledFor ?? null,
+          estimatedPickupAtIso: estimatedPickupAt.toISOString(),
+          squareOrderId: squareOrderId ?? null,
+        });
+        orderId = created.id;
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Order storage failed";
+        const lower = msg.toLowerCase();
+        const isConfig =
+          msg.includes("SUPABASE") ||
+          msg.includes("SERVICE_ROLE") ||
+          msg.includes("NEXT_PUBLIC_SUPABASE");
+
+        if (isMissingCafeOrdersTable(e)) {
+          persistOrdersToDb = false;
+          orderId = crypto.randomUUID();
+          console.warn(
+            "[Order] public.cafe_orders missing — continuing with Square-only checkout. Ephemeral order id:",
+            orderId,
+            "Run supabase/migrations for cafe_orders if you want orders in your database."
+          );
+        } else {
+          /** Other DB/schema issues */
+          const isSchema =
+            lower.includes("cafe_orders") ||
+            lower.includes("square_order_id") ||
+            lower.includes("does not exist") ||
+            lower.includes("relation") ||
+            lower.includes("schema cache");
+          console.error("[Order] createCafeOrder failed:", msg);
+          let error =
+            "Could not save your order. Please try again or call the restaurant.";
+          if (isConfig) {
+            error =
+              "Order system not configured on server. Add NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to hosting env (e.g. Vercel), then redeploy.";
+          } else if (isSchema) {
+            error =
+              "Database not ready: run Supabase SQL migrations for table cafe_orders (including square_order_id if you use Square Orders).";
+          } else if (process.env.NODE_ENV === "development" || process.env.ORDER_DEBUG_LOGS === "1") {
+            error = msg;
+          }
+          return NextResponse.json(
+            { error, detail: process.env.ORDER_DEBUG_LOGS === "1" ? msg : undefined },
+            { status: 503 }
+          );
+        }
+      }
     }
 
     if (ORDER_DEBUG) {
       console.log(
-        "[Order] Created cafe_orders row:",
+        persistOrdersToDb ? "[Order] Created cafe_orders row:" : "[Order] Ephemeral order (no DB row):",
         orderId,
         "totalCents:",
         totalCents,
@@ -305,11 +362,17 @@ export async function POST(request: Request) {
         orderId,
         isFreeOrder: true,
         message: "Order placed successfully (no charge)",
+        paymentVerified: true,
+        freeOrder: true,
       });
     }
 
     if (!token || typeof token !== "string") {
-      console.warn("[Order] 400: Missing token after order create (order remains awaiting_payment)", orderId);
+      console.warn(
+        "[Order] 400: Missing payment token",
+        orderId,
+        persistOrdersToDb ? "(cafe_orders row may be awaiting_payment)" : "(Square-only mode)"
+      );
       return NextResponse.json(
         { error: "Payment token is required. Please complete the card form.", orderId },
         { status: 400 }
@@ -369,7 +432,9 @@ export async function POST(request: Request) {
       response = await client.payments.create(paymentPayload);
     } catch (squareErr: unknown) {
       console.error("[Order] SQUARE ERROR:", safeJson(squareErrorForLog(squareErr)));
-      await markCafeOrderPaymentFailed(orderId).catch(() => {});
+      if (persistOrdersToDb) {
+        await markCafeOrderPaymentFailed(orderId).catch(() => {});
+      }
       const userMessage = getSquareUserMessage(squareErr);
       const payload: { error: string; orderId: string; squareErrors?: unknown } = {
         error: userMessage,
@@ -381,12 +446,17 @@ export async function POST(request: Request) {
       return NextResponse.json(payload, { status: 400 });
     }
 
-    const res = response as { payment?: { id?: string }; body?: { payment?: { id?: string } } };
+    const res = response as {
+      payment?: { id?: string; status?: string; amountMoney?: { amount?: bigint } };
+      body?: { payment?: { id?: string; status?: string; amountMoney?: { amount?: bigint } } };
+    };
     const payment = res.payment ?? res.body?.payment;
     const paymentId = payment?.id;
 
     if (!paymentId) {
-      await markCafeOrderPaymentFailed(orderId).catch(() => {});
+      if (persistOrdersToDb) {
+        await markCafeOrderPaymentFailed(orderId).catch(() => {});
+      }
       console.error("[Order] createPayment missing payment id", orderId);
       return NextResponse.json(
         { error: "Payment could not be completed", orderId },
@@ -394,21 +464,62 @@ export async function POST(request: Request) {
       );
     }
 
-    try {
-      await markCafeOrderPaid(orderId, paymentId);
-    } catch (updateErr) {
-      console.error("[Order] CRITICAL: Square paid but DB update failed", orderId, paymentId, updateErr);
+    const skipVerify =
+      process.env.SKIP_PAYMENT_VERIFICATION === "1" ||
+      process.env.SKIP_PAYMENT_VERIFICATION === "true";
+
+    let squarePaymentStatus = payment?.status ?? "UNKNOWN";
+    let receiptNumber: string | undefined;
+    let paymentVerified = false;
+
+    if (skipVerify) {
+      paymentVerified = false;
+      console.warn("[Order] SKIP_PAYMENT_VERIFICATION: not calling payments.get() to confirm charge.");
+    } else {
+      const verified = await verifySquarePaymentCaptured(client, paymentId, paymentAmountBigInt);
+      if (!verified.ok) {
+        console.error("[Order] Payment verification failed:", verified, "paymentId:", paymentId);
+        if (persistOrdersToDb) {
+          await markCafeOrderPaymentFailed(orderId).catch(() => {});
+        }
+        return NextResponse.json(
+          {
+            error:
+              "We could not confirm your payment with Square. If you see a charge, contact the restaurant with this payment reference.",
+            orderId,
+            squarePaymentId: paymentId,
+            verificationFailed: true,
+            verificationDetail: verified.reason,
+          },
+          { status: 502 }
+        );
+      }
+      squarePaymentStatus = verified.status;
+      receiptNumber = verified.receiptNumber;
+      paymentVerified = true;
+    }
+
+    if (persistOrdersToDb) {
+      try {
+        await markCafeOrderPaid(orderId, paymentId);
+      } catch (updateErr) {
+        console.error("[Order] CRITICAL: Square paid but DB update failed", orderId, paymentId, updateErr);
+      }
     }
 
     if (ORDER_DEBUG) {
-      console.log("[Order] PAYMENT SUCCESS:", orderId, paymentId);
+      console.log("[Order] PAYMENT SUCCESS:", orderId, paymentId, "verified:", paymentVerified);
     }
 
     return NextResponse.json({
       success: true,
       orderId,
       squarePaymentId: paymentId,
+      squarePaymentStatus,
+      paymentVerified: skipVerify ? false : paymentVerified,
+      ...(receiptNumber ? { receiptNumber } : {}),
       ...(squareOrderId ? { squareOrderId } : {}),
+      ...(persistOrdersToDb ? {} : { persistedToDatabase: false }),
     });
   } catch (err: unknown) {
     console.error("[Order] Unexpected error:", safeJson(squareErrorForLog(err)));

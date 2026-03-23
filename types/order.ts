@@ -14,6 +14,18 @@ export interface CafeOrderCustomer {
   notes?: string;
 }
 
+/** Shown on order confirmation after `/api/order` succeeds. */
+export interface OrderPlacedVerification {
+  /** False only if server skipped verify (env) or unusual edge case */
+  paymentVerified: boolean;
+  /** Square payment status after verify (e.g. COMPLETED) */
+  squarePaymentStatus?: string;
+  squarePaymentId?: string;
+  receiptNumber?: string;
+  /** $0 checkout — no card charge */
+  freeOrder?: boolean;
+}
+
 /** Row shape for cafe_orders (JSON-friendly). */
 export interface CafeOrderRow {
   id: string;

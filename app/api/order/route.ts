@@ -99,44 +99,41 @@ export async function POST(request: Request) {
 
     const accessToken = process.env.SQUARE_ACCESS_TOKEN;
     const locationId = process.env.SQUARE_LOCATION_ID;
+    const environmentRaw = process.env.SQUARE_ENVIRONMENT;
+    const isProduction = environmentRaw === "production";
+    const environment = isProduction ? SquareEnvironment.Production : SquareEnvironment.Sandbox;
 
     if (!accessToken || !locationId) {
-      console.error("Missing SQUARE_ACCESS_TOKEN or SQUARE_LOCATION_ID");
+      console.error("[Order] Missing SQUARE_ACCESS_TOKEN or SQUARE_LOCATION_ID");
       return NextResponse.json(
         { error: "Payment configuration error" },
         { status: 500 }
       );
     }
 
-    const environment =
-      process.env.SQUARE_ENVIRONMENT === "production"
-        ? SquareEnvironment.Production
-        : SquareEnvironment.Sandbox;
+    const paymentPayload = {
+      sourceId: token,
+      idempotencyKey: crypto.randomUUID(),
+      amountMoney: { amount: BigInt(totalCents), currency: "USD" },
+      locationId,
+      autocomplete: true,
+      note: `Customer: ${name}\nPhone: ${phone}\nEmail: ${email}\nType: Pickup\nNotes: ${notes || "None"}`,
+    };
+
+    console.log("[Order] Square createPayment request", {
+      environment: isProduction ? "production" : "sandbox",
+      locationId,
+      totalCents,
+      tokenPreview: token?.slice(0, 12) + "...",
+      accessTokenPreview: accessToken.slice(0, 6) + "***",
+    });
 
     const client = new SquareClient({
       token: accessToken,
       environment,
     });
 
-    const note = [
-      `Customer: ${name}`,
-      `Phone: ${phone}`,
-      `Email: ${email}`,
-      `Type: Pickup`,
-      `Notes: ${notes || "None"}`,
-    ].join("\n");
-
-    const response = await client.payments.create({
-      sourceId: token,
-      idempotencyKey: crypto.randomUUID(),
-      amountMoney: {
-        amount: BigInt(totalCents),
-        currency: "USD",
-      },
-      locationId,
-      autocomplete: true,
-      note,
-    });
+    const response = await client.payments.create(paymentPayload);
 
     const payment = (response as { body?: { payment?: { id?: string } } }).body?.payment;
     const paymentId = payment?.id;
@@ -153,12 +150,31 @@ export async function POST(request: Request) {
       success: true,
       orderId: paymentId,
     });
-  } catch (err) {
-    console.error("Order API error:", err);
-    const message = err instanceof Error ? err.message : "Payment failed";
-    return NextResponse.json(
-      { error: message },
-      { status: 500 }
-    );
+  } catch (err: unknown) {
+    const e = err as { errors?: unknown[]; body?: { errors?: unknown[] } };
+    const squareErrors = e?.errors ?? e?.body?.errors;
+    const firstError = Array.isArray(squareErrors) ? (squareErrors[0] as { code?: string; detail?: string; field?: string }) : null;
+    const code = firstError?.code ?? "";
+    const detail = firstError?.detail ?? "";
+    const field = firstError?.field ?? "";
+
+    console.error("[Order] Square API error", {
+      code,
+      detail,
+      field,
+      fullError: err,
+    });
+
+    let userMessage = "Payment failed. Please try again.";
+    if (code === "NOT_FOUND" || detail?.toLowerCase().includes("not found")) {
+      userMessage =
+        "Square location or token mismatch. Ensure SQUARE_LOCATION_ID matches your Square Dashboard, SQUARE_ENVIRONMENT (sandbox/production) matches your credentials, and SQUARE_ACCESS_TOKEN is from the same application.";
+    } else if (detail) {
+      userMessage = detail;
+    } else if (err instanceof Error) {
+      userMessage = err.message;
+    }
+
+    return NextResponse.json({ error: userMessage }, { status: 500 });
   }
 }

@@ -46,7 +46,7 @@ export default function HomeMenuPreview() {
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch("/api/menu");
+        const res = await fetch("/api/menu", { cache: "no-store" });
         if (!res.ok) throw new Error("Failed to fetch");
         const data = await res.json();
         setCategories(data || []);

@@ -54,7 +54,7 @@ export default function MenuGrid({
   useEffect(() => {
     if (categoriesProp) return;
     let cancelled = false;
-    fetch("/api/menu")
+    fetch("/api/menu", { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => !cancelled && setCategoriesState(data || []))
       .catch(() => !cancelled && setCategoriesState([]))

@@ -28,7 +28,7 @@ export default function MenuPage() {
   useEffect(() => {
     async function loadMenu() {
       try {
-        const res = await fetch("/api/menu");
+        const res = await fetch("/api/menu", { cache: "no-store" });
         if (!res.ok) throw new Error("Failed to fetch menu");
         const data = await res.json();
         setCategories(data || []);

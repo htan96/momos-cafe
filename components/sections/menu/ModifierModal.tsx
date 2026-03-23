@@ -3,21 +3,15 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { MenuItem } from "@/types/menu";
-import type { ModifierGroup } from "@/types/ordering";
+import type { ModifierGroup, SelectedModifier } from "@/types/ordering";
 import { useSwipeToClose } from "@/hooks/useSwipeToClose";
-
-interface ModifierOption {
-  id: string;
-  name: string;
-  price: number;
-}
 
 interface ModifierModalProps {
   isOpen: boolean;
   onClose: () => void;
   item: MenuItem | null;
   orderingDisabled?: boolean;
-  onAddToOrder?: (item: MenuItem, qty: number, modifiers: ModifierOption[]) => void;
+  onAddToOrder?: (item: MenuItem, qty: number, modifiers: SelectedModifier[]) => void;
 }
 
 export default function ModifierModal({
@@ -103,16 +97,30 @@ export default function ModifierModal({
 
   const handleConfirm = () => {
     if (orderingDisabled) return;
-    const selectedMods: ModifierOption[] = [];
+    const selectedMods: SelectedModifier[] = [];
     modifierGroups.forEach((group) => {
       const sel = selections[group.id];
       if (group.type === "radio" && typeof sel === "string") {
         const opt = group.options.find((o) => o.id === sel);
-        if (opt) selectedMods.push(opt);
+        if (opt) {
+          selectedMods.push({
+            id: opt.id,
+            name: opt.name,
+            price: opt.price,
+            modifierListId: group.id,
+          });
+        }
       } else if (Array.isArray(sel)) {
         sel.forEach((id) => {
           const opt = group.options.find((o) => o.id === id);
-          if (opt) selectedMods.push(opt);
+          if (opt) {
+            selectedMods.push({
+              id: opt.id,
+              name: opt.name,
+              price: opt.price,
+              modifierListId: group.id,
+            });
+          }
         });
       }
     });

@@ -103,11 +103,25 @@ export default function ItemModal({
       const sel = selections[g.id];
       if (g.type === "radio" && typeof sel === "string") {
         const opt = g.options.find((o) => o.id === sel);
-        if (opt) mods.push({ id: opt.id, name: opt.name, price: opt.price });
+        if (opt) {
+          mods.push({
+            id: opt.id,
+            name: opt.name,
+            price: opt.price,
+            modifierListId: g.id,
+          });
+        }
       } else if (Array.isArray(sel)) {
         sel.forEach((id) => {
           const opt = g.options.find((o) => o.id === id);
-          if (opt) mods.push({ id: opt.id, name: opt.name, price: opt.price });
+          if (opt) {
+            mods.push({
+              id: opt.id,
+              name: opt.name,
+              price: opt.price,
+              modifierListId: g.id,
+            });
+          }
         });
       }
     });

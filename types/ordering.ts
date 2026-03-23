@@ -29,6 +29,8 @@ export interface SelectedModifier {
   id: string;
   name: string;
   price: number;
+  /** Square Catalog MODIFIER_LIST id (group) — helps audits; optional on legacy carts. */
+  modifierListId?: string;
 }
 
 export interface CartItem {

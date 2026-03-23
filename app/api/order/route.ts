@@ -23,6 +23,10 @@ const ORDER_DEBUG =
 const VARIATION_DEBUG =
   ORDER_DEBUG || process.env.VARIATION_DEBUG_LOGS === "1";
 
+/** Logs full `orders.create` request/response (PII: customer name/phone/email in fulfillment). */
+const SQUARE_ORDER_LOG =
+  ORDER_DEBUG || process.env.SQUARE_ORDER_PAYLOAD_LOGS === "1";
+
 function redactBodyForLog(b: unknown): unknown {
   if (!b || typeof b !== "object") return b;
   const o = { ...(b as Record<string, unknown>) };
@@ -123,6 +127,13 @@ function isValidEmail(value: string): boolean {
  * Supabase/PostgREST when `cafe_orders` was never migrated.
  * In that case we still complete Square payment and return an ephemeral id (no row in your DB).
  */
+function parseCustomerPickupIso(scheduledFor: string | undefined): string | null {
+  if (!scheduledFor || typeof scheduledFor !== "string") return null;
+  const d = new Date(scheduledFor.trim());
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
 function isMissingCafeOrdersTable(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err);
   const lower = msg.toLowerCase();
@@ -224,20 +235,35 @@ export async function POST(request: Request) {
         environment: squareEnvironment,
       });
       const orderIdempotencyKey = crypto.randomUUID();
+      const customerPickupIso = parseCustomerPickupIso(scheduledFor);
+      const pickupAtIso = customerPickupIso ?? estimatedPickupAt.toISOString();
       const squareReq = buildSquareCreateOrderRequest({
         locationId: locationId!,
         cart,
         idempotencyKey: orderIdempotencyKey,
         referenceId: crypto.randomUUID(),
+        pickup: {
+          pickupAtIso,
+          scheduleType: "SCHEDULED",
+          recipientDisplayName: name,
+          recipientPhone: phone,
+          recipientEmail: email,
+          pickupNote:
+            [notes && `Note: ${notes}`].filter(Boolean).join(" ").slice(0, 500) || undefined,
+        },
       });
 
-      if (ORDER_DEBUG) {
-        console.log("[Order] Square orders.create (catalog)", safeJson(squareReq));
+      const orderPayload = squareReq;
+      if (SQUARE_ORDER_LOG) {
+        console.log("SQUARE ORDER PAYLOAD:", safeJson(orderPayload));
       }
 
       let squareOrderResp: unknown;
       try {
         squareOrderResp = await squareClient.orders.create(squareReq);
+        if (SQUARE_ORDER_LOG) {
+          console.log("SQUARE ORDER RESPONSE:", safeJson(squareOrderResp));
+        }
       } catch (squareErr: unknown) {
         console.error("[Order] Square orders.create failed:", safeJson(squareErrorForLog(squareErr)));
         const userMessage = getSquareUserMessage(squareErr);

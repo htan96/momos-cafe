@@ -114,7 +114,7 @@ export async function POST(request: Request) {
     const paymentPayload = {
       sourceId: token,
       idempotencyKey: crypto.randomUUID(),
-      amountMoney: { amount: BigInt(totalCents), currency: "USD" },
+      amountMoney: { amount: BigInt(totalCents), currency: "USD" as const },
       locationId,
       autocomplete: true,
       note: `Customer: ${name}\nPhone: ${phone}\nEmail: ${email}\nType: Pickup\nNotes: ${notes || "None"}`,

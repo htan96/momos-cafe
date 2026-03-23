@@ -29,9 +29,10 @@ export async function GET() {
     }
 
     const client = new SquareClient({ token: accessToken, environment });
-    const { result } = await client.locations.listLocations();
-
-    const locations = (result.locations ?? []).map((loc) => ({
+    const response = await client.locations.list();
+    const res = response as { result?: { locations?: unknown[] }; body?: { locations?: unknown[] } };
+    const locationsList = res?.result?.locations ?? res?.body?.locations ?? [];
+    const locations = locationsList.map((loc: { id?: string; name?: string; address?: { addressLine1?: string; locality?: string; administrativeDistrictLevel1?: string } }) => ({
       id: loc.id,
       name: loc.name,
       address: loc.address

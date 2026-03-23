@@ -74,10 +74,34 @@ function squareErrorForLog(err: unknown): Record<string, unknown> {
   return { value: String(err) };
 }
 
+/** Prefer the most actionable Square error when multiple are returned (e.g. CVV + GENERIC_DECLINE). */
 function getSquareUserMessage(err: unknown): string {
   const info = squareErrorForLog(err);
-  const errors = info.errors as { code?: string; detail?: string }[] | undefined;
-  const first = Array.isArray(errors) ? errors[0] : null;
+  const raw = info.errors as { code?: string; detail?: string; category?: string }[] | undefined;
+  const errors = Array.isArray(raw) ? raw : [];
+
+  const byCode = new Map(errors.map((e) => [e.code, e]));
+
+  if (byCode.has("CVV_FAILURE")) {
+    return "Your card’s security code (CVV) didn’t match. Re-enter the 3 or 4 digits on the back (or front for Amex) and try again.";
+  }
+  if (byCode.has("INSUFFICIENT_FUNDS") || byCode.has("INSUFFICIENT_FUND")) {
+    return "The card was declined for insufficient funds. Try another card or payment method.";
+  }
+  if (byCode.has("CARD_NOT_SUPPORTED")) {
+    return "This card type isn’t accepted for this payment. Try another card.";
+  }
+  if (byCode.has("INVALID_EXPIRATION")) {
+    return "The expiration date is invalid. Check the month/year and try again.";
+  }
+  if (byCode.has("INVALID_CARD")) {
+    return "The card number isn’t valid. Check the number and try again.";
+  }
+  if (byCode.has("GENERIC_DECLINE")) {
+    return "Your bank declined the payment. Try another card, verify billing details, or use Apple Pay / Google Pay if available.";
+  }
+
+  const first = errors[0];
   return (
     first?.detail ??
     (err instanceof Error ? err.message : "Payment failed. Please try again.")

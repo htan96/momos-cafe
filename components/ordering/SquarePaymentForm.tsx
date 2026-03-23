@@ -88,6 +88,8 @@ export default function SquarePaymentForm({
 
   const onReadyStable = useRef(onReady);
   onReadyStable.current = onReady;
+  const onErrorStable = useRef(onError);
+  onErrorStable.current = onError;
   useEffect(() => {
     const fn = onReadyStable.current;
     if (typeof fn === "function") {
@@ -142,18 +144,18 @@ export default function SquarePaymentForm({
             const errMsg = Array.isArray(result.errors)
               ? (result.errors as { message?: string }[]).map((e) => e.message ?? "Invalid card").join(", ")
               : "Card validation failed";
-            onError?.(errMsg);
+            onErrorStable.current?.(errMsg);
             return null;
           } catch (err) {
             const msg = err instanceof Error ? err.message : "Tokenization failed";
-            onError?.(msg);
+            onErrorStable.current?.(msg);
             return null;
           }
         };
       } catch (err) {
         if (!cancelled) {
           console.error("Square card init error:", err);
-          onError?.("Could not load payment form. Please refresh and try again.");
+          onErrorStable.current?.("Could not load payment form. Please refresh and try again.");
         }
       } finally {
         if (!cancelled) {
@@ -175,7 +177,7 @@ export default function SquarePaymentForm({
       }
       tokenizeRef.current = () => Promise.resolve(null);
     };
-  }, [squareReady, applicationId, locationId, containerId, onError]);
+  }, [squareReady, applicationId, locationId, containerId]);
 
   // Wallet buttons: separate effect, depends on totalAmount (can re-run when total changes)
   useEffect(() => {

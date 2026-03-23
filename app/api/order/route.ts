@@ -111,6 +111,14 @@ export async function POST(request: Request) {
       );
     }
 
+    console.log("[Order] Runtime config", {
+      SQUARE_ENVIRONMENT: environmentRaw,
+      accessTokenPreview: accessToken.slice(0, 12) + "***",
+      locationId,
+      resolvedEnvironment: isProduction ? "production" : "sandbox",
+      squareBaseUrl: environment,
+    });
+
     const paymentPayload = {
       sourceId: token,
       idempotencyKey: crypto.randomUUID(),

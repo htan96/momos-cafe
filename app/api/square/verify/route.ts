@@ -28,10 +28,29 @@ export async function GET() {
       );
     }
 
+    console.log("[Square Verify] Runtime config", {
+      SQUARE_ENVIRONMENT: environmentRaw,
+      accessTokenPreview: accessToken.slice(0, 12) + "***",
+      locationId,
+      resolvedEnvironment: isProduction ? "production" : "sandbox",
+      squareBaseUrl: environment,
+    });
+
     const client = new SquareClient({ token: accessToken, environment });
     const response = await client.locations.list();
-    const res = response as { result?: { locations?: unknown[] }; body?: { locations?: unknown[] } };
-    const locationsList = (res?.result?.locations ?? res?.body?.locations ?? []) as { id?: string; name?: string; address?: { addressLine1?: string; locality?: string; administrativeDistrictLevel1?: string } }[];
+
+    const res = response as {
+      data?: { locations?: unknown[] };
+      result?: { locations?: unknown[] };
+      body?: { locations?: unknown[] };
+    };
+    const locationsList = (res?.data?.locations ?? res?.result?.locations ?? res?.body?.locations ?? []) as {
+      id?: string;
+      name?: string;
+      address?: { addressLine1?: string; locality?: string; administrativeDistrictLevel1?: string };
+    }[];
+
+    console.log("[Square Verify] Raw response keys", Object.keys(res), "locationsCount:", locationsList.length);
     const locations = locationsList.map((loc) => ({
       id: loc.id,
       name: loc.name,

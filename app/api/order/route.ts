@@ -40,6 +40,9 @@ export async function POST(request: Request) {
       token?: string;
     };
 
+    const fulfillmentLabel =
+      fulfillment_type === "DELIVERY" ? "Delivery" : "Pickup";
+
     if (!token || typeof token !== "string") {
       console.warn("[Order] 400: Missing or invalid payment token");
       return NextResponse.json(
@@ -86,16 +89,9 @@ export async function POST(request: Request) {
       );
     }
 
-    const orderType = fulfillment_type === "PICKUP" ? "PICKUP" : "PICKUP";
-
-    const orderData = {
-      cart,
-      customer: { name, phone, email, notes },
-      fulfillment_type: orderType,
-      totalCents,
-      subtotal: cart.reduce((s, i) => s + (i.price + (i.modifiers?.reduce((m, mod) => m + mod.price, 0) ?? 0)) * i.quantity, 0),
-    };
-    console.log("[Order]", JSON.stringify(orderData, null, 2));
+    if (process.env.NODE_ENV === "development") {
+      console.log("[Order] totalCents:", totalCents, "cartItems:", cart.length);
+    }
 
     const accessToken = process.env.SQUARE_ACCESS_TOKEN;
     const locationId = process.env.SQUARE_LOCATION_ID;
@@ -111,13 +107,9 @@ export async function POST(request: Request) {
       );
     }
 
-    console.log("[Order] Runtime config", {
-      SQUARE_ENVIRONMENT: environmentRaw,
-      accessTokenPreview: accessToken.slice(0, 12) + "***",
-      locationId,
-      resolvedEnvironment: isProduction ? "production" : "sandbox",
-      squareBaseUrl: environment,
-    });
+    if (process.env.NODE_ENV === "development") {
+      console.log("[Order] Square env:", environmentRaw, "locationId:", locationId);
+    }
 
     const paymentPayload = {
       sourceId: token,
@@ -125,16 +117,8 @@ export async function POST(request: Request) {
       amountMoney: { amount: BigInt(totalCents), currency: "USD" as const },
       locationId,
       autocomplete: true,
-      note: `Customer: ${name}\nPhone: ${phone}\nEmail: ${email}\nType: Pickup\nNotes: ${notes || "None"}`,
+      note: `Customer: ${name}\nPhone: ${phone}\nEmail: ${email}\nType: ${fulfillmentLabel}\nNotes: ${notes || "None"}`,
     };
-
-    console.log("[Order] Square createPayment request", {
-      environment: isProduction ? "production" : "sandbox",
-      locationId,
-      totalCents,
-      tokenPreview: token?.slice(0, 12) + "...",
-      accessTokenPreview: accessToken.slice(0, 6) + "***",
-    });
 
     const client = new SquareClient({
       token: accessToken,
@@ -142,12 +126,16 @@ export async function POST(request: Request) {
     });
 
     const response = await client.payments.create(paymentPayload);
-
-    const payment = (response as { body?: { payment?: { id?: string } } }).body?.payment;
+    const res = response as { payment?: { id?: string }; body?: { payment?: { id?: string } } };
+    const payment = res.payment ?? res.body?.payment;
     const paymentId = payment?.id;
 
     if (!paymentId) {
-      console.error("Square createPayment response missing payment id:", response);
+      if (process.env.NODE_ENV === "development") {
+        console.error("[Order] createPayment missing payment id; response keys:", Object.keys(res ?? {}));
+      } else {
+        console.error("[Order] createPayment missing payment id");
+      }
       return NextResponse.json(
         { error: "Payment could not be completed" },
         { status: 500 }
@@ -166,12 +154,11 @@ export async function POST(request: Request) {
     const detail = firstError?.detail ?? "";
     const field = firstError?.field ?? "";
 
-    console.error("[Order] Square API error", {
-      code,
-      detail,
-      field,
-      fullError: err,
-    });
+    if (process.env.NODE_ENV === "development") {
+      console.error("[Order] Square API error", { code, detail, field });
+    } else {
+      console.error("[Order] Square API error", code, detail);
+    }
 
     let userMessage = "Payment failed. Please try again.";
     if (code === "NOT_FOUND" || detail?.toLowerCase().includes("not found")) {

@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { SquareClient, SquareEnvironment } from "square";
 
+const isDev = process.env.NODE_ENV === "development";
+
 /**
  * GET /api/square/verify
  * Verifies Square configuration by listing locations.
- * Use this to confirm SQUARE_LOCATION_ID exists and matches your environment.
+ *
+ * Square SDK v44: `await client.locations.list()` unwraps HttpResponsePromise to the API
+ * payload `{ locations?: Location[] }` — not `{ data: { locations } }`.
  */
 export async function GET() {
   try {
@@ -28,29 +32,14 @@ export async function GET() {
       );
     }
 
-    console.log("[Square Verify] Runtime config", {
-      SQUARE_ENVIRONMENT: environmentRaw,
-      accessTokenPreview: accessToken.slice(0, 12) + "***",
-      locationId,
-      resolvedEnvironment: isProduction ? "production" : "sandbox",
-      squareBaseUrl: environment,
-    });
-
     const client = new SquareClient({ token: accessToken, environment });
-    const response = await client.locations.list();
+    const listRes = await client.locations.list();
+    const locationsList = listRes.locations ?? [];
 
-    const res = response as {
-      data?: { locations?: unknown[] };
-      result?: { locations?: unknown[] };
-      body?: { locations?: unknown[] };
-    };
-    const locationsList = (res?.data?.locations ?? res?.result?.locations ?? res?.body?.locations ?? []) as {
-      id?: string;
-      name?: string;
-      address?: { addressLine1?: string; locality?: string; administrativeDistrictLevel1?: string };
-    }[];
+    if (isDev) {
+      console.log("[Square Verify] locationCount:", locationsList.length);
+    }
 
-    console.log("[Square Verify] Raw response keys", Object.keys(res), "locationsCount:", locationsList.length);
     const locations = locationsList.map((loc) => ({
       id: loc.id,
       name: loc.name,
@@ -76,6 +65,9 @@ export async function GET() {
     const e = err as { errors?: unknown[]; body?: { errors?: unknown[] } };
     const squareErrors = e?.errors ?? e?.body?.errors;
     const first = Array.isArray(squareErrors) ? (squareErrors[0] as { code?: string; detail?: string }) : null;
+    if (isDev) {
+      console.error("[Square Verify] error", first?.code, first?.detail);
+    }
     return NextResponse.json(
       {
         ok: false,

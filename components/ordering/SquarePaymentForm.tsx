@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, memo } from "react";
 import Script from "next/script";
 
 const DEBUG_SQUARE = process.env.NODE_ENV === "development";
@@ -47,16 +47,22 @@ interface SquarePaymentFormProps {
   placing?: boolean;
 }
 
-export default function SquarePaymentForm({
+interface SquarePaymentFormInnerProps extends Omit<SquarePaymentFormProps, "onReady" | "onError" | "onWalletToken"> {
+  onReadyRef: React.MutableRefObject<SquarePaymentFormProps["onReady"] | undefined>;
+  onErrorRef: React.MutableRefObject<SquarePaymentFormProps["onError"] | undefined>;
+  onWalletTokenRef: React.MutableRefObject<SquarePaymentFormProps["onWalletToken"] | undefined>;
+}
+
+function SquarePaymentFormInner({
   applicationId,
   locationId,
   environment,
   totalAmount,
-  onReady,
-  onError,
-  onWalletToken,
+  onReadyRef,
+  onErrorRef,
+  onWalletTokenRef,
   placing = false,
-}: SquarePaymentFormProps) {
+}: SquarePaymentFormInnerProps) {
   const [squareReady, setSquareReady] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [applePayReady, setApplePayReady] = useState(false);
@@ -86,12 +92,8 @@ export default function SquarePaymentForm({
     return tokenizeRef.current();
   }, []);
 
-  const onReadyStable = useRef(onReady);
-  onReadyStable.current = onReady;
-  const onErrorStable = useRef(onError);
-  onErrorStable.current = onError;
   useEffect(() => {
-    const fn = onReadyStable.current;
+    const fn = onReadyRef.current;
     if (typeof fn === "function") {
       fn(tokenize);
     }
@@ -144,18 +146,18 @@ export default function SquarePaymentForm({
             const errMsg = Array.isArray(result.errors)
               ? (result.errors as { message?: string }[]).map((e) => e.message ?? "Invalid card").join(", ")
               : "Card validation failed";
-            onErrorStable.current?.(errMsg);
+            onErrorRef.current?.(errMsg);
             return null;
           } catch (err) {
             const msg = err instanceof Error ? err.message : "Tokenization failed";
-            onErrorStable.current?.(msg);
+            onErrorRef.current?.(msg);
             return null;
           }
         };
       } catch (err) {
         if (!cancelled) {
           console.error("Square card init error:", err);
-          onErrorStable.current?.("Could not load payment form. Please refresh and try again.");
+          onErrorRef.current?.("Could not load payment form. Please refresh and try again.");
         }
       } finally {
         if (!cancelled) {
@@ -239,33 +241,33 @@ export default function SquarePaymentForm({
 
   const handleApplePay = useCallback(async () => {
     const ap = applePayRef.current;
-    if (!ap || !onWalletToken || placing) return;
+    if (!ap || !onWalletTokenRef.current || placing) return;
     try {
       const result = await ap.tokenize();
       if (result.status === "OK" && result.token) {
-        onWalletToken(result.token);
+        onWalletTokenRef.current?.(result.token);
       } else {
-        onError?.("Apple Pay was cancelled or failed.");
+        onErrorRef.current?.("Apple Pay was cancelled or failed.");
       }
     } catch (err) {
-      onError?.(err instanceof Error ? err.message : "Apple Pay failed");
+      onErrorRef.current?.(err instanceof Error ? err.message : "Apple Pay failed");
     }
-  }, [onWalletToken, onError, placing]);
+  }, [placing]);
 
   const handleGooglePay = useCallback(async () => {
     const gp = googlePayRef.current;
-    if (!gp || !onWalletToken || placing) return;
+    if (!gp || !onWalletTokenRef.current || placing) return;
     try {
       const result = await gp.tokenize();
       if (result.status === "OK" && result.token) {
-        onWalletToken(result.token);
+        onWalletTokenRef.current?.(result.token);
       } else {
-        onError?.("Google Pay was cancelled or failed.");
+        onErrorRef.current?.("Google Pay was cancelled or failed.");
       }
     } catch (err) {
-      onError?.(err instanceof Error ? err.message : "Google Pay failed");
+      onErrorStable.current?.(err instanceof Error ? err.message : "Google Pay failed");
     }
-  }, [onWalletToken, onError, placing]);
+  }, [placing]);
 
   const scriptUrl =
     environment === "production"
@@ -310,5 +312,37 @@ export default function SquarePaymentForm({
         className={`min-h-[45px] ${isLoading ? "animate-pulse bg-cream-dark/30 rounded-lg" : ""}`}
       />
     </>
+  );
+}
+
+const MemoizedSquarePaymentFormInner = memo(SquarePaymentFormInner, (prev, next) => {
+  return (
+    prev.applicationId === next.applicationId &&
+    prev.locationId === next.locationId &&
+    prev.environment === next.environment &&
+    prev.totalAmount === next.totalAmount &&
+    prev.placing === next.placing
+  );
+});
+
+export default function SquarePaymentForm({
+  onReady,
+  onError,
+  onWalletToken,
+  ...rest
+}: SquarePaymentFormProps) {
+  const onReadyRef = useRef(onReady);
+  const onErrorRef = useRef(onError);
+  const onWalletTokenRef = useRef(onWalletToken);
+  onReadyRef.current = onReady;
+  onErrorRef.current = onError;
+  onWalletTokenRef.current = onWalletToken;
+  return (
+    <MemoizedSquarePaymentFormInner
+      {...rest}
+      onReadyRef={onReadyRef}
+      onErrorRef={onErrorRef}
+      onWalletTokenRef={onWalletTokenRef}
+    />
   );
 }

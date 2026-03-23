@@ -265,7 +265,7 @@ function SquarePaymentFormInner({
         onErrorRef.current?.("Google Pay was cancelled or failed.");
       }
     } catch (err) {
-      onErrorStable.current?.(err instanceof Error ? err.message : "Google Pay failed");
+      onErrorRef.current?.(err instanceof Error ? err.message : "Google Pay failed");
     }
   }, [placing]);
 

@@ -71,6 +71,7 @@ export default function MenuGrid({
     const price = item.price ?? 0;
     addItem({
       id: item.id,
+      variationId: item.variationId ?? undefined,
       name: item.name,
       price,
       quantity: 1,

@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import type { CartItem } from "@/types/ordering";
+import { getCartItemKey } from "@/types/ordering";
 
 const CART_STORAGE_KEY = "momos_cart";
 
@@ -24,11 +25,6 @@ interface CartContextValue {
 }
 
 const CartContext = createContext<CartContextValue | null>(null);
-
-function cartItemKey(item: CartItem): string {
-  const modKey = item.modifiers?.map((m) => m.id).sort().join(",") ?? "";
-  return `${item.id}:${modKey}`;
-}
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
@@ -66,12 +62,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const addItem = useCallback(
     (item: Omit<CartItem, "quantity"> & { quantity?: number }) => {
       const qty = item.quantity ?? 1;
-      const key = cartItemKey(item as CartItem);
+      const key = getCartItemKey(item as CartItem);
       setItems((prev) => {
-        const existing = prev.find((c) => cartItemKey(c) === key);
+        const existing = prev.find((c) => getCartItemKey(c) === key);
         if (existing) {
           return prev.map((c) =>
-            cartItemKey(c) === key
+            getCartItemKey(c) === key
               ? { ...c, quantity: c.quantity + qty }
               : c
           );

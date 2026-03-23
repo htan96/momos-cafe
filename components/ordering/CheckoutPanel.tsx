@@ -258,6 +258,8 @@ export default function CheckoutPanel({ onCartClick, onBackToMenu, onBack, onOrd
         )}
 
         <h3 className="font-display text-[22px] text-charcoal mb-3">Your Info</h3>
+        {/* autoComplete="on" helps browsers offer saved contact info near checkout (card fields are in Square’s iframe). */}
+        <form className="contents" autoComplete="on" onSubmit={(e) => e.preventDefault()}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
           <div>
             <label htmlFor="co-name" className="block font-semibold text-[10px] tracking-wider uppercase text-teal-dark mb-1">
@@ -330,6 +332,7 @@ export default function CheckoutPanel({ onCartClick, onBackToMenu, onBack, onOrd
             className="w-full px-3.5 py-2.5 rounded-lg border border-cream-dark bg-cream text-charcoal text-[15px] placeholder:text-charcoal/35 focus:outline-none focus:border-teal focus:ring-2 focus:ring-teal/10 resize-y min-h-[80px]"
           />
         </div>
+        </form>
 
         <div className="mb-6">
           <div className="flex items-center gap-2.5 mb-3">

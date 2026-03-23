@@ -114,6 +114,7 @@ export default function ItemModal({
 
     addItem({
       id: item.id,
+      variationId: item.variationId ?? undefined,
       name: item.name,
       price: basePrice,
       quantity: qty,

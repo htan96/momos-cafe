@@ -10,6 +10,112 @@ function slugify(text: string): string {
     .replace(/^-|-$/g, "");
 }
 
+type VariationLike = {
+  type?: string;
+  id?: string;
+  catalogObjectId?: string;
+  catalog_object_id?: string;
+  itemVariationData?: {
+    priceMoney?: { amount?: string };
+    price_money?: { amount?: string };
+    imageIds?: string[];
+    image_ids?: string[];
+    itemId?: string;
+    item_id?: string;
+  };
+  item_variation_data?: {
+    price_money?: { amount?: string };
+    image_ids?: string[];
+    item_id?: string;
+  };
+};
+
+/**
+ * Square catalog may return a full ITEM_VARIATION (with `id`) or a thin reference
+ * (`catalogObjectId` / `catalog_object_id` only).
+ */
+function variationIdFromEmbeddedVariation(v: unknown): string | null {
+  if (!v || typeof v !== "object") return null;
+  const o = v as VariationLike;
+  if (typeof o.id === "string" && o.id.length > 0) return o.id;
+  if (typeof o.catalogObjectId === "string" && o.catalogObjectId.length > 0) {
+    return o.catalogObjectId;
+  }
+  if (typeof o.catalog_object_id === "string" && o.catalog_object_id.length > 0) {
+    return o.catalog_object_id;
+  }
+  return null;
+}
+
+function priceAndImagesFromVariationData(
+  ivd: VariationLike["itemVariationData"] | VariationLike["item_variation_data"] | undefined
+): { priceMoney?: { amount?: string }; imageIds?: string[] } {
+  if (!ivd || typeof ivd !== "object") return {};
+  const priceMoney =
+    (ivd as { priceMoney?: { amount?: string } }).priceMoney ??
+    (ivd as { price_money?: { amount?: string } }).price_money;
+  const imageIds =
+    (ivd as { imageIds?: string[] }).imageIds ??
+    (ivd as { image_ids?: string[] }).image_ids;
+  return {
+    ...(priceMoney ? { priceMoney } : {}),
+    ...(imageIds?.length ? { imageIds } : {}),
+  };
+}
+
+function variationDataFromEmbedded(v: unknown): { priceMoney?: { amount?: string }; imageIds?: string[] } {
+  if (!v || typeof v !== "object") return {};
+  const o = v as VariationLike;
+  const raw = o.itemVariationData ?? o.item_variation_data;
+  return priceAndImagesFromVariationData(raw);
+}
+
+function enrichVariationFromAllObjects(
+  variationId: string,
+  allObjects: Array<{ type: string; id: string; [key: string]: unknown }>
+): { priceMoney?: { amount?: string }; imageIds?: string[] } {
+  const o = allObjects.find((x) => x.id === variationId && x.type === "ITEM_VARIATION");
+  if (!o) return {};
+  const raw =
+    (o as VariationLike).itemVariationData ?? (o as VariationLike).item_variation_data;
+  return priceAndImagesFromVariationData(raw);
+}
+
+/**
+ * First variation id + pricing for an ITEM: embedded `variations[]`, then catalog scan by parent item id.
+ */
+function resolveMenuItemVariation(
+  itemCatalogId: string,
+  variations: unknown[] | undefined,
+  allObjects: Array<{ type: string; id: string; [key: string]: unknown }>
+): { variationId: string | null; variationData: { priceMoney?: { amount?: string }; imageIds?: string[] } } {
+  const first = variations?.[0];
+  let variationId = variationIdFromEmbeddedVariation(first);
+  let variationData = variationDataFromEmbedded(first);
+
+  if (variationId && Object.keys(variationData).length === 0) {
+    variationData = enrichVariationFromAllObjects(variationId, allObjects);
+  }
+
+  if (!variationId) {
+    for (const o of allObjects) {
+      if (o.type !== "ITEM_VARIATION") continue;
+      const raw =
+        (o as VariationLike).itemVariationData ?? (o as VariationLike).item_variation_data;
+      const parentId =
+        (raw as { itemId?: string; item_id?: string } | undefined)?.itemId ??
+        (raw as { item_id?: string } | undefined)?.item_id;
+      if (parentId === itemCatalogId && typeof o.id === "string" && o.id.length > 0) {
+        variationId = o.id;
+        variationData = priceAndImagesFromVariationData(raw);
+        break;
+      }
+    }
+  }
+
+  return { variationId, variationData };
+}
+
 export async function getMenuFromSquare(): Promise<MenuCategory[]> {
   const token = process.env.SQUARE_ACCESS_TOKEN;
   const locationId = process.env.SQUARE_LOCATION_ID;
@@ -171,13 +277,13 @@ export async function getMenuFromSquare(): Promise<MenuCategory[]> {
       description?: string;
       descriptionPlaintext?: string;
       imageIds?: string[];
-      variations?: Array<{ type?: string; itemVariationData?: { priceMoney?: { amount?: string }; imageIds?: string[] } }>;
+      variations?: unknown[];
     };
-    const variation = itemDataTyped.variations?.[0];
-    const variationData =
-      variation?.type === "ITEM_VARIATION"
-        ? variation.itemVariationData
-        : undefined;
+    const { variationId, variationData } = resolveMenuItemVariation(
+      obj.id,
+      itemDataTyped.variations,
+      allObjects
+    );
 
     const priceMoney = variationData?.priceMoney;
     const amountCents = priceMoney?.amount
@@ -226,6 +332,7 @@ export async function getMenuFromSquare(): Promise<MenuCategory[]> {
 
     const menuItem: MenuItemType = {
       id: obj.id,
+      variationId,
       name: itemDataTyped.name ?? "Untitled",
       description: (itemDataTyped.description ?? itemDataTyped.descriptionPlaintext ?? null) as string | null,
       price: amountCents > 0 ? amountCents : null,

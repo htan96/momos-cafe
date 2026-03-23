@@ -30,6 +30,7 @@ declare global {
         googlePay: (paymentRequest: unknown) => Promise<{
           attach: (selector: string) => Promise<void>;
           tokenize: () => Promise<{ status: string; token?: string; errors?: unknown[] }>;
+          destroy?: () => Promise<void>;
         }>;
       };
     };
@@ -69,7 +70,10 @@ function SquarePaymentFormInner({
   const [googlePayReady, setGooglePayReady] = useState(false);
   const tokenizeRef = useRef<() => Promise<string | null>>(() => Promise.resolve(null));
   const applePayRef = useRef<{ tokenize: () => Promise<{ status: string; token?: string }> } | null>(null);
-  const googlePayRef = useRef<{ tokenize: () => Promise<{ status: string; token?: string }> } | null>(null);
+  const googlePayRef = useRef<{
+    tokenize: () => Promise<{ status: string; token?: string }>;
+    destroy?: () => Promise<void>;
+  } | null>(null);
   const cardRef = useRef<CardInstance | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const containerIdRef = useRef<string>(`card-container-${Math.random().toString(36).slice(2, 11)}`);
@@ -80,6 +84,10 @@ function SquarePaymentFormInner({
   const googlePayContainerId = googlePayContainerIdRef.current;
   const renderCountRef = useRef(0);
   renderCountRef.current += 1;
+
+  /** Wallet click handlers run outside React; keep latest placing flag without stale closures. */
+  const placingRef = useRef(placing);
+  placingRef.current = placing;
 
   useEffect(() => {
     if (DEBUG_SQUARE) console.log("[SquarePaymentForm] mount, renderCount:", renderCountRef.current, "appId:", !!applicationId, "locId:", !!locationId);
@@ -181,20 +189,27 @@ function SquarePaymentFormInner({
     };
   }, [squareReady, applicationId, locationId, containerId]);
 
-  // Wallet buttons: separate effect, depends on totalAmount (can re-run when total changes)
+  /**
+   * Apple Pay / Google Pay — do NOT wait for card iframe (`isLoading`).
+   * Square quickstart attaches wallets in parallel with card so one-tap pay is available immediately.
+   *
+   * Google Pay: use a native `click` listener on the attach target (same as Square’s example).
+   * React’s `onClick` on the parent often never fires for clicks inside Square’s embedded control.
+   */
   useEffect(() => {
     if (
       !squareReady ||
       !applicationId ||
       !locationId ||
       !window.Square ||
-      totalAmount < 0.5 ||
-      isLoading
+      totalAmount < 0.5
     ) {
       return;
     }
 
     let cancelled = false;
+    let removeGooglePayClick: (() => void) | null = null;
+
     const initWallets = async () => {
       try {
         const payments = window.Square!.payments(applicationId, locationId);
@@ -212,13 +227,35 @@ function SquarePaymentFormInner({
             setApplePayReady(true);
           }
         } catch {
-          // Apple Pay not available
+          // Apple Pay not available (browser, device, domain verification, etc.)
         }
+
         try {
           const googlePay = await payments.googlePay?.(paymentRequest);
           if (googlePay && !cancelled) {
             await googlePay.attach(`#${googlePayContainerId}`);
             googlePayRef.current = googlePay;
+            const el = document.getElementById(googlePayContainerId);
+            if (el) {
+              const onContainerClick = async (event: MouseEvent) => {
+                event.preventDefault();
+                if (placingRef.current) return;
+                const gp = googlePayRef.current;
+                if (!gp || !onWalletTokenRef.current) return;
+                try {
+                  const result = await gp.tokenize();
+                  if (result.status === "OK" && result.token) {
+                    onWalletTokenRef.current(result.token);
+                  } else {
+                    onErrorRef.current?.("Google Pay was cancelled or failed.");
+                  }
+                } catch (err) {
+                  onErrorRef.current?.(err instanceof Error ? err.message : "Google Pay failed");
+                }
+              };
+              el.addEventListener("click", onContainerClick);
+              removeGooglePayClick = () => el.removeEventListener("click", onContainerClick);
+            }
             setGooglePayReady(true);
           }
         } catch {
@@ -228,20 +265,27 @@ function SquarePaymentFormInner({
         // Silent
       }
     };
-    initWallets();
+
+    void initWallets();
 
     return () => {
       cancelled = true;
+      removeGooglePayClick?.();
+      removeGooglePayClick = null;
+      const gp = googlePayRef.current;
+      googlePayRef.current = null;
+      applePayRef.current = null;
+      if (gp && typeof gp.destroy === "function") {
+        void gp.destroy().catch(() => {});
+      }
       setApplePayReady(false);
       setGooglePayReady(false);
-      applePayRef.current = null;
-      googlePayRef.current = null;
     };
-  }, [squareReady, applicationId, locationId, totalAmount, isLoading, googlePayContainerId]);
+  }, [squareReady, applicationId, locationId, totalAmount, googlePayContainerId]);
 
   const handleApplePay = useCallback(async () => {
     const ap = applePayRef.current;
-    if (!ap || !onWalletTokenRef.current || placing) return;
+    if (!ap || !onWalletTokenRef.current || placingRef.current) return;
     try {
       const result = await ap.tokenize();
       if (result.status === "OK" && result.token) {
@@ -252,22 +296,7 @@ function SquarePaymentFormInner({
     } catch (err) {
       onErrorRef.current?.(err instanceof Error ? err.message : "Apple Pay failed");
     }
-  }, [placing]);
-
-  const handleGooglePay = useCallback(async () => {
-    const gp = googlePayRef.current;
-    if (!gp || !onWalletTokenRef.current || placing) return;
-    try {
-      const result = await gp.tokenize();
-      if (result.status === "OK" && result.token) {
-        onWalletTokenRef.current?.(result.token);
-      } else {
-        onErrorRef.current?.("Google Pay was cancelled or failed.");
-      }
-    } catch (err) {
-      onErrorRef.current?.(err instanceof Error ? err.message : "Google Pay failed");
-    }
-  }, [placing]);
+  }, []);
 
   const scriptUrl =
     environment === "production"
@@ -295,13 +324,10 @@ function SquarePaymentFormInner({
             <span className="text-lg">🍎</span> Apple Pay
           </button>
         )}
+        {/* Square injects the button; tokenize is triggered via native click listener after attach */}
         <div
           id={googlePayContainerId}
-          role="button"
-          tabIndex={googlePayReady ? 0 : -1}
-          onClick={handleGooglePay}
-          onKeyDown={(e) => e.key === "Enter" && handleGooglePay()}
-          className={`min-w-[120px] min-h-[40px] flex-1 rounded-lg flex items-center justify-center ${placing ? "pointer-events-none opacity-50" : "cursor-pointer"} ${!googlePayReady ? "hidden" : ""}`}
+          className={`min-w-[120px] min-h-[40px] flex-1 rounded-lg flex items-center justify-center ${placing ? "pointer-events-none opacity-50" : ""} ${!googlePayReady ? "hidden" : ""}`}
           aria-label="Pay with Google Pay"
         />
       </div>

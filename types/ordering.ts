@@ -1,12 +1,11 @@
 /**
  * Ordering flow types — cart, modifiers, checkout.
- * Ready for Square integration.
  *
- * SQUARE ORDERS API COMPATIBILITY:
- * - CartItem.id: Currently catalog ITEM id. Square needs variationId (catalog_object_id) for line items.
- * - CartItem.price: In dollars. Square expects amount in cents.
- * - modifiers: Have id (required for Square). Structure is compatible.
- * - TODO: Add variationId when mapping from Square catalog (item variations).
+ * SQUARE ORDERS API:
+ * - `CartItem.id`: Catalog ITEM id (display / legacy).
+ * - `CartItem.variationId`: ITEM_VARIATION id — when every line has this, `/api/order` uses Orders API + linked payment.
+ * - `CartItem.price`: Base line price in dollars (before modifiers); totals add modifier prices in `getCartItemTotal`.
+ * - `SelectedModifier.id`: Square MODIFIER catalog object id from menu mapping.
  */
 
 export interface ModifierOption {
@@ -33,10 +32,14 @@ export interface SelectedModifier {
 }
 
 export interface CartItem {
+  /** Square Catalog ITEM id (legacy / display). */
   id: string;
+  /** Square ITEM_VARIATION catalog object id — when set, checkout uses Orders API. */
+  variationId?: string;
   name: string;
   price: number;
   quantity: number;
+  /** Selected options; `id` must be Square MODIFIER catalog object id when using Orders API. */
   modifiers?: SelectedModifier[];
 }
 
@@ -47,5 +50,6 @@ export function getCartItemTotal(item: CartItem): number {
 
 export function getCartItemKey(item: CartItem): string {
   const modKey = item.modifiers?.map((m) => m.id).sort().join(",") ?? "";
-  return `${item.id}:${modKey}`;
+  const lineId = item.variationId ?? item.id;
+  return `${lineId}:${modKey}`;
 }

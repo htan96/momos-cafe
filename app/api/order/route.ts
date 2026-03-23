@@ -1,12 +1,26 @@
 import { NextResponse } from "next/server";
 import { SquareClient, SquareEnvironment } from "square";
 import type { CartItem } from "@/types/ordering";
+import { getEstimatedPickupTime } from "@/lib/pickupTime";
+import {
+  createCafeOrder,
+  markCafeOrderPaid,
+  markCafeOrderPaymentFailed,
+} from "@/lib/orders";
+import {
+  buildSquareCreateOrderRequest,
+  cartHasSquareCatalogBinding,
+  squareMoneyAmountToCents,
+} from "@/lib/squareOrderFromCart";
 
 const TAX_RATE = 0.0925;
 
-/** Enable verbose /api/order logs (redacts token in body dump; still logs token prefix). */
 const ORDER_DEBUG =
   process.env.NODE_ENV === "development" || process.env.ORDER_DEBUG_LOGS === "1";
+
+/** Set `VARIATION_DEBUG_LOGS=1` to log cart variation IDs in production without full order debug. */
+const VARIATION_DEBUG =
+  ORDER_DEBUG || process.env.VARIATION_DEBUG_LOGS === "1";
 
 function redactBodyForLog(b: unknown): unknown {
   if (!b || typeof b !== "object") return b;
@@ -82,6 +96,19 @@ function getCartTotalCents(items: CartItem[]): number {
   return Math.round((subtotal + tax) * 100);
 }
 
+/** Unwrap Square SDK `orders.create` / `payments.create` response shapes. */
+function unwrapSquareOrder(
+  result: unknown
+): { id?: string; totalMoney?: { amount?: bigint | string | number } } | undefined {
+  if (!result || typeof result !== "object") return undefined;
+  const r = result as Record<string, unknown>;
+  const order =
+    (r.order as Record<string, unknown> | undefined) ??
+    ((r.body as Record<string, unknown> | undefined)?.order as Record<string, unknown> | undefined);
+  if (!order || typeof order !== "object") return undefined;
+  return order as { id?: string; totalMoney?: { amount?: bigint | string | number } };
+}
+
 function isValidPhone(value: string): boolean {
   const digits = value.replace(/\D/g, "");
   return digits.length >= 10;
@@ -104,22 +131,21 @@ export async function POST(request: Request) {
       console.log("[Order] REQUEST BODY:", safeJson(redactBodyForLog(body)));
     }
 
-    const { cart, customer, fulfillment_type, token } = (body ?? {}) as {
+    const { cart, customer, fulfillment_type, token, scheduledFor } = (body ?? {}) as {
       cart?: CartItem[];
       customer?: { name?: string; phone?: string; email?: string; notes?: string };
       fulfillment_type?: string;
       token?: string;
+      /** ISO 8601 — optional customer-chosen pickup time (stored with status `scheduled`) */
+      scheduledFor?: string;
     };
 
-    const fulfillmentLabel =
-      fulfillment_type === "DELIVERY" ? "Delivery" : "Pickup";
+    const fulfillmentType = fulfillment_type === "DELIVERY" ? "DELIVERY" : "PICKUP";
+    const fulfillmentLabel = fulfillmentType === "DELIVERY" ? "Delivery" : "Pickup";
 
     if (!Array.isArray(cart) || cart.length === 0) {
       console.warn("[Order] 400: Empty cart");
-      return NextResponse.json(
-        { error: "Cart is empty" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
     }
 
     const name = customer?.name?.trim() ?? "";
@@ -143,77 +169,191 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid email address" }, { status: 400 });
     }
 
-    const totalCents = getCartTotalCents(cart);
-    if (totalCents < 0) {
-      return NextResponse.json({ error: "Invalid order total" }, { status: 400 });
+    if (VARIATION_DEBUG) {
+      const variationRows = cart.map((item) => ({
+        name: item.name,
+        id: item.id,
+        variationId: item.variationId,
+      }));
+      console.log("VARIATION CHECK:", variationRows);
+      const withVariationId = variationRows.filter((r) => r.variationId);
+      const withoutVariationId = variationRows.filter((r) => !r.variationId);
+      console.log("VARIATION: items WITH variationId:", withVariationId.length, withVariationId);
+      console.log("VARIATION: items WITHOUT variationId:", withoutVariationId.length, withoutVariationId);
     }
 
-    if (totalCents === 0) {
-      const freeOrderId = `free-${crypto.randomUUID().replace(/-/g, "")}`;
-      if (ORDER_DEBUG) {
-        console.log("[Order] Free order (no Square charge)", { freeOrderId, cartItems: cart.length });
-      }
-      return NextResponse.json({
-        success: true,
-        isFreeOrder: true,
-        message: "Order placed successfully (no charge)",
-        orderId: freeOrderId,
-      });
-    }
-
-    if (!token || typeof token !== "string") {
-      console.warn("[Order] 400: Missing or invalid payment token");
-      if (ORDER_DEBUG) {
-        console.log("[Order] TOKEN:", token === undefined ? "undefined" : typeof token);
-      }
-      return NextResponse.json(
-        { error: "Payment token is required. Please complete the card form." },
-        { status: 400 }
-      );
-    }
-
-    if (ORDER_DEBUG) {
-      console.log(
-        "[Order] TOKEN:",
-        `${token.slice(0, 12)}...`,
-        "length:",
-        token.length,
-        "(full token only in browser/Square; never log complete token)"
-      );
-      console.log("[Order] TOTAL CENTS:", totalCents);
-    }
+    const itemCount = cart.reduce((sum, i) => sum + i.quantity, 0);
+    const estimatedPickupAt = getEstimatedPickupTime(itemCount);
 
     const accessToken = process.env.SQUARE_ACCESS_TOKEN;
     const locationId = process.env.SQUARE_LOCATION_ID;
     const environmentRaw = process.env.SQUARE_ENVIRONMENT;
     const isProduction = environmentRaw === "production";
-    const environment = isProduction ? SquareEnvironment.Production : SquareEnvironment.Sandbox;
+    const squareEnvironment = isProduction
+      ? SquareEnvironment.Production
+      : SquareEnvironment.Sandbox;
+
+    const canUseSquareOrders =
+      Boolean(accessToken && locationId) && cartHasSquareCatalogBinding(cart);
+
+    let squareOrderId: string | undefined;
+    /** Payment amount must match Square order total when paying for an order. */
+    let paymentAmountBigInt: bigint;
+    let totalCents: number;
+
+    if (canUseSquareOrders) {
+      const squareClient = new SquareClient({
+        token: accessToken!,
+        environment: squareEnvironment,
+      });
+      const orderIdempotencyKey = crypto.randomUUID();
+      const squareReq = buildSquareCreateOrderRequest({
+        locationId: locationId!,
+        cart,
+        idempotencyKey: orderIdempotencyKey,
+        referenceId: crypto.randomUUID(),
+      });
+
+      if (ORDER_DEBUG) {
+        console.log("[Order] Square orders.create (catalog)", safeJson(squareReq));
+      }
+
+      let squareOrderResp: unknown;
+      try {
+        squareOrderResp = await squareClient.orders.create(squareReq);
+      } catch (squareErr: unknown) {
+        console.error("[Order] Square orders.create failed:", safeJson(squareErrorForLog(squareErr)));
+        const userMessage = getSquareUserMessage(squareErr);
+        return NextResponse.json(
+          {
+            error: userMessage || "Could not create order with Square. Try again or clear your cart.",
+            squareErrors: ORDER_DEBUG ? getSquareErrorPayload(squareErr) : undefined,
+          },
+          { status: 400 }
+        );
+      }
+
+      const squareOrder = unwrapSquareOrder(squareOrderResp);
+      const sid = squareOrder?.id;
+      const tm = squareOrder?.totalMoney?.amount;
+      if (!sid || tm === undefined || tm === null) {
+        console.error("[Order] Square orders.create missing id/totalMoney", safeJson(squareOrderResp));
+        return NextResponse.json(
+          { error: "Square order response was incomplete. Please try again." },
+          { status: 502 }
+        );
+      }
+
+      paymentAmountBigInt = typeof tm === "bigint" ? tm : BigInt(String(tm));
+      totalCents = squareMoneyAmountToCents(paymentAmountBigInt);
+      squareOrderId = sid;
+
+      if (totalCents < 0) {
+        return NextResponse.json({ error: "Invalid order total" }, { status: 400 });
+      }
+    } else {
+      totalCents = getCartTotalCents(cart);
+      if (totalCents < 0) {
+        return NextResponse.json({ error: "Invalid order total" }, { status: 400 });
+      }
+      paymentAmountBigInt = BigInt(totalCents);
+    }
+
+    let orderId: string;
+    try {
+      const created = await createCafeOrder({
+        cart,
+        customer: { name, phone, email, notes: notes || undefined },
+        totalCents,
+        fulfillmentType,
+        scheduledForIso: scheduledFor ?? null,
+        estimatedPickupAtIso: estimatedPickupAt.toISOString(),
+        squareOrderId: squareOrderId ?? null,
+      });
+      orderId = created.id;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Order storage failed";
+      const isConfig =
+        msg.includes("SUPABASE") ||
+        msg.includes("SERVICE_ROLE") ||
+        msg.includes("NEXT_PUBLIC_SUPABASE");
+      console.error("[Order] createCafeOrder failed:", msg);
+      return NextResponse.json(
+        {
+          error: isConfig
+            ? "Order system not configured. Add Supabase env vars and run migrations (cafe_orders)."
+            : msg,
+        },
+        { status: 503 }
+      );
+    }
+
+    if (ORDER_DEBUG) {
+      console.log(
+        "[Order] Created cafe_orders row:",
+        orderId,
+        "totalCents:",
+        totalCents,
+        "squareOrderId:",
+        squareOrderId ?? "(none — legacy payment)"
+      );
+    }
+
+    if (totalCents === 0) {
+      return NextResponse.json({
+        success: true,
+        orderId,
+        isFreeOrder: true,
+        message: "Order placed successfully (no charge)",
+      });
+    }
+
+    if (!token || typeof token !== "string") {
+      console.warn("[Order] 400: Missing token after order create (order remains awaiting_payment)", orderId);
+      return NextResponse.json(
+        { error: "Payment token is required. Please complete the card form.", orderId },
+        { status: 400 }
+      );
+    }
 
     if (!accessToken || !locationId) {
-      console.error("[Order] Missing SQUARE_ACCESS_TOKEN or SQUARE_LOCATION_ID");
+      console.error("[Order] Missing SQUARE_ACCESS_TOKEN or SQUARE_LOCATION_ID", orderId);
       return NextResponse.json(
-        { error: "Payment configuration error" },
+        { error: "Payment configuration error", orderId },
         { status: 500 }
       );
     }
 
     const idempotencyKey = crypto.randomUUID();
-    const paymentPayload = {
+    const paymentPayload: {
+      sourceId: string;
+      idempotencyKey: string;
+      amountMoney: { amount: bigint; currency: "USD" };
+      locationId: string;
+      orderId?: string;
+      autocomplete: boolean;
+      note: string;
+    } = {
       sourceId: token,
       idempotencyKey,
-      amountMoney: { amount: BigInt(totalCents), currency: "USD" as const },
+      amountMoney: { amount: paymentAmountBigInt, currency: "USD" },
       locationId,
       autocomplete: true,
-      note: `Customer: ${name}\nPhone: ${phone}\nEmail: ${email}\nType: ${fulfillmentLabel}\nNotes: ${notes || "None"}`,
+      note: `Order ${orderId}\nCustomer: ${name}\nPhone: ${phone}\nEmail: ${email}\nType: ${fulfillmentLabel}\nNotes: ${notes || "None"}`,
     };
+    if (squareOrderId) {
+      paymentPayload.orderId = squareOrderId;
+    }
 
     if (ORDER_DEBUG) {
       console.log(
         "[Order] PAYMENT REQUEST:",
         safeJson({
+          cafeOrderId: orderId,
+          squareOrderId: squareOrderId ?? null,
           sourceId: `${token.slice(0, 12)}... (len ${token.length})`,
           idempotencyKey,
-          amountMoney: { amount: totalCents, currency: "USD" },
+          amountMoney: { amount: paymentAmountBigInt.toString(), currency: "USD" },
           locationId,
         })
       );
@@ -221,7 +361,7 @@ export async function POST(request: Request) {
 
     const client = new SquareClient({
       token: accessToken,
-      environment,
+      environment: squareEnvironment,
     });
 
     let response: unknown;
@@ -229,8 +369,12 @@ export async function POST(request: Request) {
       response = await client.payments.create(paymentPayload);
     } catch (squareErr: unknown) {
       console.error("[Order] SQUARE ERROR:", safeJson(squareErrorForLog(squareErr)));
+      await markCafeOrderPaymentFailed(orderId).catch(() => {});
       const userMessage = getSquareUserMessage(squareErr);
-      const payload: { error: string; squareErrors?: unknown } = { error: userMessage };
+      const payload: { error: string; orderId: string; squareErrors?: unknown } = {
+        error: userMessage,
+        orderId,
+      };
       if (ORDER_DEBUG) {
         payload.squareErrors = getSquareErrorPayload(squareErr);
       }
@@ -241,27 +385,30 @@ export async function POST(request: Request) {
     const payment = res.payment ?? res.body?.payment;
     const paymentId = payment?.id;
 
-    if (ORDER_DEBUG) {
-      console.log(
-        "[Order] PAYMENT SUCCESS:",
-        safeJson({
-          paymentId: paymentId ?? null,
-          responseKeys: res && typeof res === "object" ? Object.keys(res) : [],
-        })
-      );
-    }
-
     if (!paymentId) {
-      console.error("[Order] createPayment missing payment id");
+      await markCafeOrderPaymentFailed(orderId).catch(() => {});
+      console.error("[Order] createPayment missing payment id", orderId);
       return NextResponse.json(
-        { error: "Payment could not be completed" },
+        { error: "Payment could not be completed", orderId },
         { status: 500 }
       );
     }
 
+    try {
+      await markCafeOrderPaid(orderId, paymentId);
+    } catch (updateErr) {
+      console.error("[Order] CRITICAL: Square paid but DB update failed", orderId, paymentId, updateErr);
+    }
+
+    if (ORDER_DEBUG) {
+      console.log("[Order] PAYMENT SUCCESS:", orderId, paymentId);
+    }
+
     return NextResponse.json({
       success: true,
-      orderId: paymentId,
+      orderId,
+      squarePaymentId: paymentId,
+      ...(squareOrderId ? { squareOrderId } : {}),
     });
   } catch (err: unknown) {
     console.error("[Order] Unexpected error:", safeJson(squareErrorForLog(err)));

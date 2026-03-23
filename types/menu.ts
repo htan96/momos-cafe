@@ -10,7 +10,10 @@ export type CategoryType =
   | "special";
 
 export interface MenuItem {
+  /** Square Catalog ITEM object id (parent). */
   id: string;
+  /** Square Catalog ITEM_VARIATION id — required for Orders API line items. */
+  variationId?: string | null;
   name: string;
   description: string | null;
   price: number | null;

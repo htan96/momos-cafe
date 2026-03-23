@@ -44,12 +44,12 @@ export default function MenuPage() {
 
   const addToCart = useCallback(
     (item: MenuItem, qty = 1, modifiers?: SelectedModifier[]) => {
-      const price = item.price ?? 0;
-      const modTotal = modifiers?.reduce((s, m) => s + m.price, 0) ?? 0;
+      const base = item.price ?? 0;
       addItem({
         id: item.id,
+        variationId: item.variationId ?? undefined,
         name: item.name,
-        price: price + modTotal,
+        price: base,
         quantity: qty,
         modifiers,
       });
@@ -67,11 +67,11 @@ export default function MenuPage() {
   const handleAddFromModal = useCallback(
     (item: MenuItem, qty: number, mods: SelectedModifier[]) => {
       const basePrice = item.price ?? 0;
-      const modTotal = mods.reduce((s, m) => s + m.price, 0);
       addItem({
         id: item.id,
+        variationId: item.variationId ?? undefined,
         name: item.name,
-        price: basePrice + modTotal,
+        price: basePrice,
         quantity: qty,
         modifiers: mods.length > 0 ? mods : undefined,
       });

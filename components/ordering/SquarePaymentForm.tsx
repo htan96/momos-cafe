@@ -76,11 +76,11 @@ export default function SquarePaymentForm({
   renderCountRef.current += 1;
 
   useEffect(() => {
-    if (DEBUG_SQUARE) console.log("[SquarePaymentForm] mount, renderCount:", renderCountRef.current);
+    if (DEBUG_SQUARE) console.log("[SquarePaymentForm] mount, renderCount:", renderCountRef.current, "appId:", !!applicationId, "locId:", !!locationId);
     return () => {
       if (DEBUG_SQUARE) console.log("[SquarePaymentForm] unmount");
     };
-  }, []);
+  }, [applicationId, locationId]);
 
   const tokenize = useCallback(async (): Promise<string | null> => {
     return tokenizeRef.current();
@@ -97,25 +97,39 @@ export default function SquarePaymentForm({
 
   // Single initialization: card only (no totalAmount dependency)
   useEffect(() => {
+    if (DEBUG_SQUARE) console.log("[SquarePaymentForm] card effect run", { squareReady, hasSquare: !!window.Square, applicationId: !!applicationId, locationId, containerId, initStarted: initStartedRef.current });
+
     if (!squareReady || !applicationId || !locationId || !window.Square) {
+      if (DEBUG_SQUARE && (!applicationId || !locationId)) console.log("[SquarePaymentForm] skipping init: missing credentials or square not ready");
       if (!applicationId || !locationId) {
         setIsLoading(false);
       }
       return;
     }
 
-    if (initStartedRef.current) return;
+    if (initStartedRef.current) {
+      if (DEBUG_SQUARE) console.log("[SquarePaymentForm] skipping init: already started (StrictMode double-run?)");
+      return;
+    }
     initStartedRef.current = true;
+    if (DEBUG_SQUARE) console.log("[SquarePaymentForm] calling payments.card()...");
 
     let cancelled = false;
     const initCard = async () => {
       try {
         const payments = window.Square!.payments(applicationId, locationId);
         const card = await payments.card();
-        if (cancelled) return;
+        if (cancelled) {
+          if (DEBUG_SQUARE) console.log("[SquarePaymentForm] card() returned but cancelled (cleanup ran)");
+          return;
+        }
+        if (DEBUG_SQUARE) console.log("[SquarePaymentForm] payments.card() done, calling card.attach(#" + containerId + ")...");
 
         await card.attach(`#${containerId}`);
-        if (cancelled) return;
+        if (cancelled) {
+          if (DEBUG_SQUARE) console.log("[SquarePaymentForm] attach() done but cancelled");
+          return;
+        }
 
         if (DEBUG_SQUARE) console.log("[SquarePaymentForm] card.attach() completed, containerId:", containerId);
         cardRef.current = card;
@@ -151,7 +165,9 @@ export default function SquarePaymentForm({
     initCard();
 
     return () => {
+      if (DEBUG_SQUARE) console.log("[SquarePaymentForm] card effect cleanup");
       cancelled = true;
+      initStartedRef.current = false;
       const card = cardRef.current;
       if (card) {
         card.destroy().catch(() => {});

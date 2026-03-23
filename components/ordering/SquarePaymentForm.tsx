@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import Script from "next/script";
 
+const DEBUG_SQUARE = process.env.NODE_ENV === "development";
+
 type CardInstance = {
   attach: (selector: string) => Promise<void>;
   tokenize: () => Promise<{ status: string; token?: string; errors?: unknown[] }>;
@@ -70,6 +72,15 @@ export default function SquarePaymentForm({
 
   const containerId = containerIdRef.current;
   const googlePayContainerId = googlePayContainerIdRef.current;
+  const renderCountRef = useRef(0);
+  renderCountRef.current += 1;
+
+  useEffect(() => {
+    if (DEBUG_SQUARE) console.log("[SquarePaymentForm] mount, renderCount:", renderCountRef.current);
+    return () => {
+      if (DEBUG_SQUARE) console.log("[SquarePaymentForm] unmount");
+    };
+  }, []);
 
   const tokenize = useCallback(async (): Promise<string | null> => {
     return tokenizeRef.current();
@@ -106,6 +117,7 @@ export default function SquarePaymentForm({
         await card.attach(`#${containerId}`);
         if (cancelled) return;
 
+        if (DEBUG_SQUARE) console.log("[SquarePaymentForm] card.attach() completed, containerId:", containerId);
         cardRef.current = card;
         tokenizeRef.current = async () => {
           try {

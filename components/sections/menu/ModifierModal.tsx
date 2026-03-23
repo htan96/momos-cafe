@@ -49,6 +49,12 @@ export default function ModifierModal({
     }
   }, [isOpen, item]);
 
+  const swipe = useSwipeToClose({
+    onClose,
+    enabled: isOpen,
+    direction: "down",
+  });
+
   if (!item) return null;
 
   const basePrice = item.price ?? 0;
@@ -58,12 +64,6 @@ export default function ModifierModal({
       onClose();
     }
   };
-
-  const swipe = useSwipeToClose({
-    onClose,
-    enabled: isOpen,
-    direction: "down",
-  });
 
   const selectOption = (groupId: string, optionId: string, type: string) => {
     setSelections((prev) => {

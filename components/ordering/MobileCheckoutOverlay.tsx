@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+
+const DEBUG_CHECKOUT = process.env.NODE_ENV === "development";
 import { useCart } from "@/context/CartContext";
 import { useSwipeToClose } from "@/hooks/useSwipeToClose";
 import CartSummary from "./CartSummary";
@@ -33,6 +35,22 @@ export default function MobileCheckoutOverlay({
     }
   }, [isOpen]);
 
+  const handleBackFromStep1 = () => onClose();
+  const handleBackToStep1 = () => setStep(1);
+  const renderCountRef = useRef(0);
+  renderCountRef.current += 1;
+  useEffect(() => {
+    if (DEBUG_CHECKOUT) console.log("[MobileCheckoutOverlay] mount");
+    return () => {
+      if (DEBUG_CHECKOUT) console.log("[MobileCheckoutOverlay] unmount");
+    };
+  }, []);
+  const swipe = useSwipeToClose({
+    onClose: step === 1 ? handleBackFromStep1 : handleBackToStep1,
+    enabled: isOpen,
+    direction: "down",
+  });
+
   if (!isOpen) return null;
 
   const handleOrderPlaced = (num: string, pickupTime?: string) => {
@@ -47,16 +65,6 @@ export default function MobileCheckoutOverlay({
     setStep(1);
     onClose();
   };
-
-  const handleBackFromStep1 = () => {
-    onClose();
-  };
-
-  const swipe = useSwipeToClose({
-    onClose: step === 1 ? handleBackFromStep1 : () => setStep(1),
-    enabled: isOpen,
-    direction: "down",
-  });
 
   return (
     <div

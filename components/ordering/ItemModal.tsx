@@ -43,6 +43,12 @@ export default function ItemModal({
     }
   }, [isOpen, item, modifierGroups]);
 
+  const swipe = useSwipeToClose({
+    onClose,
+    enabled: isOpen,
+    direction: "down",
+  });
+
   if (!item) return null;
 
   const basePrice = item.price ?? 0;
@@ -120,12 +126,6 @@ export default function ItemModal({
   const handleOverlayClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) onClose();
   };
-
-  const swipe = useSwipeToClose({
-    onClose,
-    enabled: isOpen,
-    direction: "down",
-  });
 
   return (
     <div

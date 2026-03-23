@@ -311,14 +311,14 @@ function SquarePaymentFormInner({
         onLoad={() => setSquareReady(true)}
       />
       <div
-        className={`flex flex-wrap gap-2 mb-3 ${!(applePayReady || googlePayReady) ? "hidden" : ""}`}
+        className={`flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-2 mb-3 ${!(applePayReady || googlePayReady) ? "hidden" : ""}`}
       >
         {applePayReady && (
           <button
             type="button"
             onClick={handleApplePay}
             disabled={placing || totalAmount < 0.5}
-            className="flex-1 min-w-[120px] h-10 rounded-lg bg-black text-white flex items-center justify-center gap-1.5 font-medium text-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full sm:flex-1 sm:min-w-0 sm:max-w-none min-h-[44px] h-11 shrink-0 rounded-lg bg-black text-white flex items-center justify-center gap-1.5 font-medium text-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
             aria-label="Pay with Apple Pay"
           >
             <span className="text-lg">🍎</span> Apple Pay
@@ -327,7 +327,7 @@ function SquarePaymentFormInner({
         {/* Square injects the button; tokenize is triggered via native click listener after attach */}
         <div
           id={googlePayContainerId}
-          className={`min-w-[120px] min-h-[40px] flex-1 rounded-lg flex items-center justify-center ${placing ? "pointer-events-none opacity-50" : ""} ${!googlePayReady ? "hidden" : ""}`}
+          className={`w-full sm:flex-1 sm:min-w-0 min-h-[44px] flex items-center justify-center shrink-0 ${placing ? "pointer-events-none opacity-50" : ""} ${!googlePayReady ? "hidden" : ""}`}
           aria-label="Pay with Google Pay"
         />
       </div>

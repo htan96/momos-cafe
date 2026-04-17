@@ -63,6 +63,8 @@ export default function CheckoutPanel({ onCartClick, onBackToMenu, onBack, onOrd
   );
 
   const squareTokenizeRef = useRef<(() => Promise<string | null>) | null>(null);
+  /** Stabilizes `/api/order` idempotency + `cafe_orders.id` across retries for the same checkout attempt */
+  const checkoutAttemptIdRef = useRef(crypto.randomUUID());
 
   const submitOrder = useCallback(
     async (token: string) => {
@@ -78,6 +80,7 @@ export default function CheckoutPanel({ onCartClick, onBackToMenu, onBack, onOrd
           customer: { name: trimmedName, phone: trimmedPhone, email: trimmedEmail, notes: trimmedNotes || undefined },
           fulfillment_type: "PICKUP",
           token,
+          checkoutAttemptId: checkoutAttemptIdRef.current,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -108,6 +111,7 @@ export default function CheckoutPanel({ onCartClick, onBackToMenu, onBack, onOrd
             : "";
         showToast(`Order placed! #${orderId.slice(-8).toUpperCase()}${suffix}`);
       }
+      checkoutAttemptIdRef.current = crypto.randomUUID();
       onOrderPlaced?.(
         orderId,
         estimatedPickupTime ? formatPickupTime(estimatedPickupTime) : undefined,

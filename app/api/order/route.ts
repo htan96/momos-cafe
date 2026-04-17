@@ -1,11 +1,11 @@
+import { createHash } from "crypto";
 import { NextResponse } from "next/server";
 import { SquareClient, SquareEnvironment } from "square";
 import type { CartItem } from "@/types/ordering";
 import { getEstimatedPickupTime } from "@/lib/pickupTime";
 import {
-  createCafeOrder,
-  markCafeOrderPaid,
-  markCafeOrderPaymentFailed,
+  insertCafeOrderAfterSuccessfulPayment,
+  insertCafeOrderFreeOrder,
 } from "@/lib/orders";
 import {
   buildSquareCreateOrderRequest,
@@ -158,16 +158,54 @@ function parseCustomerPickupIso(scheduledFor: string | undefined): string | null
   return d.toISOString();
 }
 
-function isMissingCafeOrdersTable(err: unknown): boolean {
-  const msg = err instanceof Error ? err.message : String(err);
-  const lower = msg.toLowerCase();
-  if (!lower.includes("cafe_orders")) return false;
-  return (
-    lower.includes("pgrst205") ||
-    lower.includes("schema cache") ||
-    lower.includes("could not find the table") ||
-    lower.includes("does not exist")
-  );
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/** Square `CreatePayment` idempotency key max length (characters). */
+const SQUARE_PAYMENT_IDEMPOTENCY_KEY_MAX = 45;
+
+/**
+ * Resolves stable keys for one checkout attempt.
+ * - `orderId`: returned to the client and used as `cafe_orders.id` when persisted.
+ * - `squarePaymentIdempotencyKey`: passed to Square `payments.create` (retries with same key avoid duplicate charges).
+ */
+function resolveCheckoutCorrelationKeys(body: {
+  checkoutAttemptId?: unknown;
+  paymentIdempotencyKey?: unknown;
+}): { orderId: string; squarePaymentIdempotencyKey: string } {
+  const rawAttempt =
+    typeof body.checkoutAttemptId === "string" ? body.checkoutAttemptId.trim() : "";
+  const orderId = UUID_RE.test(rawAttempt) ? rawAttempt : crypto.randomUUID();
+
+  const rawKey =
+    typeof body.paymentIdempotencyKey === "string" ? body.paymentIdempotencyKey.trim() : "";
+  let squarePaymentIdempotencyKey: string;
+  if (rawKey.length > 0 && rawKey.length <= SQUARE_PAYMENT_IDEMPOTENCY_KEY_MAX) {
+    squarePaymentIdempotencyKey = rawKey;
+  } else if (orderId.length <= SQUARE_PAYMENT_IDEMPOTENCY_KEY_MAX) {
+    squarePaymentIdempotencyKey = orderId;
+  } else {
+    squarePaymentIdempotencyKey = createHash("sha256")
+      .update(orderId)
+      .digest("hex")
+      .slice(0, SQUARE_PAYMENT_IDEMPOTENCY_KEY_MAX);
+  }
+  return { orderId, squarePaymentIdempotencyKey };
+}
+
+/** Stable key for Square `orders.create` per checkout attempt (≤45 chars). */
+function squareOrderCreateIdempotencyKey(checkoutCorrelationId: string): string {
+  return createHash("sha256")
+    .update(`square-orders-create:${checkoutCorrelationId}`)
+    .digest("base64url")
+    .slice(0, SQUARE_PAYMENT_IDEMPOTENCY_KEY_MAX);
+}
+
+function isUniqueViolation(err: unknown): boolean {
+  const o = err as { code?: string; message?: string };
+  if (o?.code === "23505") return true;
+  const msg = (o?.message ?? (err instanceof Error ? err.message : String(err))).toLowerCase();
+  return msg.includes("duplicate key") || msg.includes("unique constraint");
 }
 
 export async function POST(request: Request) {
@@ -183,14 +221,19 @@ export async function POST(request: Request) {
       console.log("[Order] REQUEST BODY:", safeJson(redactBodyForLog(body)));
     }
 
-    const { cart, customer, fulfillment_type, token, scheduledFor } = (body ?? {}) as {
-      cart?: CartItem[];
-      customer?: { name?: string; phone?: string; email?: string; notes?: string };
-      fulfillment_type?: string;
-      token?: string;
-      /** ISO 8601 — optional customer-chosen pickup time (stored with status `scheduled`) */
-      scheduledFor?: string;
-    };
+    const { cart, customer, fulfillment_type, token, scheduledFor, checkoutAttemptId, paymentIdempotencyKey } =
+      (body ?? {}) as {
+        cart?: CartItem[];
+        customer?: { name?: string; phone?: string; email?: string; notes?: string };
+        fulfillment_type?: string;
+        token?: string;
+        /** ISO 8601 — optional customer-chosen pickup time (stored with status `scheduled`) */
+        scheduledFor?: string;
+        /** Client-generated UUID for this checkout attempt — stabilizes Square idempotency + DB id on retry */
+        checkoutAttemptId?: string;
+        /** Optional override for Square `payments.create` idempotency (1–45 chars) */
+        paymentIdempotencyKey?: string;
+      };
 
     const fulfillmentType = fulfillment_type === "DELIVERY" ? "DELIVERY" : "PICKUP";
     const fulfillmentLabel = fulfillmentType === "DELIVERY" ? "Delivery" : "Pickup";
@@ -237,6 +280,11 @@ export async function POST(request: Request) {
     const itemCount = cart.reduce((sum, i) => sum + i.quantity, 0);
     const estimatedPickupAt = getEstimatedPickupTime(itemCount);
 
+    const { orderId, squarePaymentIdempotencyKey } = resolveCheckoutCorrelationKeys({
+      checkoutAttemptId,
+      paymentIdempotencyKey,
+    });
+
     const accessToken = process.env.SQUARE_ACCESS_TOKEN;
     const locationId = process.env.SQUARE_LOCATION_ID;
     const environmentRaw = process.env.SQUARE_ENVIRONMENT;
@@ -258,14 +306,14 @@ export async function POST(request: Request) {
         token: accessToken!,
         environment: squareEnvironment,
       });
-      const orderIdempotencyKey = crypto.randomUUID();
+      const squareOrdersCreateKey = squareOrderCreateIdempotencyKey(orderId);
       const customerPickupIso = parseCustomerPickupIso(scheduledFor);
       const pickupAtIso = customerPickupIso ?? estimatedPickupAt.toISOString();
       const squareReq = buildSquareCreateOrderRequest({
         locationId: locationId!,
         cart,
-        idempotencyKey: orderIdempotencyKey,
-        referenceId: crypto.randomUUID(),
+        idempotencyKey: squareOrdersCreateKey,
+        referenceId: orderId,
         pickup: {
           pickupAtIso,
           scheduleType: "SCHEDULED",
@@ -326,87 +374,64 @@ export async function POST(request: Request) {
       paymentAmountBigInt = BigInt(totalCents);
     }
 
-    /** When false, no `cafe_orders` row — Square is still charged; id is ephemeral (UUID). */
-    let persistOrdersToDb = true;
     const skipPersistEnv =
       process.env.SKIP_CAFE_ORDER_PERSIST === "1" ||
       process.env.SKIP_CAFE_ORDER_PERSIST === "true";
+    const persistOrdersToDb = !skipPersistEnv;
 
-    let orderId: string;
     if (skipPersistEnv) {
-      persistOrdersToDb = false;
-      orderId = crypto.randomUUID();
       console.warn(
-        "[Order] SKIP_CAFE_ORDER_PERSIST is set — checkout works via Square only; orders are not saved to Supabase."
+        "[Order] SKIP_CAFE_ORDER_PERSIST is set — payments proceed; orders are not saved to Supabase."
       );
-    } else {
-      try {
-        const created = await createCafeOrder({
-          cart,
-          customer: { name, phone, email, notes: notes || undefined },
-          totalCents,
-          fulfillmentType,
-          scheduledForIso: scheduledFor ?? null,
-          estimatedPickupAtIso: estimatedPickupAt.toISOString(),
-          squareOrderId: squareOrderId ?? null,
-        });
-        orderId = created.id;
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : "Order storage failed";
-        const lower = msg.toLowerCase();
-        const isConfig =
-          msg.includes("SUPABASE") ||
-          msg.includes("SERVICE_ROLE") ||
-          msg.includes("NEXT_PUBLIC_SUPABASE");
-
-        if (isMissingCafeOrdersTable(e)) {
-          persistOrdersToDb = false;
-          orderId = crypto.randomUUID();
-          console.warn(
-            "[Order] public.cafe_orders missing — continuing with Square-only checkout. Ephemeral order id:",
-            orderId,
-            "Run supabase/migrations for cafe_orders if you want orders in your database."
-          );
-        } else {
-          /** Other DB/schema issues */
-          const isSchema =
-            lower.includes("cafe_orders") ||
-            lower.includes("square_order_id") ||
-            lower.includes("does not exist") ||
-            lower.includes("relation") ||
-            lower.includes("schema cache");
-          console.error("[Order] createCafeOrder failed:", msg);
-          let error =
-            "Could not save your order. Please try again or call the restaurant.";
-          if (isConfig) {
-            error =
-              "Order system not configured on server. Add NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to hosting env (e.g. Vercel), then redeploy.";
-          } else if (isSchema) {
-            error =
-              "Database not ready: run Supabase SQL migrations for table cafe_orders (including square_order_id if you use Square Orders).";
-          } else if (process.env.NODE_ENV === "development" || process.env.ORDER_DEBUG_LOGS === "1") {
-            error = msg;
-          }
-          return NextResponse.json(
-            { error, detail: process.env.ORDER_DEBUG_LOGS === "1" ? msg : undefined },
-            { status: 503 }
-          );
-        }
-      }
     }
 
     if (ORDER_DEBUG) {
       console.log(
-        persistOrdersToDb ? "[Order] Created cafe_orders row:" : "[Order] Ephemeral order (no DB row):",
+        "[Order] Checkout correlation:",
+        "orderId:",
         orderId,
         "totalCents:",
         totalCents,
         "squareOrderId:",
-        squareOrderId ?? "(none — legacy payment)"
+        squareOrderId ?? "(none — legacy payment)",
+        "persistToDb:",
+        persistOrdersToDb
       );
     }
 
+    const customerPayload = { name, phone, email, notes: notes || undefined };
+    const estimatedPickupAtIso = estimatedPickupAt.toISOString();
+    const scheduledForIso = scheduledFor ?? null;
+
     if (totalCents === 0) {
+      let persistedToDatabase = false;
+      if (persistOrdersToDb) {
+        try {
+          await insertCafeOrderFreeOrder({
+            id: orderId,
+            cart,
+            customer: customerPayload,
+            totalCents: 0,
+            fulfillmentType,
+            scheduledForIso,
+            estimatedPickupAtIso,
+            squareOrderId: squareOrderId ?? null,
+          });
+          persistedToDatabase = true;
+          console.log("[Order] DB insert success (free order)", orderId);
+        } catch (insertErr) {
+          if (isUniqueViolation(insertErr)) {
+            persistedToDatabase = true;
+            console.log("[Order] DB insert skipped — free order row already exists (idempotent retry)", orderId);
+          } else {
+            console.error(
+              "[Order] CRITICAL: Free order checkout succeeded but DB persistence failed",
+              orderId,
+              safeJson(squareErrorForLog(insertErr))
+            );
+          }
+        }
+      }
       return NextResponse.json({
         success: true,
         orderId,
@@ -414,15 +439,12 @@ export async function POST(request: Request) {
         message: "Order placed successfully (no charge)",
         paymentVerified: true,
         freeOrder: true,
+        persistedToDatabase,
       });
     }
 
     if (!token || typeof token !== "string") {
-      console.warn(
-        "[Order] 400: Missing payment token",
-        orderId,
-        persistOrdersToDb ? "(cafe_orders row may be awaiting_payment)" : "(Square-only mode)"
-      );
+      console.warn("[Order] 400: Missing payment token", orderId);
       return NextResponse.json(
         { error: "Payment token is required. Please complete the card form.", orderId },
         { status: 400 }
@@ -437,7 +459,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const idempotencyKey = crypto.randomUUID();
+    const idempotencyKey = squarePaymentIdempotencyKey;
+
+    console.log("[Order] Payment started", {
+      orderId,
+      totalCents,
+      squareOrderId: squareOrderId ?? null,
+    });
     const paymentPayload: {
       sourceId: string;
       idempotencyKey: string;
@@ -481,10 +509,10 @@ export async function POST(request: Request) {
     try {
       response = await client.payments.create(paymentPayload);
     } catch (squareErr: unknown) {
-      console.error("[Order] SQUARE ERROR:", safeJson(squareErrorForLog(squareErr)));
-      if (persistOrdersToDb) {
-        await markCafeOrderPaymentFailed(orderId).catch(() => {});
-      }
+      console.error("[Order] Payment failure", {
+        orderId,
+        error: safeJson(squareErrorForLog(squareErr)),
+      });
       const userMessage = getSquareUserMessage(squareErr);
       const payload: { error: string; orderId: string; squareErrors?: unknown } = {
         error: userMessage,
@@ -504,15 +532,14 @@ export async function POST(request: Request) {
     const paymentId = payment?.id;
 
     if (!paymentId) {
-      if (persistOrdersToDb) {
-        await markCafeOrderPaymentFailed(orderId).catch(() => {});
-      }
-      console.error("[Order] createPayment missing payment id", orderId);
+      console.error("[Order] Payment failure: createPayment response missing payment id", orderId);
       return NextResponse.json(
         { error: "Payment could not be completed", orderId },
         { status: 500 }
       );
     }
+
+    console.log("[Order] Payment success (Square createPayment response)", { orderId, paymentId });
 
     const skipVerify =
       process.env.SKIP_PAYMENT_VERIFICATION === "1" ||
@@ -528,10 +555,11 @@ export async function POST(request: Request) {
     } else {
       const verified = await verifySquarePaymentCaptured(client, paymentId, paymentAmountBigInt);
       if (!verified.ok) {
-        console.error("[Order] Payment verification failed:", verified, "paymentId:", paymentId);
-        if (persistOrdersToDb) {
-          await markCafeOrderPaymentFailed(orderId).catch(() => {});
-        }
+        console.error("[Order] Payment failure (verification)", {
+          orderId,
+          paymentId,
+          detail: verified,
+        });
         return NextResponse.json(
           {
             error:
@@ -549,16 +577,46 @@ export async function POST(request: Request) {
       paymentVerified = true;
     }
 
+    console.log("[Order] Payment success (verified or skipped verify)", {
+      orderId,
+      paymentId,
+      paymentVerified,
+    });
+
+    let persistedToDatabase = false;
     if (persistOrdersToDb) {
       try {
-        await markCafeOrderPaid(orderId, paymentId);
-      } catch (updateErr) {
-        console.error("[Order] CRITICAL: Square paid but DB update failed", orderId, paymentId, updateErr);
+        await insertCafeOrderAfterSuccessfulPayment({
+          id: orderId,
+          cart,
+          customer: customerPayload,
+          totalCents,
+          fulfillmentType,
+          scheduledForIso,
+          estimatedPickupAtIso,
+          squareOrderId: squareOrderId ?? null,
+          squarePaymentId: paymentId,
+        });
+        persistedToDatabase = true;
+        console.log("[Order] DB insert success after payment", orderId);
+      } catch (insertErr) {
+        if (isUniqueViolation(insertErr)) {
+          persistedToDatabase = true;
+          console.log(
+            "[Order] DB insert skipped — paid row already exists (idempotent retry)",
+            orderId
+          );
+        } else {
+          console.error(
+            "[Order] CRITICAL: Payment succeeded but DB persistence failed",
+            { orderId, paymentId, error: insertErr instanceof Error ? insertErr.message : String(insertErr) }
+          );
+        }
       }
     }
 
     if (ORDER_DEBUG) {
-      console.log("[Order] PAYMENT SUCCESS:", orderId, paymentId, "verified:", paymentVerified);
+      console.log("[Order] Checkout complete", orderId, paymentId, "persisted:", persistedToDatabase);
     }
 
     return NextResponse.json({
@@ -569,7 +627,7 @@ export async function POST(request: Request) {
       paymentVerified: skipVerify ? false : paymentVerified,
       ...(receiptNumber ? { receiptNumber } : {}),
       ...(squareOrderId ? { squareOrderId } : {}),
-      ...(persistOrdersToDb ? {} : { persistedToDatabase: false }),
+      persistedToDatabase,
     });
   } catch (err: unknown) {
     console.error("[Order] Unexpected error:", safeJson(squareErrorForLog(err)));

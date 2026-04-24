@@ -10,6 +10,69 @@ function slugify(text: string): string {
     .replace(/^-|-$/g, "");
 }
 
+/** Set `DEBUG_MENU_MODIFIERS=1` to log modifier list IDs through Square → menu mapping. */
+const DEBUG_MENU_MODIFIERS = process.env.DEBUG_MENU_MODIFIERS === "1";
+
+/**
+ * When `MENU_MODIFIER_VALIDATION=1`: require batchGet per item (no list fallback), log batch vs list,
+ * emit violation warnings, and log group construction. For investigation only.
+ */
+const MENU_MODIFIER_VALIDATION = process.env.MENU_MODIFIER_VALIDATION === "1";
+
+function safeJsonClone<T>(value: T): T {
+  return JSON.parse(
+    JSON.stringify(value, (_, v) => (typeof v === "bigint" ? v.toString() : v))
+  ) as T;
+}
+
+/** Returned when `GET /api/menu?debugItemId=<Square ITEM id>` is used. */
+export type MenuModifierItemDebug = {
+  itemId: string;
+  /** Which `itemData` drove `listInfo` for groups (or `unavailable` if item skipped before build). */
+  itemDataSource: "batch" | "list_fallback" | "unavailable";
+  batchModifierListInfo: unknown;
+  listCatalogModifierListInfo: unknown;
+  /** modifierListId / modifier_list_id values from the same `itemData` used to build `listInfo`. */
+  attachedModifierListIdsFromItemDataUsed: string[];
+  finalModifierGroups: Array<{
+    id: string;
+    name: string;
+    type: string;
+    optionIds: string[];
+  }>;
+  /** Same as `finalModifierGroups.map(g => g.id)` — for quick diff vs `attachedModifierListIdsFromItemDataUsed`. */
+  finalModifierListIds: string[];
+  /**
+   * If non-empty, a group was emitted without a matching listInfo row — should be impossible with current logic.
+   * Used to prove Case B (code bug) vs empty (Case A: every group id came from listInfo).
+   */
+  groupsNotBackedByListInfo: string[];
+  /**
+   * List ids present on item `modifierListInfo` but absent from final output (unknown list, empty options, etc.).
+   */
+  listInfoListIdsWithoutGroup: string[];
+  groupCount: number;
+  listInfoCount: number;
+  /** True when `MENU_MODIFIER_VALIDATION=1` and item was skipped (no batch row). */
+  skippedNoBatch?: boolean;
+  notFound?: boolean;
+  skippedArchived?: boolean;
+};
+
+export type GetMenuFromSquareResult = {
+  categories: MenuCategory[];
+  /** Populated when `options.debugItemId` matches a processed ITEM catalog id. */
+  debugItemComparison?: MenuModifierItemDebug;
+};
+
+function modifierListIdsFromListInfo(
+  listInfo: Array<{ modifierListId?: string; modifier_list_id?: string }>
+): string[] {
+  return listInfo
+    .map((i) => i.modifierListId ?? i.modifier_list_id)
+    .filter((x): x is string => typeof x === "string" && x.length > 0);
+}
+
 type VariationLike = {
   type?: string;
   id?: string;
@@ -116,9 +179,10 @@ function resolveMenuItemVariation(
   return { variationId, variationData };
 }
 
-export async function getMenuFromSquare(): Promise<MenuCategory[]> {
+export async function getMenuFromSquare(options?: {
+  debugItemId?: string;
+}): Promise<GetMenuFromSquareResult> {
   const token = process.env.SQUARE_ACCESS_TOKEN;
-  const locationId = process.env.SQUARE_LOCATION_ID;
 
   if (!token) {
     throw new Error("SQUARE_ACCESS_TOKEN is required");
@@ -206,6 +270,8 @@ export async function getMenuFromSquare(): Promise<MenuCategory[]> {
   const itemIds = allObjects.filter((o) => o.type === "ITEM").map((o) => o.id);
   const itemDataMap = new Map<string, { itemData: Record<string, unknown>; categoryId: string }>();
 
+  let debugItemComparison: MenuModifierItemDebug | undefined;
+
   for (let i = 0; i < itemIds.length; i += 100) {
     const chunk = itemIds.slice(i, i + 100);
     try {
@@ -230,6 +296,21 @@ export async function getMenuFromSquare(): Promise<MenuCategory[]> {
         if (ro.type === "MODIFIER_LIST" && ro.modifierListData) {
           const mld = ro.modifierListData as { name?: string; selectionType?: string; modifiers?: Array<{ id?: string }> };
           const modifierIds = (mld.modifiers ?? []).map((m) => m?.id).filter(Boolean) as string[];
+          if (DEBUG_MENU_MODIFIERS) {
+            const uniq = new Set(modifierIds);
+            console.log(
+              "[menu-modifiers] batch related MODIFIER_LIST",
+              ro.id,
+              "name:",
+              mld.name,
+              "modifierIds:",
+              modifierIds,
+              "uniqueCount:",
+              uniq.size,
+              "rawLength:",
+              modifierIds.length
+            );
+          }
           modifierListMap.set(ro.id, {
             name: mld.name ?? "Options",
             selectionType: mld.selectionType ?? "SINGLE",
@@ -251,17 +332,105 @@ export async function getMenuFromSquare(): Promise<MenuCategory[]> {
     }
   }
 
-  // Process items - use batch data if available, else list data
+  // Process items — source of truth for modifiers: batch itemData when present
   for (const obj of allObjects) {
     if (obj.type !== "ITEM") continue;
     const batchEntry = itemDataMap.get(obj.id);
+    const listCatalogItemData = (obj as { itemData?: Record<string, unknown> }).itemData;
+
+    if (MENU_MODIFIER_VALIDATION) {
+      if (!batchEntry) {
+        console.error("[modifier-validation] NO BATCH DATA — skipping item (no silent list fallback)", obj.id);
+        if (options?.debugItemId === obj.id) {
+          const listRaw =
+            listCatalogItemData?.["modifierListInfo"] ??
+            listCatalogItemData?.["modifier_list_info"];
+          const listArr = Array.isArray(listRaw)
+            ? (listRaw as Array<{ modifierListId?: string; modifier_list_id?: string }>)
+            : [];
+          debugItemComparison = {
+            itemId: obj.id,
+            itemDataSource: "unavailable",
+            batchModifierListInfo: null,
+            listCatalogModifierListInfo: safeJsonClone(listRaw ?? null),
+            attachedModifierListIdsFromItemDataUsed: modifierListIdsFromListInfo(listArr),
+            finalModifierGroups: [],
+            finalModifierListIds: [],
+            groupsNotBackedByListInfo: [],
+            listInfoListIdsWithoutGroup: modifierListIdsFromListInfo(listArr),
+            groupCount: 0,
+            listInfoCount: listArr.length,
+            skippedNoBatch: true,
+          };
+        }
+        continue;
+      }
+    } else if (!batchEntry) {
+      console.warn("USING FALLBACK LIST DATA", obj.id);
+    }
+
     const itemData = batchEntry
       ? batchEntry.itemData
-      : (obj as { itemData?: Record<string, unknown> }).itemData;
-    const categoryId = batchEntry?.categoryId ?? (obj as { itemData?: { categoryId?: string; categories?: Array<{ id: string }> } }).itemData?.categoryId ?? (obj as { itemData?: { categoryId?: string; categories?: Array<{ id: string }> } }).itemData?.categories?.[0]?.id ?? "uncategorized";
+      : listCatalogItemData;
+    const categoryId = batchEntry
+      ? batchEntry.categoryId
+      : (listCatalogItemData?.categoryId as string | undefined) ??
+        (listCatalogItemData?.categories as Array<{ id: string }> | undefined)?.[0]?.id ??
+        "uncategorized";
+
+    if (MENU_MODIFIER_VALIDATION && batchEntry) {
+      const batchMl =
+        batchEntry.itemData["modifierListInfo"] ?? batchEntry.itemData["modifier_list_info"];
+      const listMl =
+        listCatalogItemData?.["modifierListInfo"] ?? listCatalogItemData?.["modifier_list_info"];
+      console.log("BATCH ITEM:", obj.id, batchMl);
+      console.log("LIST ITEM:", obj.id, listMl);
+      const batchLen = Array.isArray(batchMl) ? batchMl.length : 0;
+      const listLen = Array.isArray(listMl) ? listMl.length : 0;
+      if (batchLen !== listLen) {
+        console.warn("MISMATCH LIST vs BATCH", {
+          itemId: obj.id,
+          listCount: listLen,
+          batchCount: batchLen,
+        });
+      }
+    }
 
     if (!itemData) continue;
-    if ((itemData as { isArchived?: boolean }).isArchived) continue;
+    if ((itemData as { isArchived?: boolean }).isArchived) {
+      if (options?.debugItemId === obj.id) {
+        const batchMl =
+          batchEntry?.itemData?.["modifierListInfo"] ??
+          batchEntry?.itemData?.["modifier_list_info"] ??
+          null;
+        const listMl =
+          listCatalogItemData?.["modifierListInfo"] ??
+          listCatalogItemData?.["modifier_list_info"] ??
+          null;
+        const rawArchived = itemData as Record<string, unknown>;
+        const archivedListInfo = (rawArchived.modifierListInfo ??
+          rawArchived.modifier_list_info ??
+          []) as Array<{ modifierListId?: string; modifier_list_id?: string }>;
+        const attachedArchived = modifierListIdsFromListInfo(
+          Array.isArray(archivedListInfo) ? archivedListInfo : []
+        );
+        debugItemComparison = {
+          itemId: obj.id,
+          itemDataSource: batchEntry ? "batch" : "list_fallback",
+          batchModifierListInfo: batchEntry ? safeJsonClone(batchMl) : null,
+          listCatalogModifierListInfo: safeJsonClone(listMl),
+          attachedModifierListIdsFromItemDataUsed: attachedArchived,
+          finalModifierGroups: [],
+          finalModifierListIds: [],
+          groupsNotBackedByListInfo: [],
+          listInfoListIdsWithoutGroup: attachedArchived,
+          groupCount: 0,
+          listInfoCount: attachedArchived.length,
+          skippedArchived: true,
+        };
+      }
+      continue;
+    }
 
     if (!categoriesMap.has(categoryId)) {
       categoriesMap.set(categoryId, {
@@ -298,6 +467,10 @@ export async function getMenuFromSquare(): Promise<MenuCategory[]> {
 
     const modifierGroups: ModifierGroup[] = [];
     const rawItemData = itemData as Record<string, unknown>;
+    /**
+     * Modifier groups MUST come only from this array (Square `modifier_list_info` / `modifierListInfo`).
+     * `modifierListMap` / `relatedObjects` are lookup tables only — never iterated to attach lists to items.
+     */
     const listInfo = (rawItemData.modifierListInfo ?? rawItemData.modifier_list_info ?? []) as Array<{
         modifierListId?: string;
         modifier_list_id?: string;
@@ -306,16 +479,77 @@ export async function getMenuFromSquare(): Promise<MenuCategory[]> {
         maxSelectedModifiers?: number;
         max_selected_modifiers?: number;
       }>;
+    const listInfoCount = listInfo.length;
+    if (MENU_MODIFIER_VALIDATION && listInfo.length > 0) {
+      const ids = listInfo
+        .map((i) => i.modifierListId ?? i.modifier_list_id)
+        .filter((x): x is string => typeof x === "string" && x.length > 0);
+      const seen = new Set<string>();
+      for (const id of ids) {
+        if (seen.has(id)) {
+          console.warn("DUPLICATE MODIFIER LIST IDS", obj.id, { duplicateId: id });
+        }
+        seen.add(id);
+      }
+    }
+    if (DEBUG_MENU_MODIFIERS && listInfo.length > 0) {
+      const listIdsFromSquare = listInfo.map((i) => i.modifierListId ?? i.modifier_list_id ?? null);
+      const seen = new Set<string>();
+      const duplicateListRefs = listIdsFromSquare.filter((id) => {
+        if (!id || typeof id !== "string") return false;
+        if (seen.has(id)) return true;
+        seen.add(id);
+        return false;
+      });
+      console.log(
+        "[menu-modifiers] ITEM",
+        obj.id,
+        itemDataTyped.name ?? "",
+        "modifierListInfo.length:",
+        listInfo.length,
+        "listIds:",
+        listIdsFromSquare,
+        "duplicateListIdRefs:",
+        duplicateListRefs
+      );
+    }
     for (const info of listInfo) {
       const listId = info.modifierListId ?? info.modifier_list_id;
       if (!listId || !modifierListMap.has(listId)) continue;
       const list = modifierListMap.get(listId)!;
+      const modifierIdsRaw = list.modifierIds;
+      if (MENU_MODIFIER_VALIDATION) {
+        console.log("GROUP BUILD:", {
+          itemId: obj.id,
+          listId,
+          modifierIds: modifierIdsRaw,
+          uniqueCount: new Set(modifierIdsRaw).size,
+        });
+      }
+      if (DEBUG_MENU_MODIFIERS) {
+        const uniqMods = new Set(modifierIdsRaw);
+        console.log(
+          "[menu-modifiers]   list",
+          listId,
+          list.name,
+          "modifierIds from map:",
+          modifierIdsRaw,
+          "uniqueModifierIds:",
+          uniqMods.size
+        );
+      }
       const options = list.modifierIds
         .map((mid) => {
           const m = modifierMap.get(mid);
           return m ? { id: mid, name: m.name, price: m.price } : null;
         })
         .filter(Boolean) as { id: string; name: string; price: number }[];
+      if (DEBUG_MENU_MODIFIERS && options.length > 0) {
+        console.log(
+          "[menu-modifiers]   resolved options:",
+          options.map((o) => o.id)
+        );
+      }
       if (options.length === 0) continue;
       const minSel = info.minSelectedModifiers ?? info.min_selected_modifiers ?? list.min;
       const maxSel = info.maxSelectedModifiers ?? info.max_selected_modifiers ?? list.max;
@@ -328,6 +562,64 @@ export async function getMenuFromSquare(): Promise<MenuCategory[]> {
         maxSel: maxSel > 0 ? maxSel : undefined,
         options,
       });
+    }
+
+    if (MENU_MODIFIER_VALIDATION) {
+      console.log("FINAL GROUPS:", obj.id, modifierGroups.map((g) => g.id));
+      if (listInfoCount !== modifierGroups.length) {
+        console.warn("[modifier-validation] listInfo.length !== modifierGroups.length", {
+          itemId: obj.id,
+          listInfoCount,
+          modifierGroupsLength: modifierGroups.length,
+          note: "Groups with zero resolved options are omitted",
+        });
+      }
+    }
+
+    if (options?.debugItemId === obj.id) {
+      const batchMl =
+        batchEntry?.itemData?.["modifierListInfo"] ??
+        batchEntry?.itemData?.["modifier_list_info"] ??
+        null;
+      const listMl =
+        listCatalogItemData?.["modifierListInfo"] ??
+        listCatalogItemData?.["modifier_list_info"] ??
+        null;
+      const attachedModifierListIdsFromItemDataUsed =
+        modifierListIdsFromListInfo(listInfo);
+      const finalModifierListIds = modifierGroups.map((g) => g.id);
+      const attachedSet = new Set(attachedModifierListIdsFromItemDataUsed);
+      const finalSet = new Set(finalModifierListIds);
+      const groupsNotBackedByListInfo = finalModifierListIds.filter(
+        (id) => !attachedSet.has(id)
+      );
+      const listInfoListIdsWithoutGroup =
+        attachedModifierListIdsFromItemDataUsed.filter((id) => !finalSet.has(id));
+      if (groupsNotBackedByListInfo.length > 0) {
+        console.error(
+          "[modifier-trace] INVARIANT BROKEN: output group id(s) not in itemData.modifierListInfo for source itemData",
+          { itemId: obj.id, groupsNotBackedByListInfo }
+        );
+      }
+      debugItemComparison = {
+        itemId: obj.id,
+        itemDataSource: batchEntry ? "batch" : "list_fallback",
+        batchModifierListInfo: batchEntry ? safeJsonClone(batchMl) : null,
+        listCatalogModifierListInfo: safeJsonClone(listMl),
+        attachedModifierListIdsFromItemDataUsed,
+        finalModifierGroups: modifierGroups.map((g) => ({
+          id: g.id,
+          name: g.name,
+          type: g.type,
+          optionIds: g.options.map((o) => o.id),
+        })),
+        finalModifierListIds,
+        groupsNotBackedByListInfo,
+        listInfoListIdsWithoutGroup,
+        groupCount: modifierGroups.length,
+        listInfoCount,
+        skippedNoBatch: MENU_MODIFIER_VALIDATION && !batchEntry,
+      };
     }
 
     const menuItem: MenuItemType = {
@@ -361,5 +653,27 @@ export async function getMenuFromSquare(): Promise<MenuCategory[]> {
     }))
     .filter((c) => c.menuitems.length > 0);
 
-  return sortCategories(categories);
+  const sorted = sortCategories(categories);
+
+  if (options?.debugItemId && !debugItemComparison) {
+    debugItemComparison = {
+      itemId: options.debugItemId,
+      itemDataSource: "unavailable",
+      batchModifierListInfo: null,
+      listCatalogModifierListInfo: null,
+      attachedModifierListIdsFromItemDataUsed: [],
+      finalModifierGroups: [],
+      finalModifierListIds: [],
+      groupsNotBackedByListInfo: [],
+      listInfoListIdsWithoutGroup: [],
+      groupCount: 0,
+      listInfoCount: 0,
+      notFound: true,
+    };
+  }
+
+  return {
+    categories: sorted,
+    ...(debugItemComparison ? { debugItemComparison } : {}),
+  };
 }

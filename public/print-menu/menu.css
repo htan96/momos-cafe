@@ -8,7 +8,8 @@
   --menu-red: #aa0000;
   --menu-tan: #f2e5c5;
   --menu-teal: #2a6b69;
-  --menu-divider-breakfast: #2a6b69;
+  /* docs/menu/1.png: vertical rule between columns matches red accent */
+  --menu-divider-breakfast: #aa0000;
   --menu-divider-lunch: #1a1a1a;
   --menu-white: #ffffff;
   --menu-additions-border: #aa0000;
@@ -16,7 +17,7 @@
   --menu-section-rule: #aa0000;
   --menu-page-pad-x: 0.42in;
   --menu-page-pad-y: 0.38in;
-  --font-stack: "Inter", sans-serif;
+  --font-stack: "Poppins", sans-serif;
 }
 
 *,

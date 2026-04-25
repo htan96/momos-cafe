@@ -288,6 +288,40 @@ function isGriddleFavoritesCategory(name: string): boolean {
 
 type GriddlePricedModifier = { displayName: string; price: number };
 
+/** Square catalog uses `ModifierGroup.name` for the modifier list title. */
+function modifierGroupTitle(group: { name: string }): string {
+  return group.name;
+}
+
+function isAddOnsModifierGroup(group: { name: string }): boolean {
+  return normalizeMenuLabel(modifierGroupTitle(group)) === "add ons";
+}
+
+/** Strip Square naming like "Make Combo - Bacon" → "Bacon". */
+function cleanGriddleModifierOptionName(raw: string): string {
+  return raw.replace(/^\s*make\s+combo\s*-\s*/i, "").trim();
+}
+
+/** Printed-menu order; only these labels appear after filtering. */
+const GRIDDLE_ADD_ON_ALLOWLIST = ["Fresh Fruit", "Pecans"] as const;
+const GRIDDLE_COMBO_ALLOWLIST = [
+  "Bacon",
+  "Sausage",
+  "Canadian Bacon",
+] as const;
+
+function canonicalAllowlistedName(
+  cleanedName: string,
+  allowlist: readonly string[]
+): string | null {
+  const k = normalizeMenuLabel(cleanedName);
+  if (!k) return null;
+  for (const canon of allowlist) {
+    if (normalizeMenuLabel(canon) === k) return canon;
+  }
+  return null;
+}
+
 function priceCents(price: number): number {
   return Math.round(price * 100);
 }
@@ -296,28 +330,43 @@ function collectGriddleModifierBuckets(items: MenuItem[]): {
   addOns: GriddlePricedModifier[];
   combo: GriddlePricedModifier[];
 } {
-  const byName = new Map<string, GriddlePricedModifier>();
+  const addOnByKey = new Map<string, GriddlePricedModifier>();
+  const comboByKey = new Map<string, GriddlePricedModifier>();
+
   for (const item of items) {
     for (const group of item.modifierGroups ?? []) {
+      if (!isAddOnsModifierGroup(group)) continue;
       for (const opt of group.options) {
         const price = Number(opt.price);
         if (!Number.isFinite(price) || price <= 0) continue;
-        const displayName = opt.name.trim();
-        const key = normalizeMenuLabel(displayName);
-        if (!key) continue;
-        if (!byName.has(key)) {
-          byName.set(key, { displayName, price });
-        }
+        const cleaned = cleanGriddleModifierOptionName(opt.name);
+        const asAddOn = canonicalAllowlistedName(
+          cleaned,
+          GRIDDLE_ADD_ON_ALLOWLIST
+        );
+        const asCombo = canonicalAllowlistedName(
+          cleaned,
+          GRIDDLE_COMBO_ALLOWLIST
+        );
+        const canon = asAddOn ?? asCombo;
+        if (!canon) continue;
+        const key = normalizeMenuLabel(canon);
+        const bucket = asAddOn ? addOnByKey : comboByKey;
+        if (bucket.has(key)) continue;
+        bucket.set(key, { displayName: canon, price });
       }
     }
   }
-  const all = [...byName.values()];
-  const addOns = all
-    .filter((m) => priceCents(m.price) < 500)
-    .sort((a, b) => a.displayName.localeCompare(b.displayName));
-  const combo = all
-    .filter((m) => priceCents(m.price) === 500)
-    .sort((a, b) => a.displayName.localeCompare(b.displayName));
+
+  const addOns = GRIDDLE_ADD_ON_ALLOWLIST.flatMap((name) => {
+    const hit = addOnByKey.get(normalizeMenuLabel(name));
+    return hit ? [hit] : [];
+  });
+  const combo = GRIDDLE_COMBO_ALLOWLIST.flatMap((name) => {
+    const hit = comboByKey.get(normalizeMenuLabel(name));
+    return hit ? [hit] : [];
+  });
+
   return { addOns, combo };
 }
 
@@ -397,12 +446,14 @@ function CategorySection({
       </div>
       {griddleAddOnsLine ? (
         <p className="inline-additions">
-          <strong>ADD ONS:</strong> {griddleAddOnsLine}
+          <strong>ADD ONS:</strong>
+          <span>{griddleAddOnsLine}</span>
         </p>
       ) : null}
       {griddleComboLine ? (
         <p className="inline-additions">
-          <strong>MAKE IT A COMBO:</strong> {griddleComboLine}
+          <strong>MAKE IT A COMBO:</strong>
+          <span>{griddleComboLine}</span>
         </p>
       ) : null}
     </div>
@@ -438,7 +489,11 @@ const PRINT_STYLES = `
 .menu-wrap {
   background: #d8d0c8;
   min-height: 100vh;
-  padding: 48px 20px 120px;
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 48px 12px 120px;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -448,8 +503,8 @@ const PRINT_STYLES = `
 .menu-page {
   background: #ffffff;
   width: 100%;
-  max-width: 720px;
-  padding: 40px 48px 48px;
+  max-width: none;
+  padding: 40px 28px 48px;
   border-radius: 2px;
   box-shadow:
     0 1px 3px rgba(0,0,0,0.08),
@@ -538,14 +593,24 @@ const PRINT_STYLES = `
 }
 
 .inline-additions {
+  display: block;
+  line-height: 1.4;
   font-size: 0.85em;
-  margin-top: 6px;
+  margin-top: 10px;
   color: #444;
 }
+.inline-additions + .inline-additions {
+  margin-top: 4px;
+}
 .inline-additions strong {
+  display: block;
   font-weight: 600;
-  margin-right: 6px;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
+  color: #2e2a25;
+}
+.inline-additions span {
+  display: inline;
+  color: #555;
 }
 
 .category-description,
@@ -806,7 +871,7 @@ textarea.category-description {
 @media print {
   @page {
     size: letter portrait;
-    margin: 0.32in 0.4in;
+    margin: 0.5in;
   }
 
   /* ── Kill cream background from site layout ── */
@@ -844,6 +909,9 @@ textarea.category-description {
   /* ── Layout reset ── */
   .menu-wrap {
     background: white !important;
+    max-width: none !important;
+    width: 100% !important;
+    margin: 0 !important;
     padding: 0 !important;
     gap: 0 !important;
     display: block !important;
@@ -853,7 +921,7 @@ textarea.category-description {
   .menu-page {
     box-shadow: none !important;
     border-radius: 0 !important;
-    max-width: 100% !important;
+    max-width: none !important;
     width: 100% !important;
     padding: 0 !important;
     background: white !important;
@@ -913,21 +981,31 @@ textarea.category-description {
   }
 
   .inline-additions {
+    display: block !important;
+    line-height: 1.4 !important;
     font-size: 8px !important;
-    margin-top: 4px !important;
+    margin-top: 8px !important;
     color: #444 !important;
   }
+  .inline-additions + .inline-additions {
+    margin-top: 3px !important;
+  }
   .inline-additions strong {
+    display: block !important;
     font-weight: 600 !important;
-    margin-right: 4px !important;
-    letter-spacing: 0.05em !important;
+    letter-spacing: 0.04em !important;
+    color: #2e2a25 !important;
+  }
+  .inline-additions span {
+    display: inline !important;
+    color: #555 !important;
   }
 
   /* ── Two-column item grid (print only) ── */
   .cat-items {
     display: grid !important;
     grid-template-columns: 1fr 1fr !important;
-    gap: 0 32px !important;
+    gap: 0 40px !important;
   }
 
   /* ── Item rows (compact) ── */

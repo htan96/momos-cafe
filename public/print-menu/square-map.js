@@ -44,6 +44,20 @@
     return ITEM_PRINT_SECTION_OVERRIDE_BY_NAME[k] || null;
   }
 
+  /** Same keys as overrides; items listed here keep Square `description` where we usually strip it (griddle / breakfast burritos). */
+  const KEEP_PRINT_DESCRIPTION_ITEM_NAME_KEYS = new Set([
+    normalizeItemNameKey("La Russell's"),
+    normalizeItemNameKey("La Russells"),
+  ]);
+
+  /**
+   * @param {string} itemName
+   * @returns {boolean}
+   */
+  function keepPrintDescriptionForItemName(itemName) {
+    return KEEP_PRINT_DESCRIPTION_ITEM_NAME_KEYS.has(normalizeItemNameKey(itemName));
+  }
+
   /**
    * Ordered rules: first matching needle sends the whole Square category to `section`.
    * @typedef {{ section: string; needles: string[] }} PrintSectionRule
@@ -432,6 +446,8 @@
       if (!sec || !Array.isArray(sec.items)) continue;
       for (const it of sec.items) {
         if (!it || typeof it !== "object") continue;
+        const nm = String(/** @type {{ name?: string }} */ (it).name ?? "");
+        if (keepPrintDescriptionForItemName(nm)) continue;
         /** @type {Record<string, unknown>} */ (it).description = "";
       }
     }
@@ -445,6 +461,7 @@
     SECTION_MAP: SECTION_MAP,
     DEFAULT_SECTION: DEFAULT_SECTION,
     ITEM_PRINT_SECTION_OVERRIDE_BY_NAME: ITEM_PRINT_SECTION_OVERRIDE_BY_NAME,
+    KEEP_PRINT_DESCRIPTION_ITEM_NAME_KEYS: Array.from(KEEP_PRINT_DESCRIPTION_ITEM_NAME_KEYS),
     mapMenuApiToPages: mapMenuApiToPages,
   };
 })(typeof window !== "undefined" ? window : globalThis);

@@ -1,5 +1,6 @@
 /**
  * Maps Square /api/menu catalog categories into the FIXED print layout (docs/menu).
+ * Section assignment uses category.name only (no item.name matching).
  * Structure comes from menu-layout.json — only item rows are filled here.
  */
 (function (global) {
@@ -14,73 +15,72 @@
   };
 
   /**
-   * Section order = match priority (first win). Section `section` must match menu-layout.json.
-   * Breakfast page — /docs/menu/1.png
+   * Square category label (substring match after normalize) → layout `section` string.
+   * Keys are tried in literal order; put more specific labels before broader ones
+   * (e.g. "Burritos" before "Breakfast" so "Breakfast Burritos" hits burritos).
+   * Values must match `section` in menu-layout.json.
    */
-  const BREAKFAST_SECTION_RULES = [
-    {
-      section: "BREAKFAST BURRITOS",
-      test: function (n) {
-        return /\bburrito\b/i.test(n);
-      },
+  const SECTION_MAP = {
+    breakfast: {
+      Burrito: "BREAKFAST BURRITOS",
+      Burritos: "BREAKFAST BURRITOS",
+      Omelet: "OMELETS",
+      Omelets: "OMELETS",
+      Griddle: "GRIDDLE FAVORITES",
+      Pancake: "GRIDDLE FAVORITES",
+      Waffle: "GRIDDLE FAVORITES",
+      "French Toast": "GRIDDLE FAVORITES",
+      Plate: "BREAKFAST PLATES",
+      Breakfast: "BREAKFAST PLATES",
     },
-    {
-      section: "OMELETS",
-      test: function (n) {
-        return /omelet/i.test(n);
-      },
+    lunch: {
+      Salad: "SALADS",
+      Salads: "SALADS",
+      Mexican: "MEXICAN SPECIALTIES",
+      Fajita: "MEXICAN SPECIALTIES",
+      Quesadilla: "MEXICAN SPECIALTIES",
+      Burger: "BURGERS",
+      Burgers: "BURGERS",
+      Lunch: "LUNCH FAVORITES",
+      Sandwich: "LUNCH FAVORITES",
     },
-    {
-      section: "GRIDDLE FAVORITES",
-      test: function (n) {
-        return /(french toast|pancake|waffle|short stack|biscuit|griddle)/i.test(n);
-      },
+    extras: {
+      Side: "EXTRA SIDES",
+      Sides: "EXTRA SIDES",
+      Drink: "EXTRA SIDES",
+      Beverage: "EXTRA SIDES",
+      Juice: "EXTRA SIDES",
+      Coffee: "EXTRA SIDES",
     },
-    {
-      section: "BREAKFAST PLATES",
-      test: function () {
-        return true;
-      },
-    },
-  ];
+  };
 
-  /** Lunch page — /docs/menu/2.png */
-  const LUNCH_SECTION_RULES = [
-    {
-      section: "SALADS",
-      test: function (n) {
-        return /(salad|louie|cobb)/i.test(n);
-      },
-    },
-    {
-      section: "MEXICAN SPECIALTIES",
-      test: function (n) {
-        return /(fajita|quesadilla|nacho|burrito|enchilada|tamale)/i.test(n);
-      },
-    },
-    {
-      section: "BURGERS",
-      test: function (n) {
-        return /(burger|patty melt)/i.test(n);
-      },
-    },
-    {
-      section: "LUNCH FAVORITES",
-      test: function () {
-        return true;
-      },
-    },
-  ];
+  /** When no SECTION_MAP entry matches category.name */
+  const DEFAULT_SECTION = {
+    breakfast: "BREAKFAST PLATES",
+    lunch: "LUNCH FAVORITES",
+    extras: "EXTRA SIDES",
+  };
 
-  /** Extras page — inject only EXTRA SIDES; wings/kids/beverages stay layout-static */
-  const EXTRAS_SECTION_RULES = [
-    {
-      section: "EXTRA SIDES",
-      test: function () {
-        return true;
-      },
-    },
-  ];
+  /**
+   * @param {"breakfast"|"lunch"|"extras"} mealPage
+   * @param {string} categoryName
+   * @returns {string|null} layout section title, or null if unmapped
+   */
+  function resolveSectionForCategory(mealPage, categoryName) {
+    const catNorm = String(categoryName ?? "")
+      .toUpperCase()
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!catNorm) return null;
+    const map = SECTION_MAP[mealPage];
+    if (!map || typeof map !== "object") return null;
+    for (const key of Object.keys(map)) {
+      const needle = String(key).toUpperCase().replace(/\s+/g, " ").trim();
+      if (!needle) continue;
+      if (catNorm.includes(needle)) return /** @type {Record<string, string>} */ (map)[key];
+    }
+    return null;
+  }
 
   /**
    * @param {{ id?: string; name?: string; type?: string }} cat
@@ -122,7 +122,6 @@
   }
 
   /**
-   * Only reset sections that were inject targets; keep static blocks (e.g. Kids, Wings).
    * @param {Record<string, unknown>} sec
    */
   function clearIfInjectSection(sec) {
@@ -161,22 +160,6 @@
   }
 
   /**
-   * @param {Record<string, unknown>} row
-   * @param {Array<{ section: string; test: (n: string) => boolean }>} rules
-   * @param {Record<string, unknown>[]} sections
-   */
-  function pushItemToFirstMatch(row, rules, sections) {
-    const name = String(row.name ?? "");
-    for (const rule of rules) {
-      if (!rule.test(name)) continue;
-      const sec = findSection(sections, rule.section);
-      if (!sec || !Array.isArray(sec.items)) continue;
-      sec.items.push(row);
-      return;
-    }
-  }
-
-  /**
    * @param {unknown[]} categories — GET /api/menu response
    * @param {unknown} layoutRoot — parsed menu-layout.json
    * @returns {{ pages: unknown }}
@@ -204,11 +187,30 @@
 
     for (const cat of categories) {
       if (!cat || typeof cat !== "object") continue;
-      const meal = mealPageForCategory(/** @type {{ id?: string; name?: string; type?: string }} */ (cat));
-      const items = Array.isArray(/** @type {{ menuitems?: unknown }} */ (cat).menuitems)
-        ? /** @type {{ menuitems: unknown[] }} */ (cat).menuitems
-        : [];
+      const c = /** @type {{ id?: string; name?: string; type?: string; menuitems?: unknown[] }} */ (cat);
+      const meal = mealPageForCategory(c);
+      const catName = String(c.name ?? "");
 
+      let sectionName = resolveSectionForCategory(meal, catName);
+      const defaultSec = DEFAULT_SECTION[meal];
+      if (!sectionName) {
+        console.warn("Unmapped category:", catName);
+        sectionName = defaultSec;
+      }
+
+      console.log("Category → Section mapping:", catName, sectionName);
+
+      const sectionList =
+        meal === "breakfast" ? breakfast : meal === "lunch" ? lunch : extraSections;
+      let target = findSection(sectionList, sectionName);
+      if (!target || !Array.isArray(target.items)) {
+        console.warn("Section not found in layout:", sectionName, "category:", catName);
+        const fallback = findSection(sectionList, defaultSec);
+        if (!fallback || !Array.isArray(fallback.items)) continue;
+        target = fallback;
+      }
+
+      const items = Array.isArray(c.menuitems) ? c.menuitems : [];
       for (const raw of items) {
         if (!raw || typeof raw !== "object") continue;
         const mi = /** @type {Record<string, unknown>} */ (raw);
@@ -219,16 +221,7 @@
           priceRaw !== null && priceRaw !== undefined && !Number.isNaN(Number(priceRaw))
             ? Number(priceRaw)
             : null;
-        /** @type {Record<string, unknown>} */
-        const row = { name, description: desc, price };
-
-        if (meal === "breakfast") {
-          pushItemToFirstMatch(row, BREAKFAST_SECTION_RULES, breakfast);
-        } else if (meal === "lunch") {
-          pushItemToFirstMatch(row, LUNCH_SECTION_RULES, lunch);
-        } else {
-          pushItemToFirstMatch(row, EXTRAS_SECTION_RULES, extraSections);
-        }
+        target.items.push({ name, description: desc, price });
       }
     }
 
@@ -253,6 +246,8 @@
 
   global.__PRINT_MENU_SQUARE__ = {
     CATEGORY_ID_TO_MEAL: CATEGORY_ID_TO_MEAL,
+    SECTION_MAP: SECTION_MAP,
+    DEFAULT_SECTION: DEFAULT_SECTION,
     mapMenuApiToPages: mapMenuApiToPages,
   };
 })(typeof window !== "undefined" ? window : globalThis);

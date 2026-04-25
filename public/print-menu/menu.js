@@ -6,33 +6,11 @@
 (function () {
   "use strict";
 
-  /**
-   * Base URL for menu JSON assets. `/print-menu` without trailing slash would
-   * otherwise resolve `menu-layout.json` → `/menu-layout.json` (wrong).
-   * @returns {string}
-   */
-  function printMenuAssetBaseHref() {
-    try {
-      const u = new URL(window.location.href);
-      let path = u.pathname;
-      if (path.endsWith("/")) {
-        /* ok */
-      } else if (/\.html?$/i.test(path)) {
-        path = path.replace(/[^/]+$/, "");
-      } else {
-        path += "/";
-      }
-      u.pathname = path;
-      return u.href;
-    } catch {
-      return window.location.href.replace(/\/?$/, "/");
-    }
-  }
-
-  const _assetBase = printMenuAssetBaseHref();
-  let layoutJsonHref = new URL("menu-layout.json", _assetBase).href;
-  let simpleJsonHref = new URL("menu-simple.json", _assetBase).href;
-  let legacyJsonHref = new URL("menu-data.json", _assetBase).href;
+  /** Same origin as index.html: `/public/print-menu/` → `/print-menu/` */
+  const printMenuStaticBase = new URL("/print-menu/", window.location.origin).href;
+  let layoutJsonHref = new URL("menu-layout.json", printMenuStaticBase).href;
+  let simpleJsonHref = new URL("menu-simple.json", printMenuStaticBase).href;
+  let legacyJsonHref = new URL("menu-data.json", printMenuStaticBase).href;
 
   /** Demo Square-shaped rows — category maps to breakfast | lunch | extras buckets. */
   const SQUARE_DEMO_ITEMS = [

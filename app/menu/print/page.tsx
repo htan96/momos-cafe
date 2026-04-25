@@ -7,6 +7,7 @@ import {
   loadMenuCategoryDescriptionOverrides,
   saveMenuCategoryDescriptionOverrides,
 } from "@/lib/printMenuCategoryDescriptions";
+import { applyPrintItemCategoryOverrides } from "@/lib/printMenuItemCategoryOverrides";
 
 // Category type → print page mapping
 const PAGE_1_TYPES = ["breakfast"];
@@ -42,7 +43,7 @@ export default function PrintMenuPage() {
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data)) {
-          setCategories(data);
+          setCategories(applyPrintItemCategoryOverrides(data));
         } else {
           setError(true);
         }
@@ -226,16 +227,13 @@ function MenuPage({
 
   return (
     <div className={`menu-page${breakBefore ? " page-break" : ""}`}>
-      {/* Per-page brand mark */}
-      <div className="page-brand">
-        <span className="brand-text">Momo&apos;s Café</span>
-        <span className="brand-dot" />
-        <span className="brand-sub">Vallejo, CA</span>
+      <div className="menu-page-header">
+        <div className="menu-header-left">
+          MOMO&apos;S CAFE &middot; VALLEJO, CA
+        </div>
+        <h1 className="menu-header-right">{title}</h1>
       </div>
-      <div className="brand-rule" />
-
-      {/* Big page title */}
-      <h1 className="page-title">{title}</h1>
+      <div className="menu-header-rule" aria-hidden />
 
       {/* Category sections */}
       {activeCategories.map((cat) => (
@@ -353,50 +351,38 @@ const PRINT_STYLES = `
     0 12px 40px rgba(0,0,0,0.08);
 }
 
-/* Brand header */
-.page-brand {
+/* Menu sheet header — brand left, page title right */
+.menu-page-header {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 12px;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  margin: 0 0 6px;
 }
-.brand-text {
-  font-family: "Playfair Display", serif;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
+.menu-header-left {
+  font-family: Inter, sans-serif;
+  font-size: 0.85em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #2f6d66;
-}
-.brand-dot {
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background: #d4af37;
+  color: #6b7280;
   flex-shrink: 0;
 }
-.brand-sub {
-  font-family: Inter, sans-serif;
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #6B6B6B;
-}
-.brand-rule {
-  height: 1px;
-  background: linear-gradient(to right, #d4af37 0%, #d4af37 30%, rgba(212,175,55,0.15) 100%);
-  margin-bottom: 32px;
-}
-
-/* Page title */
-.page-title {
+.menu-header-right {
   font-family: "Playfair Display", serif;
-  font-size: 48px;
+  font-size: 1.5em;
   font-weight: 700;
   color: #2e2a25;
-  line-height: 1;
+  line-height: 1.1;
+  margin: 0;
+  min-width: 0;
+  text-align: right;
+  text-transform: uppercase;
   letter-spacing: -0.02em;
-  margin: 0 0 40px;
+}
+.menu-header-rule {
+  height: 1px;
+  background: linear-gradient(to right, #d4af37 0%, #d4af37 30%, rgba(212,175,55,0.15) 100%);
+  margin: 0 0 20px;
 }
 
 /* Category section */
@@ -762,14 +748,21 @@ textarea.category-description {
     page-break-before: always;
   }
 
-  /* ── Brand header (compact) ── */
-  .page-brand { margin-bottom: 4px !important; }
-  .brand-rule  { margin-bottom: 10px !important; }
-
-  /* ── Page title ── */
-  .page-title {
-    font-size: 28px !important;
-    margin-bottom: 12px !important;
+  /* ── Menu sheet header (compact) ── */
+  .menu-page-header {
+    margin: 0 0 2px !important;
+    gap: 10px !important;
+  }
+  .menu-header-left {
+    font-size: 8px !important;
+    letter-spacing: 0.08em !important;
+  }
+  .menu-header-right {
+    font-size: 22px !important;
+    line-height: 1.05 !important;
+  }
+  .menu-header-rule {
+    margin: 0 0 10px !important;
   }
 
   /* ── Category sections (tight) ── */

@@ -274,6 +274,15 @@ console.log("MENU JS LOADED");
         /** @type {{ title?: string }} */ (additionsBox).title ?? "ADDITIONS"
       ).toUpperCase();
       aside.appendChild(at);
+      const addSub = String(
+        /** @type {{ subtitle?: string }} */ (additionsBox).subtitle ?? ""
+      ).trim();
+      if (addSub) {
+        const sub = document.createElement("p");
+        sub.className = "additions-box__subtitle";
+        sub.textContent = addSub.toUpperCase();
+        aside.appendChild(sub);
+      }
       const rows = Array.isArray(
         /** @type {{ rows?: unknown[] }} */ (additionsBox).rows
       )

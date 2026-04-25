@@ -475,6 +475,18 @@ body {
   color: var(--menu-additions-title);
 }
 
+.additions-box__subtitle {
+  margin: -0.04in 0 0.08in;
+  text-align: center;
+  font-size: 6.5pt;
+  font-weight: 600;
+  font-style: italic;
+  line-height: 1.3;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--menu-teal);
+}
+
 .additions-box__row {
   display: flex;
   justify-content: space-between;

@@ -1,7 +1,10 @@
 /**
- * Maps Square /api/menu catalog categories into the FIXED print layout (docs/menu).
- * Section assignment uses category.name only (no item.name matching).
- * Structure comes from menu-layout.json — only item rows are filled here.
+ * Maps Square /api/menu catalog categories into the FIXED print layout.
+ * Target `section` strings MUST match `section` in public/print-menu/menu-layout.json
+ * (same titles as docs/menu/1.png breakfast, 2.png lunch, 3.png extras).
+ *
+ * Square category.name is normalized (uppercase); the first matching needle wins.
+ * Tune needles to match how categories are named in your Square catalog.
  */
 (function (global) {
   "use strict";
@@ -15,58 +18,186 @@
   };
 
   /**
-   * Square category label (substring match after normalize) → layout `section` string.
-   * Keys are tried in literal order; put more specific labels before broader ones
-   * (e.g. "Burritos" before "Breakfast" so "Breakfast Burritos" hits burritos).
-   * Values must match `section` in menu-layout.json.
+   * Square sometimes lists an item under the wrong category. Keys: normalized
+   * item name (uppercase, spaces collapsed, ASCII apostrophe). Values: layout
+   * `section` string, e.g. "BREAKFAST PLATES". Add rows here for print-only fixes.
    */
-  const SECTION_MAP = {
-    breakfast: {
-      Burrito: "BREAKFAST BURRITOS",
-      Burritos: "BREAKFAST BURRITOS",
-      Omelet: "OMELETS",
-      Omelets: "OMELETS",
-      Griddle: "GRIDDLE FAVORITES",
-      Pancake: "GRIDDLE FAVORITES",
-      Waffle: "GRIDDLE FAVORITES",
-      Belgian: "GRIDDLE FAVORITES",
-      Stack: "GRIDDLE FAVORITES",
-      Crepe: "GRIDDLE FAVORITES",
-      "French Toast": "GRIDDLE FAVORITES",
-      Benedict: "BREAKFAST PLATES",
-      Huevos: "BREAKFAST PLATES",
-      Chilaquiles: "BREAKFAST PLATES",
-      Biscuit: "GRIDDLE FAVORITES",
-      Plate: "BREAKFAST PLATES",
-      Breakfast: "BREAKFAST PLATES",
-    },
-    lunch: {
-      Salad: "SALADS",
-      Salads: "SALADS",
-      Mexican: "MEXICAN SPECIALTIES",
-      Fajita: "MEXICAN SPECIALTIES",
-      Quesadilla: "MEXICAN SPECIALTIES",
-      Burger: "BURGERS",
-      Burgers: "BURGERS",
-      Lunch: "LUNCH FAVORITES",
-      Sandwich: "LUNCH FAVORITES",
-    },
-    extras: {
-      Side: "EXTRA SIDES",
-      Sides: "EXTRA SIDES",
-      Drink: "EXTRA SIDES",
-      Beverage: "EXTRA SIDES",
-      Juice: "EXTRA SIDES",
-      Coffee: "EXTRA SIDES",
-    },
+  const ITEM_PRINT_SECTION_OVERRIDE_BY_NAME = {
+    "JOE'S SPECIAL": "BREAKFAST PLATES",
+    "JOES SPECIAL": "BREAKFAST PLATES",
   };
 
-  /** When no SECTION_MAP entry matches category.name */
+  function normalizeItemNameKey(name) {
+    return String(name ?? "")
+      .toUpperCase()
+      .replace(/\u2019/g, "'")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  /**
+   * @param {string} itemName
+   * @returns {string|null} layout section title or null
+   */
+  function printSectionOverrideForItemName(itemName) {
+    const k = normalizeItemNameKey(itemName);
+    return ITEM_PRINT_SECTION_OVERRIDE_BY_NAME[k] || null;
+  }
+
+  /**
+   * Ordered rules: first matching needle sends the whole Square category to `section`.
+   * @typedef {{ section: string; needles: string[] }} PrintSectionRule
+   */
+
+  /** @type {{ breakfast: PrintSectionRule[]; lunch: PrintSectionRule[]; extras: PrintSectionRule[] }} */
+  const PRINT_SECTION_RULES = {
+    breakfast: [
+      {
+        section: "BREAKFAST BURRITOS",
+        needles: ["BREAKFAST BURRITO", "BURRITO"],
+      },
+      { section: "OMELETS", needles: ["OMELET"] },
+      {
+        section: "GRIDDLE FAVORITES",
+        needles: [
+          "GRIDDLE",
+          "PANCAKE",
+          "WAFFLE",
+          "CHICKEN & WAFFLE",
+          "FRENCH TOAST",
+          "BELGIAN",
+          "SHORT STACK",
+          "HOT CAKE",
+          "CREPE",
+          "CRÊPE",
+          "BISCUIT",
+        ],
+      },
+      {
+        section: "BREAKFAST PLATES",
+        needles: [
+          "BREAKFAST PLATE",
+          "PLATE",
+          "CLASSIC",
+          "HUEVOS",
+          "BENEDICT",
+          "CHILAQUILES",
+          "RANCHERO",
+          "STEAK & EGG",
+          "COUNTRY FRIED",
+          "TWO EGG",
+          "COMBO",
+          "SANDWICH",
+          "BREAKFAST",
+        ],
+      },
+    ],
+    lunch: [
+      {
+        section: "SALADS",
+        needles: [
+          "SALAD",
+          "LOUIE",
+          "COBB",
+          "CAESAR",
+          "GREEK SALAD",
+          "GARDEN SALAD",
+        ],
+      },
+      {
+        section: "MEXICAN SPECIALTIES",
+        needles: [
+          "MEXICAN",
+          "FAJITA",
+          "QUESADILLA",
+          "NACHO",
+          "ENCHILADA",
+          "CHIMICHANGA",
+          "TAMALE",
+          "TACO",
+          "BURRITO",
+          "BURRITO BOWL",
+          "WET BURRITO",
+        ],
+      },
+      { section: "BURGERS", needles: ["BURGER", "PATTY MELT", "PATTY"] },
+      {
+        section: "LUNCH FAVORITES",
+        needles: [
+          "LUNCH",
+          "SANDWICH",
+          "SANDWICHES",
+          "MELT",
+          "CLUB",
+          "BLT",
+          "WRAP",
+          "WRAPS",
+          "TURKEY",
+          "TUNA",
+          "STEAK SANDWICH",
+          "CHICKEN",
+          "FRIES",
+          "FEATURED",
+          "SPECIAL",
+          "SOUP",
+          "CHILI",
+        ],
+      },
+    ],
+    extras: [
+      { section: "WINGS", needles: ["WING"] },
+      { section: "KIDS MEALS", needles: ["KID", "CHILD", "CHILDREN"] },
+      {
+        section: "BEVERAGES",
+        needles: [
+          "BEVERAGE",
+          "DRINK",
+          "DRINKS",
+          "SODA",
+          "FOUNTAIN",
+          "JUICE",
+          "COFFEE",
+          "TEA",
+          "LATTE",
+          "CAPPUCCINO",
+          "ESPRESSO",
+          "SMOOTHIE",
+          "SHAKE",
+          "MILK",
+        ],
+      },
+      {
+        section: "EXTRA SIDES",
+        needles: ["SIDE", "SIDES", "EXTRA", "ADD ON", "ADD-ON", "À LA CARTE", "A LA CARTE"],
+      },
+    ],
+  };
+
+  /** When no rule matches category.name */
   const DEFAULT_SECTION = {
     breakfast: "BREAKFAST PLATES",
     lunch: "LUNCH FAVORITES",
     extras: "EXTRA SIDES",
   };
+
+  /**
+   * Flat map for debugging / console — order is not significant here.
+   * @param {{ breakfast: PrintSectionRule[]; lunch: PrintSectionRule[]; extras: PrintSectionRule[] }} rules
+   */
+  function flattenPrintSectionRules(rules) {
+    /** @type {Record<string, Record<string, string>>} */
+    const out = { breakfast: {}, lunch: {}, extras: {} };
+    for (const meal of /** @type {const} */ (["breakfast", "lunch", "extras"])) {
+      for (const rule of rules[meal]) {
+        for (const needle of rule.needles) {
+          out[meal][needle] = rule.section;
+        }
+      }
+    }
+    return out;
+  }
+
+  const SECTION_MAP = flattenPrintSectionRules(PRINT_SECTION_RULES);
 
   /**
    * @param {"breakfast"|"lunch"|"extras"} mealPage
@@ -79,20 +210,18 @@
       .replace(/\s+/g, " ")
       .trim();
     if (!catNorm) return null;
-    const map = SECTION_MAP[mealPage];
-    if (!map || typeof map !== "object") return null;
-    for (const key of Object.keys(map)) {
-      const needle = String(key).toUpperCase().replace(/\s+/g, " ").trim();
-      if (!needle) continue;
-      if (catNorm.includes(needle)) return /** @type {Record<string, string>} */ (map)[key];
+    const rules = PRINT_SECTION_RULES[mealPage];
+    if (!Array.isArray(rules)) return null;
+    for (const rule of rules) {
+      for (const needle of rule.needles) {
+        const n = String(needle).toUpperCase().replace(/\s+/g, " ").trim();
+        if (!n) continue;
+        if (catNorm.includes(n)) return rule.section;
+      }
     }
     return null;
   }
 
-  /**
-   * @param {{ id?: string; name?: string; type?: string }} cat
-   * @returns {"breakfast"|"lunch"|"extras"}
-   */
   /**
    * Category names that are breakfast food but often lack the word "breakfast"
    * (must stay in sync with inferCategoryType in lib/categoryUtils.ts).
@@ -132,7 +261,18 @@
     if (n.includes("breakfast")) return "breakfast";
     if (categoryNameSuggestsBreakfastMeal(cat.name)) return "breakfast";
     if (n.includes("lunch")) return "lunch";
-    if (n.includes("drink") || n.includes("beverage") || n.includes("side") || n.includes("extra"))
+    if (
+      n.includes("wing") ||
+      n.includes("kid") ||
+      n.includes("drink") ||
+      n.includes("beverage") ||
+      n.includes("juice") ||
+      n.includes("coffee") ||
+      n.includes("soda") ||
+      n.includes("tea") ||
+      n.includes("side") ||
+      n.includes("extra")
+    )
       return "extras";
     if (t === "featured" || t === "special") return "lunch";
     return "lunch";
@@ -256,7 +396,19 @@
           priceRaw !== null && priceRaw !== undefined && !Number.isNaN(Number(priceRaw))
             ? Number(priceRaw)
             : null;
-        target.items.push({ name, description: desc, price });
+
+        const overrideSec = printSectionOverrideForItemName(name);
+        let dest = target;
+        if (overrideSec && overrideSec.toUpperCase() !== String(sectionName ?? "").toUpperCase()) {
+          const alt = findSection(sectionList, overrideSec);
+          if (alt && Array.isArray(alt.items)) {
+            dest = alt;
+            console.log("Print item override:", name, "→", overrideSec, "(Square category:", catName + ")");
+          } else {
+            console.warn("Print item override: unknown section:", overrideSec, "for item:", name);
+          }
+        }
+        dest.items.push({ name, description: desc, price });
       }
     }
 
@@ -281,8 +433,10 @@
 
   global.__PRINT_MENU_SQUARE__ = {
     CATEGORY_ID_TO_MEAL: CATEGORY_ID_TO_MEAL,
+    PRINT_SECTION_RULES: PRINT_SECTION_RULES,
     SECTION_MAP: SECTION_MAP,
     DEFAULT_SECTION: DEFAULT_SECTION,
+    ITEM_PRINT_SECTION_OVERRIDE_BY_NAME: ITEM_PRINT_SECTION_OVERRIDE_BY_NAME,
     mapMenuApiToPages: mapMenuApiToPages,
   };
 })(typeof window !== "undefined" ? window : globalThis);

@@ -4,7 +4,7 @@
       {
         "column": "left",
         "section": "BREAKFAST PLATES",
-        "subtitle": "SERVED WITH COUNTRY POTATOES OR HASH BROWNS AND TOAST OR TORTILLAS",
+        "subtitle": "SERVED WITH 2 EGGS, COUNTRY POTATOES AND YOUR CHOICE OF TOAST OR PANCAKES. SUBSTITUTE 2 SLICES OF FRENCH TOAST FOR $5",
         "items": [],
         "inject": {
           "category": "breakfast",
@@ -14,37 +14,22 @@
       {
         "column": "left",
         "section": "GRIDDLE FAVORITES",
-        "subtitle": "SERVED WITH TWO EGGS ANY STYLE AND POTATOES",
+        "subtitle": "SERVED WITH BUTTER AND WARM MAPLE SYRUP",
         "items": [],
         "additionsBox": {
           "title": "ADDITIONS",
+          "subtitle": "FOR GRIDDLE FAVORITES ONLY",
           "rows": [
             {
-              "label": "ADD CHICKEN",
-              "price": 6
-            },
-            {
-              "label": "ADD BACON OR SAUSAGE",
-              "price": 4
-            },
-            {
-              "label": "ADD HAM OR CHORIZO",
+              "label": "MAKE IT A COMBO",
               "price": 5
             },
             {
-              "label": "ADD AVOCADO",
-              "price": 2
+              "label": "FRESH FRUIT",
+              "price": 4
             },
             {
-              "label": "ADD ONE EGG",
-              "price": 2
-            },
-            {
-              "label": "ADD TWO EGGS",
-              "price": 3
-            },
-            {
-              "label": "ADD BOTTOMLESS COFFEE",
+              "label": "PECANS",
               "price": 3
             }
           ]
@@ -57,7 +42,7 @@
       {
         "column": "right",
         "section": "OMELETS",
-        "subtitle": "SERVED WITH COUNTRY POTATOES OR HASH BROWNS AND TOAST OR TORTILLAS",
+        "subtitle": "SERVED WITH COUNTRY POTATOES AND YOUR CHOICE OF TOAST OR PANCAKES.",
         "items": [],
         "inject": {
           "category": "breakfast",
@@ -68,8 +53,8 @@
         "column": "right",
         "section": "BREAKFAST BURRITOS",
         "sectionPrice": 14,
-        "subtitle": "SERVED WITH COUNTRY POTATOES OR HASH BROWNS",
-        "footer": "CHOICE OF: BACON, SAUSAGE, HAM, OR CHORIZO",
+        "subtitle": "WRAPPED IN A WARM FLOUR TORTILLA WITH EGGS, CHEESE, AND COUNTRY POTATOES.",
+        "footer": "CHOICE OF: BACON, HAM, SAUSAGE, CHORIZO, OR VEGGIE",
         "items": []
       }
     ],

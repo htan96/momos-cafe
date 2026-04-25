@@ -557,11 +557,17 @@ const PRINT_STYLES = `
   /* ── Cover page in print ── */
   .cover-page {
     min-height: 0 !important;
-    height: 100vh !important;
+    height: auto !important;
     page-break-after: always !important;
     break-after: page !important;
   }
   .cover-logo { width: 160px !important; }
+
+  /* ── Prevent blank trailing page ── */
+  .menu-page:last-child {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
 
   /* ── Layout reset ── */
   .menu-wrap {

@@ -1,8 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { MenuCategory, MenuItem } from "@/types/menu";
-import type { ModifierOption } from "@/types/ordering";
+import {
+  effectiveCategoryDescription,
+  loadMenuCategoryDescriptionOverrides,
+  saveMenuCategoryDescriptionOverrides,
+} from "@/lib/printMenuCategoryDescriptions";
 
 // Category type → print page mapping
 const PAGE_1_TYPES = ["breakfast"];
@@ -16,6 +20,22 @@ export default function PrintMenuPage() {
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [descriptionOverrides, setDescriptionOverrides] = useState<
+    Record<string, string>
+  >({});
+
+  useEffect(() => {
+    setDescriptionOverrides(loadMenuCategoryDescriptionOverrides());
+  }, []);
+
+  const setCategoryDescription = useCallback((name: string, value: string) => {
+    setDescriptionOverrides((prev) => {
+      const next = { ...prev, [name]: value };
+      saveMenuCategoryDescriptionOverrides(next);
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     fetch("/api/menu", { cache: "no-store" })
@@ -84,9 +104,16 @@ export default function PrintMenuPage() {
     <>
       <style>{PRINT_STYLES}</style>
 
-      {/* Print button — hidden during print via .no-print */}
-      <div className="no-print">
-        <button onClick={() => window.print()} className="print-btn">
+      {/* Edit + Print — hidden during print via .no-print */}
+      <div className="no-print menu-print-actions">
+        <button
+          type="button"
+          onClick={() => setIsEditing((v) => !v)}
+          className="edit-btn"
+        >
+          {isEditing ? "Done" : "Edit"}
+        </button>
+        <button type="button" onClick={() => window.print()} className="print-btn">
           Print Menu
         </button>
       </div>
@@ -94,9 +121,30 @@ export default function PrintMenuPage() {
       {/* Four pages: cover + 3 menu pages */}
       <div className="menu-wrap">
         <CoverPage />
-        <MenuPage title="Breakfast" categories={page1} breakBefore />
-        <MenuPage title="Lunch" categories={page2} breakBefore />
-        <MenuPage title="Extras &amp; Drinks" categories={page3} breakBefore />
+        <MenuPage
+          title="Breakfast"
+          categories={page1}
+          breakBefore
+          isEditing={isEditing}
+          descriptionOverrides={descriptionOverrides}
+          onDescriptionChange={setCategoryDescription}
+        />
+        <MenuPage
+          title="Lunch"
+          categories={page2}
+          breakBefore
+          isEditing={isEditing}
+          descriptionOverrides={descriptionOverrides}
+          onDescriptionChange={setCategoryDescription}
+        />
+        <MenuPage
+          title="Extras &amp; Drinks"
+          categories={page3}
+          breakBefore
+          isEditing={isEditing}
+          descriptionOverrides={descriptionOverrides}
+          onDescriptionChange={setCategoryDescription}
+        />
       </div>
     </>
   );
@@ -160,10 +208,16 @@ function MenuPage({
   title,
   categories,
   breakBefore = false,
+  isEditing,
+  descriptionOverrides,
+  onDescriptionChange,
 }: {
   title: string;
   categories: MenuCategory[];
   breakBefore?: boolean;
+  isEditing: boolean;
+  descriptionOverrides: Record<string, string>;
+  onDescriptionChange: (categoryName: string, value: string) => void;
 }) {
   const activeCategories = categories.filter(
     (c) => c.menuitems?.some((i) => i.is_active)
@@ -185,7 +239,16 @@ function MenuPage({
 
       {/* Category sections */}
       {activeCategories.map((cat) => (
-        <CategorySection key={cat.id} category={cat} />
+        <CategorySection
+          key={cat.id}
+          category={cat}
+          isEditing={isEditing}
+          descriptionText={effectiveCategoryDescription(
+            cat.name,
+            descriptionOverrides
+          )}
+          onDescriptionChange={(value) => onDescriptionChange(cat.name, value)}
+        />
       ))}
     </div>
   );
@@ -193,37 +256,21 @@ function MenuPage({
 
 /* ─── Category ──────────────────────────────────────────────────────────── */
 
-// Collect modifier options with a price > 0 that appear on 2+ items in the category.
-// These get shown once as a category-level "Additions" note rather than repeating per item.
-function getCategoryAdditions(items: MenuItem[]) {
-  const groupMap = new Map<string, { opts: ModifierOption[]; count: number }>();
-
-  for (const item of items) {
-    const seen = new Set<string>();
-    for (const group of item.modifierGroups ?? []) {
-      if (seen.has(group.name)) continue;
-      seen.add(group.name);
-      const priced = group.options.filter((o) => o.price > 0);
-      if (priced.length === 0) continue;
-      const entry = groupMap.get(group.name);
-      if (entry) {
-        entry.count++;
-      } else {
-        groupMap.set(group.name, { opts: priced, count: 1 });
-      }
-    }
-  }
-
-  return Array.from(groupMap.entries())
-    .filter(([, v]) => v.count >= 2)
-    .map(([name, v]) => ({ name, opts: v.opts }));
-}
-
-function CategorySection({ category }: { category: MenuCategory }) {
+function CategorySection({
+  category,
+  isEditing,
+  descriptionText,
+  onDescriptionChange,
+}: {
+  category: MenuCategory;
+  isEditing: boolean;
+  descriptionText: string;
+  onDescriptionChange: (value: string) => void;
+}) {
   const items = category.menuitems?.filter((i) => i.is_active) ?? [];
   if (items.length === 0) return null;
 
-  const additions = getCategoryAdditions(items);
+  const showDescBlock = isEditing || descriptionText.trim().length > 0;
 
   return (
     <div className="cat-section">
@@ -231,28 +278,29 @@ function CategorySection({ category }: { category: MenuCategory }) {
         <span className="cat-name">{category.name}</span>
         <span className="cat-line" />
       </div>
-      {category.description && (
-        <p className="cat-desc">{category.description}</p>
-      )}
+      {showDescBlock &&
+        (isEditing ? (
+          <>
+            <textarea
+              className="cat-desc category-description no-print"
+              value={descriptionText}
+              onChange={(e) => onDescriptionChange(e.target.value)}
+              rows={2}
+              aria-label={`Description for ${category.name}`}
+            />
+            <p className="cat-desc cat-desc--print-fallback" aria-hidden>
+              {descriptionText}
+            </p>
+          </>
+        ) : (
+          <p className="cat-desc">{descriptionText}</p>
+        ))}
 
       <div className="cat-items">
         {items.map((item) => (
           <ItemRow key={item.id} item={item} />
         ))}
       </div>
-
-      {additions.length > 0 && (
-        <div className="cat-additions">
-          {additions.map(({ name, opts }) => (
-            <div key={name} className="additions-row">
-              <span className="additions-label">{name}:</span>
-              <span className="additions-opts">
-                {opts.map((o) => `${o.name} +$${o.price}`).join("  ·  ")}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -391,6 +439,26 @@ const PRINT_STYLES = `
   font-style: italic;
   line-height: 1.5;
   margin: 4px 0 8px;
+}
+
+.cat-desc--print-fallback {
+  display: none;
+}
+
+.category-description,
+textarea.category-description {
+  width: 100%;
+  background: transparent;
+  border: none;
+  resize: none;
+  font: inherit;
+  line-height: inherit;
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+}
+textarea.category-description {
+  outline: none;
 }
 
 /* Category-level additions block */
@@ -572,12 +640,40 @@ const PRINT_STYLES = `
   font-weight: 600;
 }
 
-/* Print button */
-.print-btn {
+/* Edit + Print (fixed cluster) */
+.menu-print-actions {
   position: fixed;
   bottom: 32px;
   right: 32px;
   z-index: 999;
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  align-items: center;
+}
+.edit-btn {
+  background: #ffffff;
+  color: #2f6d66;
+  font-family: Inter, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 14px 22px;
+  border: 2px solid #2f6d66;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 2px 0 rgba(47, 109, 102, 0.35);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.edit-btn:hover {
+  transform: translateY(-1px);
+}
+.edit-btn:active {
+  transform: translateY(1px);
+}
+
+/* Print button */
+.print-btn {
   background: #a00;
   color: #fff;
   font-family: Inter, sans-serif;
@@ -688,6 +784,19 @@ const PRINT_STYLES = `
   }
   .cat-desc {
     font-size: 9px !important;
+    margin: 1px 0 4px !important;
+  }
+
+  textarea.category-description {
+    display: none !important;
+  }
+  .cat-desc--print-fallback {
+    display: block !important;
+    font-family: Inter, sans-serif;
+    font-size: 9px !important;
+    color: #6B6B6B !important;
+    font-style: italic !important;
+    line-height: 1.5 !important;
     margin: 1px 0 4px !important;
   }
 

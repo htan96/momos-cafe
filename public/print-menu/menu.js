@@ -131,8 +131,9 @@ console.log("MENU JS LOADED");
   function applyDensity(root) {
     root.querySelectorAll(".menu-page").forEach((page) => {
       const n = page.querySelectorAll(".menu-item").length;
-      page.classList.toggle("menu-page--dense", n > 18);
-      page.classList.toggle("menu-page--extra-dense", n > 28);
+      /* Lower thresholds so packed breakfast/lunch sheets scale down sooner */
+      page.classList.toggle("menu-page--dense", n > 14);
+      page.classList.toggle("menu-page--extra-dense", n > 22);
     });
   }
 

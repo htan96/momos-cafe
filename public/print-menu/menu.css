@@ -15,8 +15,8 @@
   --menu-additions-border: #aa0000;
   --menu-additions-title: #aa0000;
   --menu-section-rule: #aa0000;
-  --menu-page-pad-x: 0.42in;
-  --menu-page-pad-y: 0.38in;
+  --menu-page-pad-x: 0.38in;
+  --menu-page-pad-y: 0.32in;
   --font-stack: "Poppins", sans-serif;
 }
 
@@ -174,7 +174,7 @@ body {
   background: var(--menu-red);
   color: var(--menu-white);
   text-align: center;
-  padding: 0.28in 0.35in;
+  padding: 0.24in 0.32in;
 }
 
 .menu-page__header h1 {
@@ -234,13 +234,77 @@ body {
   max-width: 100%;
   overflow-x: hidden;
   font-size: 9pt;
-  contain: layout;
 }
 
 .menu-page__footer {
   flex-shrink: 0;
-  height: 0.22in;
+  height: 0.2in;
   background: var(--menu-red);
+}
+
+/* ——— Breakfast: pack more lines on one sheet (docs/menu/1) ——— */
+.menu-page--breakfast .section-head__title {
+  font-size: 12.5pt;
+}
+
+.menu-page--breakfast .section-subtitle {
+  margin: 0.035in 0 0.065in;
+  font-size: 7pt;
+  line-height: 1.28;
+}
+
+.menu-page--breakfast .menu-page__col > .menu-section + .menu-section {
+  margin-top: 9px;
+  padding-top: 7px;
+}
+
+.menu-page--breakfast .menu-section,
+.menu-page--breakfast .section {
+  margin-bottom: 0.09in;
+}
+
+.menu-page--breakfast .menu-item {
+  margin-bottom: 4px;
+  padding-bottom: 2px;
+}
+
+.menu-page--breakfast .menu-item__name,
+.menu-page--breakfast .menu-item__price {
+  font-size: 9pt;
+}
+
+.menu-page--breakfast .menu-item__desc,
+.menu-page--breakfast .menu-item__note {
+  font-size: 7pt;
+  line-height: 1.28;
+}
+
+.menu-page--breakfast .section-footer {
+  margin: 0.05in 0 0;
+  font-size: 7pt;
+}
+
+.menu-page--breakfast .section-with-additions {
+  gap: 0.06in 0.08in;
+}
+
+.menu-page--breakfast .additions-box {
+  padding: 7px 9px 9px;
+  max-width: 1.72in;
+}
+
+.menu-page--breakfast.menu-page--extra-dense .section-head__title {
+  font-size: 11.5pt;
+}
+
+.menu-page--breakfast.menu-page--extra-dense .menu-item__name,
+.menu-page--breakfast.menu-page--extra-dense .menu-item__price {
+  font-size: 8.25pt;
+}
+
+.menu-page--breakfast.menu-page--extra-dense .menu-item__desc,
+.menu-page--breakfast.menu-page--extra-dense .menu-item__note {
+  font-size: 6.5pt;
 }
 
 /* ——— Sections ——— */
@@ -256,8 +320,9 @@ body {
   min-width: 0;
   max-width: 100%;
   margin-bottom: 0.14in;
-  break-inside: avoid;
-  page-break-inside: avoid;
+  /* Allow vertical packing on one sheet; items still avoid awkward splits */
+  break-inside: auto;
+  page-break-inside: auto;
 }
 
 .menu-section:last-child,
@@ -678,13 +743,18 @@ body {
 
   @page {
     size: letter landscape;
-    margin: 0.5in;
+    margin: 0.4in;
   }
 }
 
 @media screen {
+  /* Let the preview grow with content so nothing is clipped in-browser */
   .menu-page {
     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+    min-height: 7.5in;
+    height: auto;
+    max-height: none;
+    overflow: visible;
   }
 
   .additions-box {

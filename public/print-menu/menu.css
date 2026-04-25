@@ -418,8 +418,8 @@ body {
 /* ——— Additions box (breakfast ref) ——— */
 .section-with-additions {
   display: grid;
-  grid-template-columns: 1fr min-content;
-  gap: 0.12in 0.1in;
+  grid-template-columns: 1fr minmax(1.75rem, 2.25in);
+  gap: 0.14in 0.12in;
   align-items: end;
 }
 
@@ -428,20 +428,23 @@ body {
 }
 
 .additions-box {
-  width: 2.15in;
+  width: 100%;
+  max-width: 2.25in;
   flex-shrink: 0;
   background: #ffffff;
   border: 2px solid #aa0000;
   border-radius: 10px;
-  padding: 10px;
+  padding: 10px 12px 12px;
   break-inside: avoid;
 }
 
 .additions-box__title {
-  margin: 0 0 0.08in;
+  margin: 0 0 0.1in;
   text-align: center;
   font-size: 9pt;
   font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
   text-transform: uppercase;
   color: var(--menu-additions-title);
 }
@@ -450,24 +453,27 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  gap: 0.35rem;
+  gap: 0.4rem;
   font-size: 7.5pt;
   font-weight: 600;
+  line-height: 1.4;
   text-transform: uppercase;
   color: var(--menu-teal);
-  margin-bottom: 0.06in;
+  margin-bottom: 0.07in;
 }
 
 .additions-box__row span:first-child {
   flex: 1 1 auto;
   min-width: 0;
-  padding-right: 0.15rem;
+  padding-right: 0.2rem;
 }
 
 .additions-box__row span:last-child {
   flex-shrink: 0;
-  min-width: 50px;
+  min-width: 52px;
   text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
 }
 
 .additions-box__row:last-child {
@@ -641,5 +647,9 @@ body {
 @media screen {
   .menu-page {
     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+  }
+
+  .additions-box {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   }
 }

@@ -29,7 +29,14 @@
       Griddle: "GRIDDLE FAVORITES",
       Pancake: "GRIDDLE FAVORITES",
       Waffle: "GRIDDLE FAVORITES",
+      Belgian: "GRIDDLE FAVORITES",
+      Stack: "GRIDDLE FAVORITES",
+      Crepe: "GRIDDLE FAVORITES",
       "French Toast": "GRIDDLE FAVORITES",
+      Benedict: "BREAKFAST PLATES",
+      Huevos: "BREAKFAST PLATES",
+      Chilaquiles: "BREAKFAST PLATES",
+      Biscuit: "GRIDDLE FAVORITES",
       Plate: "BREAKFAST PLATES",
       Breakfast: "BREAKFAST PLATES",
     },
@@ -86,6 +93,33 @@
    * @param {{ id?: string; name?: string; type?: string }} cat
    * @returns {"breakfast"|"lunch"|"extras"}
    */
+  /**
+   * Category names that are breakfast food but often lack the word "breakfast"
+   * (must stay in sync with inferCategoryType in lib/categoryUtils.ts).
+   */
+  function categoryNameSuggestsBreakfastMeal(name) {
+    const n = String(name ?? "")
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!n) return false;
+    return (
+      n.includes("griddle") ||
+      n.includes("omelet") ||
+      n.includes("pancake") ||
+      n.includes("waffle") ||
+      n.includes("french toast") ||
+      n.includes("short stack") ||
+      n.includes("hot cakes") ||
+      n.includes("benedict") ||
+      n.includes("huevos") ||
+      n.includes("chilaquiles") ||
+      n.includes("biscuits") ||
+      n.includes("crepe") ||
+      n.includes("crêpe")
+    );
+  }
+
   function mealPageForCategory(cat) {
     if (!cat || typeof cat !== "object") return "lunch";
     const id = String(cat.id ?? "");
@@ -96,6 +130,7 @@
     if (t === "drinks" || t === "sides") return "extras";
     const n = String(cat.name ?? "").toLowerCase();
     if (n.includes("breakfast")) return "breakfast";
+    if (categoryNameSuggestsBreakfastMeal(cat.name)) return "breakfast";
     if (n.includes("lunch")) return "lunch";
     if (n.includes("drink") || n.includes("beverage") || n.includes("side") || n.includes("extra"))
       return "extras";

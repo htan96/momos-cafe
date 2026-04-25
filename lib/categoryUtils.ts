@@ -9,6 +9,27 @@ export function inferCategoryType(name: string): CategoryType {
 
   if (n.includes("featured") || n.includes("today") || n.includes("special")) return "featured";
   if (n.includes("breakfast")) return "breakfast";
+  /**
+   * Square titles often omit "breakfast" (e.g. "Griddle Favorites", "Omelets").
+   * Without this, print routing treated them as lunch → items on page 2.
+   */
+  if (
+    n.includes("griddle") ||
+    n.includes("omelet") ||
+    n.includes("pancake") ||
+    n.includes("waffle") ||
+    n.includes("french toast") ||
+    n.includes("short stack") ||
+    n.includes("hot cakes") ||
+    n.includes("benedict") ||
+    n.includes("huevos") ||
+    n.includes("chilaquiles") ||
+    n.includes("biscuits") ||
+    n.includes("crepe") ||
+    n.includes("crêpe")
+  ) {
+    return "breakfast";
+  }
   if (n.includes("lunch")) return "lunch";
   if (n.includes("drink") || n.includes("juice") || n.includes("coffee") || n.includes("tea") || n.includes("beverage")) return "drinks";
   if (n.includes("side")) return "sides";

@@ -5,7 +5,7 @@ const data = JSON.parse(fs.readFileSync(path, "utf8"));
 
 const injectBySection = {
   "BREAKFAST PLATES": { category: "breakfast", maxItems: 12 },
-  "GRIDDLE FAVORITES": { category: "breakfast", maxItems: 5 },
+  "GRIDDLE FAVORITES": { category: "breakfast", maxItems: 14 },
   OMELETS: { category: "breakfast", maxItems: 8 },
   "LUNCH FAVORITES": { category: "lunch", maxItems: 12 },
   BURGERS: { category: "lunch", maxItems: 8 },

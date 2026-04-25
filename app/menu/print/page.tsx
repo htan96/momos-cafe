@@ -9,7 +9,7 @@ const PAGE_2_TYPES = ["lunch", "main", "featured"];
 // PAGE_3 = everything else (sides, drinks, special)
 
 // Categories forced to Page 3 regardless of their type
-const PAGE_3_OVERRIDES = ["kids meals", "kids meal"];
+const PAGE_3_OVERRIDES = ["kids meals", "kids meal", "wings"];
 
 export default function PrintMenuPage() {
   const [categories, setCategories] = useState<MenuCategory[]>([]);
@@ -534,7 +534,14 @@ const PRINT_STYLES = `
 @media print {
   @page {
     size: letter portrait;
-    margin: 0.55in 0.6in;
+    margin: 0.4in 0.45in;
+  }
+
+  /* ── Kill cream background from site layout ── */
+  body, main, #__next,
+  div[class*="bg-"], div[class*="min-h-screen"] {
+    background: white !important;
+    background-color: white !important;
   }
 
   /* Hide all site chrome */
@@ -543,7 +550,6 @@ const PRINT_STYLES = `
   }
 
   body {
-    background: white !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -555,7 +561,7 @@ const PRINT_STYLES = `
     page-break-after: always !important;
     break-after: page !important;
   }
-  .cover-logo { width: 180px !important; }
+  .cover-logo { width: 160px !important; }
 
   /* ── Layout reset ── */
   .menu-wrap {
@@ -582,51 +588,49 @@ const PRINT_STYLES = `
   }
 
   /* ── Brand header (compact) ── */
-  .page-brand { margin-bottom: 6px !important; }
-  .brand-rule  { margin-bottom: 14px !important; }
+  .page-brand { margin-bottom: 4px !important; }
+  .brand-rule  { margin-bottom: 10px !important; }
 
-  /* ── Page title (compact but prominent) ── */
+  /* ── Page title ── */
   .page-title {
-    font-size: 34px !important;
-    margin-bottom: 16px !important;
+    font-size: 28px !important;
+    margin-bottom: 12px !important;
   }
 
   /* ── Category sections (tight) ── */
   .cat-section {
-    margin-bottom: 13px !important;
+    margin-bottom: 10px !important;
     break-inside: avoid;
     page-break-inside: avoid;
   }
   .cat-header {
-    padding-bottom: 6px !important;
+    padding-bottom: 5px !important;
     margin-bottom: 2px !important;
   }
   .cat-desc {
-    font-size: 9.5px !important;
-    margin: 2px 0 5px !important;
+    font-size: 9px !important;
+    margin: 1px 0 4px !important;
   }
 
   /* ── Two-column item grid (print only) ── */
-  /* Screen uses flex column; print uses 2-col grid to fit 3 pages */
   .cat-items {
     display: grid !important;
     grid-template-columns: 1fr 1fr !important;
-    gap: 0 36px !important;
+    gap: 0 32px !important;
   }
 
   /* ── Item rows (compact) ── */
   .item-row {
-    padding: 5px 0 !important;
+    padding: 4px 0 !important;
     break-inside: avoid;
     page-break-inside: avoid;
   }
-  .item-name  { font-size: 12px !important; line-height: 1.25 !important; }
-  .item-price { font-size: 12px !important; }
+  .item-name  { font-size: 11.5px !important; line-height: 1.2 !important; }
+  .item-price { font-size: 11.5px !important; }
   .item-desc  {
-    font-size: 10px !important;
-    line-height: 1.35 !important;
+    font-size: 9.5px !important;
+    line-height: 1.3 !important;
     margin-top: 1px !important;
-    /* Cap at 2 lines so one long description can't blow the row */
     display: -webkit-box !important;
     -webkit-line-clamp: 2 !important;
     -webkit-box-orient: vertical !important;

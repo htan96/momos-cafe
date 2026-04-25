@@ -17,14 +17,34 @@ const PAGE_2_TYPES = ["lunch", "main", "featured"];
 // Categories forced to Page 3 regardless of their type
 const PAGE_3_OVERRIDES = ["kids meals", "kids meal", "wings"];
 
+/** Matches `/admin` login: `localStorage.setItem("admin_auth", "true")`. */
+function readIsAdminSession(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.localStorage.getItem("admin_auth") === "true";
+}
+
 export default function PrintMenuPage() {
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [descriptionOverrides, setDescriptionOverrides] = useState<
     Record<string, string>
   >({});
+
+  useEffect(() => {
+    const sync = () => {
+      setIsAdmin(readIsAdminSession());
+    };
+    sync();
+    window.addEventListener("storage", sync);
+    return () => window.removeEventListener("storage", sync);
+  }, []);
+
+  useEffect(() => {
+    if (!isAdmin) setIsEditing(false);
+  }, [isAdmin]);
 
   useEffect(() => {
     setDescriptionOverrides(loadMenuCategoryDescriptionOverrides());
@@ -101,19 +121,23 @@ export default function PrintMenuPage() {
     );
   }
 
+  const descriptionEditMode = isAdmin && isEditing;
+
   return (
     <>
       <style>{PRINT_STYLES}</style>
 
-      {/* Edit + Print — hidden during print via .no-print */}
-      <div className="no-print menu-print-actions">
-        <button
-          type="button"
-          onClick={() => setIsEditing((v) => !v)}
-          className="edit-btn"
-        >
-          {isEditing ? "Done" : "Edit"}
-        </button>
+      {/* Edit (admin only) + Print — hidden during print via .no-print */}
+      <div className="no-print menu-print-actions edit-controls">
+        {isAdmin && (
+          <button
+            type="button"
+            onClick={() => setIsEditing((v) => !v)}
+            className="edit-btn"
+          >
+            {isEditing ? "Done" : "Edit"}
+          </button>
+        )}
         <button type="button" onClick={() => window.print()} className="print-btn">
           Print Menu
         </button>
@@ -126,7 +150,7 @@ export default function PrintMenuPage() {
           title="Breakfast"
           categories={page1}
           breakBefore
-          isEditing={isEditing}
+          descriptionEditMode={descriptionEditMode}
           descriptionOverrides={descriptionOverrides}
           onDescriptionChange={setCategoryDescription}
         />
@@ -134,7 +158,7 @@ export default function PrintMenuPage() {
           title="Lunch"
           categories={page2}
           breakBefore
-          isEditing={isEditing}
+          descriptionEditMode={descriptionEditMode}
           descriptionOverrides={descriptionOverrides}
           onDescriptionChange={setCategoryDescription}
         />
@@ -142,7 +166,7 @@ export default function PrintMenuPage() {
           title="Extras &amp; Drinks"
           categories={page3}
           breakBefore
-          isEditing={isEditing}
+          descriptionEditMode={descriptionEditMode}
           descriptionOverrides={descriptionOverrides}
           onDescriptionChange={setCategoryDescription}
         />
@@ -209,14 +233,14 @@ function MenuPage({
   title,
   categories,
   breakBefore = false,
-  isEditing,
+  descriptionEditMode,
   descriptionOverrides,
   onDescriptionChange,
 }: {
   title: string;
   categories: MenuCategory[];
   breakBefore?: boolean;
-  isEditing: boolean;
+  descriptionEditMode: boolean;
   descriptionOverrides: Record<string, string>;
   onDescriptionChange: (categoryName: string, value: string) => void;
 }) {
@@ -240,7 +264,7 @@ function MenuPage({
         <CategorySection
           key={cat.id}
           category={cat}
-          isEditing={isEditing}
+          descriptionEditMode={descriptionEditMode}
           descriptionText={effectiveCategoryDescription(
             cat.name,
             descriptionOverrides
@@ -252,23 +276,95 @@ function MenuPage({
   );
 }
 
+/* ─── Griddle Favorites — inline additions (Square modifierGroups) ───────── */
+
+function normalizeMenuLabel(s: string): string {
+  return s.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function isGriddleFavoritesCategory(name: string): boolean {
+  return normalizeMenuLabel(name) === "griddle favorites";
+}
+
+type GriddlePricedModifier = { displayName: string; price: number };
+
+function priceCents(price: number): number {
+  return Math.round(price * 100);
+}
+
+function collectGriddleModifierBuckets(items: MenuItem[]): {
+  addOns: GriddlePricedModifier[];
+  combo: GriddlePricedModifier[];
+} {
+  const byName = new Map<string, GriddlePricedModifier>();
+  for (const item of items) {
+    for (const group of item.modifierGroups ?? []) {
+      for (const opt of group.options) {
+        const price = Number(opt.price);
+        if (!Number.isFinite(price) || price <= 0) continue;
+        const displayName = opt.name.trim();
+        const key = normalizeMenuLabel(displayName);
+        if (!key) continue;
+        if (!byName.has(key)) {
+          byName.set(key, { displayName, price });
+        }
+      }
+    }
+  }
+  const all = [...byName.values()];
+  const addOns = all
+    .filter((m) => priceCents(m.price) < 500)
+    .sort((a, b) => a.displayName.localeCompare(b.displayName));
+  const combo = all
+    .filter((m) => priceCents(m.price) === 500)
+    .sort((a, b) => a.displayName.localeCompare(b.displayName));
+  return { addOns, combo };
+}
+
+function formatGriddleModifierPrice(dollars: number): string {
+  const c = priceCents(dollars);
+  const amount = c % 100 === 0 ? String(c / 100) : (c / 100).toFixed(2);
+  return `+$${amount}`;
+}
+
+function formatGriddleInlineAdditionsLine(
+  entries: GriddlePricedModifier[]
+): string {
+  return entries
+    .map((e) => `${e.displayName} ${formatGriddleModifierPrice(e.price)}`)
+    .join(" • ");
+}
+
 /* ─── Category ──────────────────────────────────────────────────────────── */
 
 function CategorySection({
   category,
-  isEditing,
+  descriptionEditMode,
   descriptionText,
   onDescriptionChange,
 }: {
   category: MenuCategory;
-  isEditing: boolean;
+  descriptionEditMode: boolean;
   descriptionText: string;
   onDescriptionChange: (value: string) => void;
 }) {
   const items = category.menuitems?.filter((i) => i.is_active) ?? [];
   if (items.length === 0) return null;
 
-  const showDescBlock = isEditing || descriptionText.trim().length > 0;
+  const griddleBuckets = isGriddleFavoritesCategory(category.name)
+    ? collectGriddleModifierBuckets(items)
+    : null;
+  const griddleAddOnsLine =
+    griddleBuckets && griddleBuckets.addOns.length > 0
+      ? formatGriddleInlineAdditionsLine(griddleBuckets.addOns)
+      : "";
+  const griddleComboLine =
+    griddleBuckets && griddleBuckets.combo.length > 0
+      ? formatGriddleInlineAdditionsLine(griddleBuckets.combo)
+      : "";
+
+  const showDescBlock =
+    descriptionEditMode || descriptionText.trim().length > 0;
 
   return (
     <div className="cat-section">
@@ -277,7 +373,7 @@ function CategorySection({
         <span className="cat-line" />
       </div>
       {showDescBlock &&
-        (isEditing ? (
+        (descriptionEditMode ? (
           <>
             <textarea
               className="cat-desc category-description no-print"
@@ -299,6 +395,16 @@ function CategorySection({
           <ItemRow key={item.id} item={item} />
         ))}
       </div>
+      {griddleAddOnsLine ? (
+        <p className="inline-additions">
+          <strong>ADD ONS:</strong> {griddleAddOnsLine}
+        </p>
+      ) : null}
+      {griddleComboLine ? (
+        <p className="inline-additions">
+          <strong>MAKE IT A COMBO:</strong> {griddleComboLine}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -429,6 +535,17 @@ const PRINT_STYLES = `
 
 .cat-desc--print-fallback {
   display: none;
+}
+
+.inline-additions {
+  font-size: 0.85em;
+  margin-top: 6px;
+  color: #444;
+}
+.inline-additions strong {
+  font-weight: 600;
+  margin-right: 6px;
+  letter-spacing: 0.05em;
 }
 
 .category-description,
@@ -700,7 +817,7 @@ textarea.category-description {
   }
 
   /* Hide all site chrome */
-  header, footer, nav, .no-print {
+  header, footer, nav, .no-print, .edit-controls {
     display: none !important;
   }
 
@@ -793,6 +910,17 @@ textarea.category-description {
     font-style: italic !important;
     line-height: 1.5 !important;
     margin: 0 0 2px !important;
+  }
+
+  .inline-additions {
+    font-size: 8px !important;
+    margin-top: 4px !important;
+    color: #444 !important;
+  }
+  .inline-additions strong {
+    font-weight: 600 !important;
+    margin-right: 4px !important;
+    letter-spacing: 0.05em !important;
   }
 
   /* ── Two-column item grid (print only) ── */

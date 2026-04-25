@@ -8,6 +8,9 @@ const PAGE_1_TYPES = ["breakfast"];
 const PAGE_2_TYPES = ["lunch", "main", "featured"];
 // PAGE_3 = everything else (sides, drinks, special)
 
+// Categories forced to Page 3 regardless of their type
+const PAGE_3_OVERRIDES = ["kids meals", "kids meal"];
+
 export default function PrintMenuPage() {
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,17 +37,20 @@ export default function PrintMenuPage() {
   const sortByOrder = (cats: MenuCategory[]) =>
     [...cats].sort((a, b) => a.display_order - b.display_order);
 
+  const isOverridden = (c: { name: string }) =>
+    PAGE_3_OVERRIDES.includes(c.name.toLowerCase());
+
   const page1 = sortByOrder(
-    categories.filter((c) => PAGE_1_TYPES.includes(c.type ?? ""))
+    categories.filter((c) => !isOverridden(c) && PAGE_1_TYPES.includes(c.type ?? ""))
   );
   const page2 = sortByOrder(
-    categories.filter((c) => PAGE_2_TYPES.includes(c.type ?? ""))
+    categories.filter((c) => !isOverridden(c) && PAGE_2_TYPES.includes(c.type ?? ""))
   );
   const page3 = sortByOrder(
     categories.filter(
       (c) =>
-        !PAGE_1_TYPES.includes(c.type ?? "") &&
-        !PAGE_2_TYPES.includes(c.type ?? "")
+        isOverridden(c) ||
+        (!PAGE_1_TYPES.includes(c.type ?? "") && !PAGE_2_TYPES.includes(c.type ?? ""))
     )
   );
 
@@ -196,6 +202,9 @@ function CategorySection({ category }: { category: MenuCategory }) {
         <span className="cat-name">{category.name}</span>
         <span className="cat-line" />
       </div>
+      {category.description && (
+        <p className="cat-desc">{category.description}</p>
+      )}
 
       <div className="cat-items">
         {items.map((item) => (
@@ -243,7 +252,7 @@ const PRINT_STYLES = `
 }
 
 .menu-page {
-  background: #fffaf2;
+  background: #ffffff;
   width: 100%;
   max-width: 720px;
   padding: 56px 64px 64px;
@@ -330,6 +339,16 @@ const PRINT_STYLES = `
   flex: 1;
   height: 1px;
   background: linear-gradient(to right, rgba(212,175,55,0.5) 0%, transparent 100%);
+}
+
+/* Category description (subtitle under header) */
+.cat-desc {
+  font-family: Inter, sans-serif;
+  font-size: 11.5px;
+  color: #6B6B6B;
+  font-style: italic;
+  line-height: 1.5;
+  margin: 4px 0 8px;
 }
 
 /* Items list — single column on screen */
@@ -581,6 +600,10 @@ const PRINT_STYLES = `
   .cat-header {
     padding-bottom: 6px !important;
     margin-bottom: 2px !important;
+  }
+  .cat-desc {
+    font-size: 9.5px !important;
+    margin: 2px 0 5px !important;
   }
 
   /* ── Two-column item grid (print only) ── */

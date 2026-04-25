@@ -8,15 +8,19 @@
   </head>
   <body>
     <div class="toolbar no-print" aria-label="Menu controls">
-      <button type="button" id="btn-print" class="toolbar__btn">
-        Generate PDF / Print
+      <button type="button" id="btn-print" class="toolbar__btn toolbar__btn--primary">
+        Print Menu
       </button>
+      <span class="toolbar__hint"
+        >Letter landscape · 3 pages · <code>?source=square</code> demo ·
+        <code>?legacy=1</code> full static JSON</span
+      >
       <label class="toolbar__label">
-        Load JSON
+        Load simple JSON
         <input type="file" id="input-json" accept="application/json,.json" />
       </label>
       <button type="button" id="btn-reset" class="toolbar__btn toolbar__btn--ghost">
-        Reload default data
+        Reload defaults
       </button>
     </div>
 

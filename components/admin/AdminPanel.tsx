@@ -76,6 +76,19 @@ export default function AdminPanel() {
                     View Menu Page →
                   </a>
                 </li>
+                <li>
+                  <a
+                    href="/print-menu/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 font-semibold text-red hover:underline"
+                  >
+                    View / Print Menu
+                    <span className="text-xs font-normal text-gray-mid">
+                      (opens print layout)
+                    </span>
+                  </a>
+                </li>
               </ul>
             </div>
           </>

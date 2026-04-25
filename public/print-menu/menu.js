@@ -1,17 +1,142 @@
 /**
- * Print menu renderer — layout is static; only JSON data changes.
- * Schema: see menu-data.json (pages.breakfast[], pages.lunch[], pages.extras)
+ * Print menu — fixed layout from menu-layout.json; name + price from menu-simple.json
+ * (or Square-shaped data via squareItemsToSimpleMenu). Legacy: ?legacy=1 uses menu-data.json.
  */
 
 (function () {
   "use strict";
 
-  /** Resolved default JSON URL (same folder as this page). */
-  let defaultJsonHref = "./menu-data.json";
+  let layoutJsonHref = "./menu-layout.json";
+  let simpleJsonHref = "./menu-simple.json";
+  let legacyJsonHref = "./menu-data.json";
   try {
-    defaultJsonHref = new URL("menu-data.json", window.location.href).href;
+    layoutJsonHref = new URL("menu-layout.json", window.location.href).href;
+    simpleJsonHref = new URL("menu-simple.json", window.location.href).href;
+    legacyJsonHref = new URL("menu-data.json", window.location.href).href;
   } catch {
     /* keep relative */
+  }
+
+  /** Demo Square-shaped rows — category maps to breakfast | lunch | extras buckets. */
+  const SQUARE_DEMO_ITEMS = [
+    { name: "Two Eggs", price: 15, category: "Breakfast" },
+    { name: "Burger", price: 18, category: "Lunch" },
+    { name: "Side Toast", price: 3, category: "Extras" },
+  ];
+
+  /**
+   * @param {Array<{ name?: string; price?: number; category?: string }>} squareItems
+   * @returns {{ breakfast: {name: string, price: number}[]; lunch: {name: string, price: number}[]; extras: {name: string, price: number}[] }}
+   */
+  function squareItemsToSimpleMenu(squareItems) {
+    /** @type {{ breakfast: {name: string, price: number}[]; lunch: {name: string, price: number}[]; extras: {name: string, price: number}[] }} */
+    const out = { breakfast: [], lunch: [], extras: [] };
+    if (!Array.isArray(squareItems)) return out;
+    for (const it of squareItems) {
+      if (!it || typeof it !== "object") continue;
+      const row = {
+        name: String(it.name ?? ""),
+        price: Number(it.price),
+      };
+      if (!Number.isFinite(row.price)) continue;
+      const c = String(it.category ?? "").toLowerCase();
+      if (c.includes("breakfast")) out.breakfast.push(row);
+      else if (c.includes("lunch")) out.lunch.push(row);
+      else if (c.includes("extra")) out.extras.push(row);
+      else out.lunch.push(row);
+    }
+    return out;
+  }
+
+  /**
+   * @param {unknown} layoutRoot — { pages: { breakfast, lunch, extras } }
+   * @param {unknown} simple — { breakfast: [], lunch: [], extras: [] }
+   * @returns {{ pages: unknown }}
+   */
+  function mergeLayoutWithSimple(layoutRoot, simple) {
+    const out = JSON.parse(JSON.stringify(layoutRoot));
+    const cur = { breakfast: 0, lunch: 0, extras: 0 };
+    /** @param {string} cat */
+    const arrFor = (cat) => {
+      if (!simple || typeof simple !== "object") return [];
+      const a = /** @type {Record<string, unknown>} */ (simple)[cat];
+      return Array.isArray(a) ? a : [];
+    };
+
+    /**
+     * @param {Record<string, unknown>} sec
+     */
+    function applySection(sec) {
+      const inj = sec.inject;
+      if (!inj || typeof inj !== "object") return;
+      const cat = String(/** @type {{ category?: string }} */ (inj).category ?? "");
+      if (!cat) return;
+      const maxRaw = /** @type {{ maxItems?: number }} */ (inj).maxItems;
+      const max = maxRaw != null ? Number(maxRaw) : 9999;
+      const arr = arrFor(cat);
+      const start = cur[/** @type {"breakfast"|"lunch"|"extras"} */ (cat)];
+      const end = Math.min(start + (Number.isFinite(max) ? max : 9999), arr.length);
+      const slice = arr.slice(start, end);
+      cur[/** @type {"breakfast"|"lunch"|"extras"} */ (cat)] = end;
+
+      const defaults =
+        sec.injectItemDefaults && typeof sec.injectItemDefaults === "object"
+          ? /** @type {Record<string, unknown>} */ (sec.injectItemDefaults)
+          : {};
+
+      sec.items = slice.map((raw) => {
+        const x = raw && typeof raw === "object" ? raw : {};
+        const priceRaw = /** @type {{ price?: unknown }} */ (x).price;
+        const price =
+          priceRaw !== undefined && priceRaw !== null && !Number.isNaN(Number(priceRaw))
+            ? Number(priceRaw)
+            : null;
+        /** @type {Record<string, unknown>} */
+        const row = {
+          name: String(/** @type {{ name?: string }} */ (x).name ?? ""),
+          description:
+            /** @type {{ description?: string }} */ (x).description != null
+              ? String(/** @type {{ description?: string }} */ (x).description)
+              : "",
+          price,
+        };
+        if (Array.isArray(/** @type {{ lines?: unknown }} */ (x).lines))
+          row.lines = /** @type {{ lines?: unknown }} */ (x).lines;
+        if (/** @type {{ note?: string }} */ (x).note != null)
+          row.note = String(/** @type {{ note?: string }} */ (x).note);
+        Object.assign(row, defaults);
+        return row;
+      });
+
+      delete sec.inject;
+      delete sec.injectItemDefaults;
+    }
+
+    const pages = out.pages && typeof out.pages === "object" ? out.pages : {};
+    for (const sec of Array.isArray(pages.breakfast) ? pages.breakfast : []) {
+      if (sec && typeof sec === "object") applySection(/** @type {Record<string, unknown>} */ (sec));
+    }
+    for (const sec of Array.isArray(pages.lunch) ? pages.lunch : []) {
+      if (sec && typeof sec === "object") applySection(/** @type {Record<string, unknown>} */ (sec));
+    }
+    const ex = pages.extras && typeof pages.extras === "object" ? pages.extras : {};
+    const sections = Array.isArray(ex.sections) ? ex.sections : [];
+    for (const sec of sections) {
+      if (sec && typeof sec === "object") applySection(/** @type {Record<string, unknown>} */ (sec));
+    }
+
+    return out;
+  }
+
+  /**
+   * @param {HTMLElement} root
+   */
+  function applyDensity(root) {
+    root.querySelectorAll(".menu-page").forEach((page) => {
+      const n = page.querySelectorAll(".menu-item").length;
+      page.classList.toggle("menu-page--dense", n > 18);
+      page.classList.toggle("menu-page--extra-dense", n > 28);
+    });
   }
 
   /**
@@ -55,15 +180,19 @@
 
     const row = document.createElement("div");
     row.className = "menu-item__row";
-    row.innerHTML =
-      '<span class="menu-item__name">' +
-      escapeHtml(String(item.name ?? "")) +
-      "</span>" +
-      (showPrice
-        ? '<span class="menu-item__price">' +
-          escapeHtml(formatPrice(/** @type {number} */ (priceVal))) +
-          "</span>"
-        : "");
+    if (showPrice) {
+      row.innerHTML =
+        '<span class="menu-item__name">' +
+        escapeHtml(String(item.name ?? "")) +
+        '</span><span class="menu-item__leader" aria-hidden="true"></span><span class="menu-item__price">' +
+        escapeHtml(formatPrice(/** @type {number} */ (priceVal))) +
+        "</span>";
+    } else {
+      row.innerHTML =
+        '<span class="menu-item__name">' +
+        escapeHtml(String(item.name ?? "")) +
+        "</span>";
+    }
     wrap.appendChild(row);
 
     const desc = item.description != null ? String(item.description).trim() : "";
@@ -90,8 +219,7 @@
       er.innerHTML =
         '<span class="menu-item__extra-text">' +
         escapeHtml(String(line.text ?? "")) +
-        "</span>" +
-        '<span class="menu-item__extra-price">' +
+        '</span><span class="menu-item__leader" aria-hidden="true"></span><span class="menu-item__extra-price">' +
         escapeHtml(formatPrice(/** @type {number} */ (line.price))) +
         "</span>";
       wrap.appendChild(er);
@@ -476,11 +604,55 @@
   /**
    * @param {HTMLElement} root
    */
-  async function loadDefaultJson(root) {
-    const res = await fetch(defaultJsonHref, { cache: "no-store" });
-    if (!res.ok) throw new Error("Failed to load menu-data.json");
-    const data = await res.json();
-    renderAll(data, root);
+  async function loadDefaultMenus(root) {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("legacy") === "1") {
+      const res = await fetch(legacyJsonHref, { cache: "no-store" });
+      if (!res.ok) throw new Error("Failed to load menu-data.json");
+      const data = await res.json();
+      renderAll(data, root);
+      applyDensity(root);
+      return;
+    }
+
+    let simple;
+    if (params.get("source") === "square") {
+      simple = squareItemsToSimpleMenu(SQUARE_DEMO_ITEMS);
+    } else {
+      const sr = await fetch(simpleJsonHref, { cache: "no-store" });
+      if (!sr.ok) throw new Error("Failed to load menu-simple.json");
+      simple = await sr.json();
+    }
+
+    const lr = await fetch(layoutJsonHref, { cache: "no-store" });
+    if (!lr.ok) throw new Error("Failed to load menu-layout.json");
+    const layout = await lr.json();
+    const merged = mergeLayoutWithSimple(layout, simple);
+    renderAll(merged, root);
+    applyDensity(root);
+  }
+
+  /**
+   * @param {unknown} parsed
+   * @param {HTMLElement} root
+   */
+  async function applyLoadedJson(parsed, root) {
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      Array.isArray(/** @type {{ breakfast?: unknown }} */ (parsed).breakfast) &&
+      !("pages" in /** @type {object} */ (parsed))
+    ) {
+      const lr = await fetch(layoutJsonHref, { cache: "no-store" });
+      if (!lr.ok) throw new Error("Failed to load menu-layout.json");
+      const layout = await lr.json();
+      const merged = mergeLayoutWithSimple(layout, /** @type {object} */ (parsed));
+      renderAll(merged, root);
+      applyDensity(root);
+      return;
+    }
+    renderAll(parsed, root);
+    applyDensity(root);
   }
 
   function init() {
@@ -491,10 +663,10 @@
 
     if (!root || !btnPrint || !btnReset || !inputJson) return;
 
-    loadDefaultJson(root).catch((err) => {
+    loadDefaultMenus(root).catch((err) => {
       console.error(err);
       root.innerHTML =
-        '<p style="padding:1rem;color:#c00;">Could not load menu data. Open this page via a local or hosted server (not file://) or check menu-data.json.</p>';
+        '<p style="padding:1rem;color:#c00;">Could not load menu. Serve over HTTP(S) and ensure <code>menu-layout.json</code> + <code>menu-simple.json</code> exist. Use <code>?legacy=1</code> for single-file <code>menu-data.json</code>.</p>';
     });
 
     btnPrint.addEventListener("click", () => {
@@ -502,7 +674,7 @@
     });
 
     btnReset.addEventListener("click", () => {
-      loadDefaultJson(root).catch(console.error);
+      loadDefaultMenus(root).catch(console.error);
       /** @type {HTMLInputElement} */ (inputJson).value = "";
     });
 
@@ -513,7 +685,10 @@
       reader.onload = () => {
         try {
           const data = JSON.parse(String(reader.result));
-          renderAll(data, root);
+          applyLoadedJson(data, root).catch((e) => {
+            console.error(e);
+            alert("Invalid JSON or merge failed.");
+          });
         } catch (e) {
           console.error(e);
           alert("Invalid JSON file.");

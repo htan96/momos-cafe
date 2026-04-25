@@ -343,7 +343,7 @@ const PRINT_STYLES = `
   background: #ffffff;
   width: 100%;
   max-width: 720px;
-  padding: 56px 64px 64px;
+  padding: 40px 48px 48px;
   border-radius: 2px;
   box-shadow:
     0 1px 3px rgba(0,0,0,0.08),
@@ -382,12 +382,12 @@ const PRINT_STYLES = `
 .menu-header-rule {
   height: 1px;
   background: linear-gradient(to right, #d4af37 0%, #d4af37 30%, rgba(212,175,55,0.15) 100%);
-  margin: 0 0 20px;
+  margin: 0 0 14px;
 }
 
 /* Category section */
 .cat-section {
-  margin-bottom: 32px;
+  margin-bottom: 22px;
 }
 .cat-section:last-child {
   margin-bottom: 0;
@@ -486,7 +486,7 @@ textarea.category-description {
 
 /* Item row */
 .item-row {
-  padding: 9px 0;
+  padding: 7px 0;
   border-bottom: 1px solid rgba(245,229,192,0.7);
 }
 .item-row:last-child {
@@ -689,7 +689,7 @@ textarea.category-description {
 @media print {
   @page {
     size: letter portrait;
-    margin: 0.4in 0.45in;
+    margin: 0.32in 0.4in;
   }
 
   /* ── Kill cream background from site layout ── */
@@ -740,6 +740,8 @@ textarea.category-description {
     width: 100% !important;
     padding: 0 !important;
     background: white !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 
   /* ── Page breaks ── */
@@ -750,8 +752,8 @@ textarea.category-description {
 
   /* ── Menu sheet header (compact) ── */
   .menu-page-header {
-    margin: 0 0 2px !important;
-    gap: 10px !important;
+    margin: 0 0 1px !important;
+    gap: 8px !important;
   }
   .menu-header-left {
     font-size: 8px !important;
@@ -762,22 +764,22 @@ textarea.category-description {
     line-height: 1.05 !important;
   }
   .menu-header-rule {
-    margin: 0 0 10px !important;
+    margin: 0 0 5px !important;
   }
 
   /* ── Category sections (tight) ── */
   .cat-section {
-    margin-bottom: 10px !important;
+    margin-bottom: 5px !important;
     break-inside: avoid;
     page-break-inside: avoid;
   }
   .cat-header {
-    padding-bottom: 5px !important;
-    margin-bottom: 2px !important;
+    padding-bottom: 3px !important;
+    margin-bottom: 0 !important;
   }
   .cat-desc {
     font-size: 9px !important;
-    margin: 1px 0 4px !important;
+    margin: 0 0 2px !important;
   }
 
   textarea.category-description {
@@ -790,7 +792,7 @@ textarea.category-description {
     color: #6B6B6B !important;
     font-style: italic !important;
     line-height: 1.5 !important;
-    margin: 1px 0 4px !important;
+    margin: 0 0 2px !important;
   }
 
   /* ── Two-column item grid (print only) ── */
@@ -802,7 +804,7 @@ textarea.category-description {
 
   /* ── Item rows (compact) ── */
   .item-row {
-    padding: 4px 0 !important;
+    padding: 2px 0 !important;
     break-inside: avoid;
     page-break-inside: avoid;
   }

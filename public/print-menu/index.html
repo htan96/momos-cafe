@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Momo's Café — Print Menu</title>
+    <link rel="stylesheet" href="./menu.css" />
+  </head>
+  <body>
+    <div class="toolbar no-print" aria-label="Menu controls">
+      <button type="button" id="btn-print" class="toolbar__btn">
+        Generate PDF / Print
+      </button>
+      <label class="toolbar__label">
+        Load JSON
+        <input type="file" id="input-json" accept="application/json,.json" />
+      </label>
+      <button type="button" id="btn-reset" class="toolbar__btn toolbar__btn--ghost">
+        Reload default data
+      </button>
+    </div>
+
+    <main id="menu-root" class="menu-root"></main>
+
+    <script src="./menu.js" defer></script>
+  </body>
+</html>

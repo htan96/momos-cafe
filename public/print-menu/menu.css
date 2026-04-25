@@ -1,0 +1,505 @@
+/**
+ * Print menu — colors and structure from /docs/menu/1.png, 2.png, 3.png
+ * Letter 8.5" × 11" — layout fixed; data drives content only.
+ */
+
+:root {
+  /* Reference docs/menu: red header/footer, tan field, teal body text */
+  --menu-red: #d2322d;
+  --menu-tan: #f2e5c5;
+  --menu-teal: #2a6b69;
+  --menu-divider-breakfast: #2a6b69;
+  --menu-divider-lunch: #1a1a1a;
+  --menu-white: #ffffff;
+  --menu-additions-border: #d2322d;
+  --menu-additions-title: #d2322d;
+  --menu-page-pad-x: 0.42in;
+  --menu-page-pad-y: 0.38in;
+  --font-stack: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-stack);
+}
+
+body {
+  margin: 0;
+  background: #c8c4bc;
+}
+
+.menu-root {
+  max-width: 8.5in;
+  margin: 0 auto 2rem;
+}
+
+/* ——— Toolbar (hidden when printing) ——— */
+.no-print {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.65rem 1rem;
+  background: #2a2a2a;
+  color: #fff;
+}
+
+.toolbar__btn {
+  padding: 0.45rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  border-radius: 4px;
+  background: var(--menu-red);
+  color: var(--menu-white);
+}
+
+.toolbar__btn--ghost {
+  background: transparent;
+  border: 1px solid #888;
+  color: #eee;
+}
+
+.toolbar__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.toolbar__label input[type="file"] {
+  font-size: 0.75rem;
+  max-width: 200px;
+  color: #ccc;
+}
+
+/* ——— Page shell (Letter) ——— */
+.menu-page {
+  width: 8.5in;
+  min-height: 11in;
+  margin: 0 auto 1rem;
+  background: var(--menu-tan);
+  color: var(--menu-teal);
+  display: flex;
+  flex-direction: column;
+  page-break-after: always;
+  break-after: page;
+}
+
+.menu-page:last-of-type {
+  page-break-after: auto;
+  break-after: auto;
+  margin-bottom: 0;
+}
+
+.menu-page__header {
+  flex-shrink: 0;
+  background: var(--menu-red);
+  color: var(--menu-white);
+  text-align: center;
+  padding: 0.28in 0.35in;
+}
+
+.menu-page__header h1 {
+  margin: 0;
+  font-size: 24pt;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.menu-page__header--split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  padding: 0.22in var(--menu-page-pad-x);
+  text-align: center;
+}
+
+.menu-page__header--split h1 {
+  font-size: 13pt;
+  line-height: 1.2;
+  padding: 0 0.15in;
+}
+
+.menu-page__body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1px 1fr;
+  gap: 0;
+  padding: var(--menu-page-pad-y) var(--menu-page-pad-x);
+  align-content: start;
+  min-height: 0;
+}
+
+.menu-page--breakfast .menu-page__divider {
+  background: var(--menu-divider-breakfast);
+}
+
+.menu-page--lunch .menu-page__divider {
+  background: var(--menu-divider-lunch);
+}
+
+.menu-page--extras .menu-page__divider {
+  background: var(--menu-divider-lunch);
+}
+
+.menu-page__divider {
+  width: 1px;
+  margin: 0 0.12in;
+  align-self: stretch;
+  min-height: 100%;
+}
+
+.menu-page__col {
+  min-width: 0;
+  font-size: 9pt;
+}
+
+.menu-page__footer {
+  flex-shrink: 0;
+  height: 0.22in;
+  background: var(--menu-red);
+}
+
+/* ——— Sections ——— */
+.menu-section {
+  margin-bottom: 0.2in;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.menu-section:last-child {
+  margin-bottom: 0;
+}
+
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.35rem;
+  margin-bottom: 0.06in;
+}
+
+.section-head__title {
+  margin: 0;
+  font-size: 13.5pt;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--menu-teal);
+  line-height: 1.15;
+}
+
+.section-head__price {
+  flex-shrink: 0;
+  font-size: 13.5pt;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--menu-teal);
+}
+
+.section-subtitle {
+  margin: 0 0 0.1in;
+  font-size: 7.5pt;
+  font-weight: 400;
+  font-style: italic;
+  text-transform: uppercase;
+  line-height: 1.35;
+  color: var(--menu-teal);
+}
+
+.section-footer {
+  margin: 0.08in 0 0;
+  font-size: 7.5pt;
+  font-style: italic;
+  text-transform: uppercase;
+  line-height: 1.35;
+  color: var(--menu-teal);
+}
+
+/* ——— Items ——— */
+.menu-item {
+  margin-bottom: 0.09in;
+  break-inside: avoid;
+}
+
+.menu-item__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.menu-item__name {
+  font-size: 9.5pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  line-height: 1.2;
+  color: var(--menu-teal);
+}
+
+.menu-item__price {
+  flex-shrink: 0;
+  font-size: 9.5pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--menu-teal);
+}
+
+.menu-item__desc {
+  margin: 0.03in 0 0;
+  font-size: 7.5pt;
+  font-weight: 400;
+  text-transform: uppercase;
+  line-height: 1.35;
+  color: var(--menu-teal);
+}
+
+.menu-item__note {
+  margin: 0.04in 0 0;
+  font-size: 7pt;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--menu-teal);
+}
+
+.menu-item__extra-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin: 0.04in 0 0 0.18in;
+  padding-right: 0;
+  gap: 0.35rem;
+}
+
+.menu-item__extra-text {
+  font-size: 8pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--menu-teal);
+}
+
+.menu-item__extra-price {
+  font-size: 8pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--menu-teal);
+}
+
+/* ——— Lunch: two internal columns ——— */
+.section-layout-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.12in 0.18in;
+}
+
+/* ——— Additions box (breakfast ref) ——— */
+.section-with-additions {
+  display: grid;
+  grid-template-columns: 1fr min-content;
+  gap: 0.12in 0.1in;
+  align-items: end;
+}
+
+.section-with-additions .section-main {
+  min-width: 0;
+}
+
+.additions-box {
+  width: 2.15in;
+  flex-shrink: 0;
+  background: var(--menu-white);
+  border: 2px solid var(--menu-additions-border);
+  border-radius: 8px;
+  padding: 0.1in 0.12in 0.12in;
+  break-inside: avoid;
+}
+
+.additions-box__title {
+  margin: 0 0 0.08in;
+  text-align: center;
+  font-size: 9pt;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--menu-additions-title);
+}
+
+.additions-box__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.2rem;
+  font-size: 7.5pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--menu-teal);
+  margin-bottom: 0.05in;
+}
+
+.additions-box__row:last-child {
+  margin-bottom: 0;
+}
+
+/* ——— Wings two columns ——— */
+.flavors-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.06in 0.2in;
+  margin-top: 0.06in;
+}
+
+.flavors-grid__col {
+  font-size: 8pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  line-height: 1.45;
+  color: var(--menu-teal);
+}
+
+.flavors-grid__item {
+  margin-bottom: 0.04in;
+}
+
+/* ——— Beverages subsections ——— */
+.bev-sub {
+  margin-top: 0.08in;
+}
+
+.bev-sub:first-of-type {
+  margin-top: 0.06in;
+}
+
+.bev-sub__label {
+  font-size: 8.5pt;
+  font-weight: 800;
+  text-transform: uppercase;
+  margin-bottom: 0.04in;
+  color: var(--menu-teal);
+}
+
+.bev-sub__text {
+  font-size: 7.5pt;
+  font-weight: 400;
+  text-transform: uppercase;
+  line-height: 1.4;
+  color: var(--menu-teal);
+}
+
+/* ——— Branding panel (page 3) ——— */
+.branding-logo {
+  width: 2.35in;
+  max-width: 100%;
+  height: auto;
+  margin: 0.08in 0 0.12in;
+  object-fit: contain;
+}
+
+.branding-line {
+  margin: 0.06in 0;
+  font-size: 8pt;
+  font-weight: 600;
+  text-transform: uppercase;
+  line-height: 1.45;
+  color: var(--menu-teal);
+}
+
+.branding-social {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  margin-top: 0.08in;
+  font-size: 8pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--menu-teal);
+}
+
+.branding-social svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.catering-banner {
+  width: 100%;
+  padding: 0.14in 0.2in;
+  background: var(--menu-red);
+  color: var(--menu-white);
+  font-size: 11pt;
+  font-weight: 800;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.menu-page--extras .menu-page__body {
+  align-items: stretch;
+}
+
+.menu-page--extras .menu-page__col--branding {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding-left: 0.15in;
+  min-height: 100%;
+  justify-content: flex-start;
+}
+
+.menu-page--extras .catering-banner {
+  margin-top: auto;
+}
+
+.menu-page--extras .menu-page__footer {
+  display: none;
+}
+
+/* ——— Print ——— */
+@media print {
+  body {
+    background: white;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .menu-root {
+    max-width: none;
+    margin: 0;
+  }
+
+  .menu-page {
+    margin: 0;
+    page-break-after: always;
+    break-after: page;
+    box-shadow: none;
+  }
+
+  .menu-page:last-of-type {
+    page-break-after: auto;
+    break-after: auto;
+  }
+
+  @page {
+    size: letter portrait;
+    margin: 0;
+  }
+}
+
+@media screen {
+  .menu-page {
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+  }
+}

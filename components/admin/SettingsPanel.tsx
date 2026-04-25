@@ -44,7 +44,7 @@ export default function SettingsPanel() {
           Printer-ready menu (pulls live prices from Square)
         </span>
         <a
-          href="/print-menu/"
+          href="/print-menu"
           target="_blank"
           rel="noopener noreferrer"
           className="rounded-lg bg-red px-4 py-2 text-sm font-semibold text-white hover:opacity-90"

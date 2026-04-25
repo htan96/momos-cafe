@@ -78,7 +78,7 @@ export default function AdminPanel() {
                 </li>
                 <li>
                   <a
-                    href="/print-menu/"
+                    href="/print-menu"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 font-semibold text-red hover:underline"

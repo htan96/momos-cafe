@@ -3,6 +3,8 @@
  * (or Square-shaped data via squareItemsToSimpleMenu). Legacy: ?legacy=1 uses menu-data.json.
  */
 
+console.log("MENU JS LOADED");
+
 (function () {
   "use strict";
 

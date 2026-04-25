@@ -4,18 +4,19 @@
  */
 
 :root {
-  /* Reference docs/menu: red header/footer, tan field, teal body text */
-  --menu-red: #d2322d;
+  /* Reference docs/menu: deep red prints reliably (print-color-adjust on html) */
+  --menu-red: #aa0000;
   --menu-tan: #f2e5c5;
   --menu-teal: #2a6b69;
   --menu-divider-breakfast: #2a6b69;
   --menu-divider-lunch: #1a1a1a;
   --menu-white: #ffffff;
-  --menu-additions-border: #d2322d;
-  --menu-additions-title: #d2322d;
+  --menu-additions-border: #aa0000;
+  --menu-additions-title: #aa0000;
+  --menu-section-rule: #aa0000;
   --menu-page-pad-x: 0.42in;
   --menu-page-pad-y: 0.38in;
-  --font-stack: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-stack: "Inter", sans-serif;
 }
 
 *,
@@ -128,25 +129,33 @@ body {
   margin-bottom: 0;
 }
 
-/* Tighter vertical rhythm when many items (still single page; no layout redesign) */
+/* Many items per page: keep rhythm readable (slightly looser than ultra-tight) */
 .menu-page--dense .menu-item {
-  margin-bottom: 0.055in;
+  margin-bottom: 8px;
 }
 
 .menu-page--dense .menu-section {
-  margin-bottom: 0.12in;
+  margin-bottom: 0.14in;
 }
 
 .menu-page--dense .section-subtitle {
-  margin-bottom: 0.06in;
+  margin-bottom: 0.08in;
+}
+
+.menu-page--dense .flavors-grid__item {
+  margin-bottom: 0.055in;
 }
 
 .menu-page--extra-dense .menu-item {
-  margin-bottom: 0.04in;
+  margin-bottom: 7px;
 }
 
 .menu-page--extra-dense .menu-section {
-  margin-bottom: 0.09in;
+  margin-bottom: 0.12in;
+}
+
+.menu-page--extra-dense .flavors-grid__item {
+  margin-bottom: 0.05in;
 }
 
 .menu-page--extra-dense .menu-item__name,
@@ -170,7 +179,7 @@ body {
 .menu-page__header h1 {
   margin: 0;
   font-size: 24pt;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -231,13 +240,22 @@ body {
 }
 
 /* ——— Sections ——— */
-.menu-section {
-  margin-bottom: 0.2in;
+/* Visual separation between sections (each column: first block has no top rule) */
+.menu-page__col > .menu-section + .menu-section {
+  border-top: 2px solid var(--menu-section-rule);
+  margin-top: 14px;
+  padding-top: 10px;
+}
+
+.menu-section,
+.section {
+  margin-bottom: 0.14in;
   break-inside: avoid;
   page-break-inside: avoid;
 }
 
-.menu-section:last-child {
+.menu-section:last-child,
+.section:last-child {
   margin-bottom: 0;
 }
 
@@ -246,13 +264,13 @@ body {
   justify-content: space-between;
   align-items: baseline;
   gap: 0.35rem;
-  margin-bottom: 0.06in;
+  margin-bottom: 0.05in;
 }
 
 .section-head__title {
   margin: 0;
   font-size: 13.5pt;
-  font-weight: 800;
+  font-weight: 700;
   text-transform: uppercase;
   color: var(--menu-teal);
   line-height: 1.15;
@@ -260,14 +278,16 @@ body {
 
 .section-head__price {
   flex-shrink: 0;
+  min-width: 50px;
+  text-align: right;
   font-size: 13.5pt;
-  font-weight: 800;
+  font-weight: 600;
   text-transform: uppercase;
   color: var(--menu-teal);
 }
 
 .section-subtitle {
-  margin: 0 0 0.1in;
+  margin: 0.06in 0 0.12in;
   font-size: 7.5pt;
   font-weight: 400;
   font-style: italic;
@@ -287,32 +307,34 @@ body {
 
 /* ——— Items ——— */
 .menu-item {
-  margin-bottom: 0.09in;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px dotted rgba(0, 0, 0, 0.15);
   break-inside: avoid;
+}
+
+.menu-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
 }
 
 .menu-item__row {
   display: flex;
+  justify-content: space-between;
   align-items: baseline;
-  gap: 0.2rem;
+  gap: 0.35rem;
   width: 100%;
 }
 
 .menu-item__leader {
-  flex: 1 1 auto;
-  min-width: 0.15in;
-  border-bottom: 1px dotted currentColor;
-  opacity: 0.5;
-  height: 0.62em;
-  align-self: flex-end;
-  margin-bottom: 0.12em;
+  display: none;
 }
 
 .menu-item__name {
-  flex-shrink: 0;
-  max-width: 70%;
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: 9.5pt;
-  font-weight: 700;
+  font-weight: 600;
   text-transform: uppercase;
   line-height: 1.2;
   color: var(--menu-teal);
@@ -320,10 +342,19 @@ body {
 
 .menu-item__price {
   flex-shrink: 0;
+  min-width: 50px;
+  text-align: right;
   font-size: 9.5pt;
-  font-weight: 700;
+  font-weight: 600;
   text-transform: uppercase;
   color: var(--menu-teal);
+}
+
+/* Alias for custom markup / future use — aligns with item row spec */
+.menu-item-price {
+  min-width: 50px;
+  text-align: right;
+  font-weight: 600;
 }
 
 .menu-item__desc {
@@ -346,22 +377,32 @@ body {
 
 .menu-item__extra-row {
   display: flex;
+  justify-content: space-between;
   align-items: baseline;
-  gap: 0.2rem;
+  gap: 0.35rem;
   width: 100%;
   margin: 0.04in 0 0 0.18in;
 }
 
+.menu-item__extra-row .menu-item__leader {
+  display: none;
+}
+
 .menu-item__extra-text {
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: 8pt;
-  font-weight: 700;
+  font-weight: 600;
   text-transform: uppercase;
   color: var(--menu-teal);
 }
 
 .menu-item__extra-price {
+  flex-shrink: 0;
+  min-width: 50px;
+  text-align: right;
   font-size: 8pt;
-  font-weight: 700;
+  font-weight: 600;
   text-transform: uppercase;
   color: var(--menu-teal);
 }
@@ -388,10 +429,10 @@ body {
 .additions-box {
   width: 2.15in;
   flex-shrink: 0;
-  background: var(--menu-white);
-  border: 2px solid var(--menu-additions-border);
-  border-radius: 8px;
-  padding: 0.1in 0.12in 0.12in;
+  background: #ffffff;
+  border: 2px solid #aa0000;
+  border-radius: 10px;
+  padding: 10px;
   break-inside: avoid;
 }
 
@@ -399,7 +440,7 @@ body {
   margin: 0 0 0.08in;
   text-align: center;
   font-size: 9pt;
-  font-weight: 800;
+  font-weight: 700;
   text-transform: uppercase;
   color: var(--menu-additions-title);
 }
@@ -408,12 +449,24 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  gap: 0.2rem;
+  gap: 0.35rem;
   font-size: 7.5pt;
-  font-weight: 700;
+  font-weight: 600;
   text-transform: uppercase;
   color: var(--menu-teal);
-  margin-bottom: 0.05in;
+  margin-bottom: 0.06in;
+}
+
+.additions-box__row span:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-right: 0.15rem;
+}
+
+.additions-box__row span:last-child {
+  flex-shrink: 0;
+  min-width: 50px;
+  text-align: right;
 }
 
 .additions-box__row:last-child {
@@ -437,7 +490,14 @@ body {
 }
 
 .flavors-grid__item {
-  margin-bottom: 0.04in;
+  margin-bottom: 0.05in;
+  padding-bottom: 3px;
+  border-bottom: 1px dotted rgba(0, 0, 0, 0.12);
+}
+
+.flavors-grid__col .flavors-grid__item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
 }
 
 /* ——— Beverages subsections ——— */
@@ -451,7 +511,7 @@ body {
 
 .bev-sub__label {
   font-size: 8.5pt;
-  font-weight: 800;
+  font-weight: 700;
   text-transform: uppercase;
   margin-bottom: 0.04in;
   color: var(--menu-teal);
@@ -506,7 +566,7 @@ body {
   background: var(--menu-red);
   color: var(--menu-white);
   font-size: 11pt;
-  font-weight: 800;
+  font-weight: 700;
   text-align: center;
   text-transform: uppercase;
   letter-spacing: 0.06em;

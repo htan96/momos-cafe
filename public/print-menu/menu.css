@@ -161,12 +161,12 @@ body {
 
 .menu-page--extra-dense .menu-item__name,
 .menu-page--extra-dense .menu-item__price {
-  font-size: 8.5pt;
+  font-size: 9.25pt;
 }
 
 .menu-page--extra-dense .menu-item__desc,
 .menu-page--extra-dense .menu-item__note {
-  font-size: 6.8pt;
+  font-size: 7.35pt;
 }
 
 .menu-page__header {
@@ -174,14 +174,16 @@ body {
   background: var(--menu-red);
   color: var(--menu-white);
   text-align: center;
-  padding: 0.24in 0.32in;
+  /* Shorter red band: less padding top/bottom of “BREAKFAST” / “LUNCH” */
+  padding: 0.1in 0.24in;
 }
 
 .menu-page__header h1 {
   margin: 0;
-  font-size: 24pt;
+  font-size: 20pt;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  line-height: 1;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
@@ -189,14 +191,14 @@ body {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0;
-  padding: 0.22in var(--menu-page-pad-x);
+  padding: 0.12in var(--menu-page-pad-x);
   text-align: center;
 }
 
 .menu-page__header--split h1 {
-  font-size: 13pt;
-  line-height: 1.2;
-  padding: 0 0.15in;
+  font-size: 12.5pt;
+  line-height: 1.1;
+  padding: 0 0.12in;
 }
 
 .menu-page__body {
@@ -233,7 +235,7 @@ body {
   min-width: 0;
   max-width: 100%;
   overflow-x: hidden;
-  font-size: 9pt;
+  font-size: 9.5pt;
 }
 
 .menu-page__footer {
@@ -242,14 +244,14 @@ body {
   background: var(--menu-red);
 }
 
-/* ——— Breakfast: pack more lines on one sheet (docs/menu/1) ——— */
+/* ——— Breakfast: slightly tighter rhythm; type sizes follow global ——— */
 .menu-page--breakfast .section-head__title {
-  font-size: 12.5pt;
+  font-size: 13.5pt;
 }
 
 .menu-page--breakfast .section-subtitle {
   margin: 0.035in 0 0.065in;
-  font-size: 7pt;
+  font-size: 7.75pt;
   line-height: 1.28;
 }
 
@@ -268,14 +270,8 @@ body {
   padding-bottom: 2px;
 }
 
-.menu-page--breakfast .menu-item__name,
-.menu-page--breakfast .menu-item__price {
-  font-size: 9pt;
-}
-
 .menu-page--breakfast .menu-item__desc,
 .menu-page--breakfast .menu-item__note {
-  font-size: 7pt;
   line-height: 1.28;
 }
 
@@ -291,20 +287,6 @@ body {
 .menu-page--breakfast .additions-box {
   padding: 7px 9px 9px;
   max-width: 1.72in;
-}
-
-.menu-page--breakfast.menu-page--extra-dense .section-head__title {
-  font-size: 11.5pt;
-}
-
-.menu-page--breakfast.menu-page--extra-dense .menu-item__name,
-.menu-page--breakfast.menu-page--extra-dense .menu-item__price {
-  font-size: 8.25pt;
-}
-
-.menu-page--breakfast.menu-page--extra-dense .menu-item__desc,
-.menu-page--breakfast.menu-page--extra-dense .menu-item__note {
-  font-size: 6.5pt;
 }
 
 /* ——— Sections ——— */
@@ -343,7 +325,7 @@ body {
 .section-head__title {
   margin: 0;
   min-width: 0;
-  font-size: 13.5pt;
+  font-size: 14pt;
   font-weight: 700;
   text-transform: uppercase;
   color: var(--menu-teal);
@@ -355,7 +337,7 @@ body {
   justify-self: end;
   min-width: 2.75rem;
   text-align: right;
-  font-size: 13.5pt;
+  font-size: 14pt;
   font-weight: 600;
   text-transform: uppercase;
   color: var(--menu-teal);
@@ -363,7 +345,7 @@ body {
 
 .section-subtitle {
   margin: 0.06in 0 0.12in;
-  font-size: 7.5pt;
+  font-size: 8pt;
   font-weight: 400;
   font-style: italic;
   text-transform: uppercase;
@@ -410,7 +392,7 @@ body {
 
 .menu-item__name {
   min-width: 0;
-  font-size: 9.5pt;
+  font-size: 10pt;
   font-weight: 600;
   text-transform: uppercase;
   line-height: 1.2;
@@ -423,7 +405,7 @@ body {
   justify-self: end;
   min-width: 2.75rem;
   text-align: right;
-  font-size: 9.5pt;
+  font-size: 10pt;
   font-weight: 600;
   text-transform: uppercase;
   color: var(--menu-teal);
@@ -441,7 +423,7 @@ body {
 .menu-item__desc {
   max-width: 100%;
   margin: 0.03in 0 0;
-  font-size: 7.5pt;
+  font-size: 8pt;
   font-weight: 400;
   text-transform: uppercase;
   line-height: 1.35;
@@ -451,7 +433,7 @@ body {
 
 .menu-item__note {
   margin: 0.04in 0 0;
-  font-size: 7pt;
+  font-size: 7.5pt;
   font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -725,15 +707,74 @@ body {
     padding: 0;
   }
 
+  /**
+   * Use more of Letter landscape (11" × 8.5") so body copy can stay larger when printed.
+   */
+  :root {
+    --menu-page-pad-x: 0.32in;
+    --menu-page-pad-y: 0.24in;
+  }
+
   .menu-page {
-    width: 10in;
-    height: 7.5in;
-    max-height: 7.5in;
-    margin: 0;
+    width: 10.5in;
+    height: 8.15in;
+    max-height: 8.15in;
+    margin: 0 auto;
     page-break-after: always;
     break-after: page;
     box-shadow: none;
     overflow: hidden;
+  }
+
+  .section-head__title,
+  .section-head__price {
+    font-size: 14.5pt;
+  }
+
+  .section-subtitle,
+  .section-footer {
+    font-size: 8.25pt;
+  }
+
+  .menu-page--breakfast .section-subtitle,
+  .menu-page--breakfast .section-footer {
+    font-size: 8.25pt;
+  }
+
+  .menu-item__name,
+  .menu-item__price {
+    font-size: 10.25pt;
+  }
+
+  .menu-item__desc {
+    font-size: 8.25pt;
+  }
+
+  .menu-item__note {
+    font-size: 8pt;
+  }
+
+  .menu-page__col {
+    font-size: 10pt;
+  }
+
+  /* Never drop to “micro” type on paper — tighten margins via .menu-page--dense instead */
+  .menu-page--extra-dense .menu-item__name,
+  .menu-page--extra-dense .menu-item__price,
+  .menu-page--breakfast.menu-page--extra-dense .menu-item__name,
+  .menu-page--breakfast.menu-page--extra-dense .menu-item__price {
+    font-size: 10pt;
+  }
+
+  .menu-page--extra-dense .menu-item__desc,
+  .menu-page--extra-dense .menu-item__note,
+  .menu-page--breakfast.menu-page--extra-dense .menu-item__desc,
+  .menu-page--breakfast.menu-page--extra-dense .menu-item__note {
+    font-size: 7.85pt;
+  }
+
+  .menu-page--breakfast .section-head__title {
+    font-size: 14pt;
   }
 
   .menu-page:last-of-type {
@@ -741,9 +782,13 @@ body {
     break-after: auto;
   }
 
+  /**
+   * Let the browser print dialog control margins (e.g. Chrome “None”).
+   * A non-zero @page margin overrides the dialog and looks like “margins don’t work”.
+   */
   @page {
     size: letter landscape;
-    margin: 0.4in;
+    margin: 0;
   }
 }
 
@@ -751,10 +796,19 @@ body {
   /* Let the preview grow with content so nothing is clipped in-browser */
   .menu-page {
     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
-    min-height: 7.5in;
+    min-height: 8.15in;
     height: auto;
     max-height: none;
     overflow: visible;
+  }
+
+  .menu-page__body {
+    overflow: visible;
+  }
+
+  .menu-page__col {
+    overflow-x: hidden;
+    overflow-y: visible;
   }
 
   .additions-box {

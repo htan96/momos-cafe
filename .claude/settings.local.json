@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(file /c/Users/Admin/momos-cafe/.claude/worktrees/wizardly-swanson/docs/menu/*.png)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(xargs grep:*)"
+    ]
+  }
+}

@@ -6,16 +6,33 @@
 (function () {
   "use strict";
 
-  let layoutJsonHref = "./menu-layout.json";
-  let simpleJsonHref = "./menu-simple.json";
-  let legacyJsonHref = "./menu-data.json";
-  try {
-    layoutJsonHref = new URL("menu-layout.json", window.location.href).href;
-    simpleJsonHref = new URL("menu-simple.json", window.location.href).href;
-    legacyJsonHref = new URL("menu-data.json", window.location.href).href;
-  } catch {
-    /* keep relative */
+  /**
+   * Base URL for menu JSON assets. `/print-menu` without trailing slash would
+   * otherwise resolve `menu-layout.json` → `/menu-layout.json` (wrong).
+   * @returns {string}
+   */
+  function printMenuAssetBaseHref() {
+    try {
+      const u = new URL(window.location.href);
+      let path = u.pathname;
+      if (path.endsWith("/")) {
+        /* ok */
+      } else if (/\.html?$/i.test(path)) {
+        path = path.replace(/[^/]+$/, "");
+      } else {
+        path += "/";
+      }
+      u.pathname = path;
+      return u.href;
+    } catch {
+      return window.location.href.replace(/\/?$/, "/");
+    }
   }
+
+  const _assetBase = printMenuAssetBaseHref();
+  let layoutJsonHref = new URL("menu-layout.json", _assetBase).href;
+  let simpleJsonHref = new URL("menu-simple.json", _assetBase).href;
+  let legacyJsonHref = new URL("menu-data.json", _assetBase).href;
 
   /** Demo Square-shaped rows — category maps to breakfast | lunch | extras buckets. */
   const SQUARE_DEMO_ITEMS = [
@@ -580,25 +597,87 @@
 
   /**
    * @param {unknown} data
+   * @returns {boolean}
+   */
+  function isSimpleMenuShape(data) {
+    if (!data || typeof data !== "object") return false;
+    const o = /** @type {Record<string, unknown>} */ (data);
+    if ("pages" in o) return false;
+    return (
+      Array.isArray(o.breakfast) ||
+      Array.isArray(o.lunch) ||
+      Array.isArray(o.extras)
+    );
+  }
+
+  /**
+   * Section-based layout: `pages.breakfast`, `pages.lunch`, `pages.extras`.
+   * @param {unknown} pages
    * @param {HTMLElement} root
    */
-  function renderAll(data, root) {
+  function renderFullStructuredMenu(pages, root) {
     root.replaceChildren();
-    const pages =
-      data && typeof data === "object" && data.pages && typeof data.pages === "object"
-        ? /** @type {{ pages: Record<string, unknown> }} */ (data).pages
+    const p =
+      pages && typeof pages === "object"
+        ? /** @type {Record<string, unknown>} */ (pages)
         : {};
 
-    const breakfast = Array.isArray(pages.breakfast) ? pages.breakfast : [];
-    const lunch = Array.isArray(pages.lunch) ? pages.lunch : [];
+    const breakfast = Array.isArray(p.breakfast) ? p.breakfast : [];
+    const lunch = Array.isArray(p.lunch) ? p.lunch : [];
     const extras =
-      pages.extras && typeof pages.extras === "object"
-        ? /** @type {Record<string, unknown>} */ (pages.extras)
+      p.extras && typeof p.extras === "object"
+        ? /** @type {Record<string, unknown>} */ (p.extras)
         : {};
 
     root.appendChild(renderBreakfastPage(breakfast));
     root.appendChild(renderLunchPage(lunch));
     root.appendChild(renderExtrasPage(extras));
+  }
+
+  /**
+   * Root `{ breakfast: [], lunch: [], extras: [] }` — merge into fixed layout then render.
+   * @param {unknown} data
+   * @param {HTMLElement} root
+   */
+  async function renderSimpleMenu(data, root) {
+    const lr = await fetch(layoutJsonHref, { cache: "no-store" });
+    if (!lr.ok) throw new Error("Failed to load menu-layout.json (" + lr.status + ")");
+    const layout = await lr.json();
+    const merged = mergeLayoutWithSimple(layout, data);
+    console.log("Merged layout + simple → pages:", merged && merged.pages);
+    if (!merged || typeof merged !== "object" || !merged.pages) {
+      throw new Error("mergeLayoutWithSimple did not produce { pages }");
+    }
+    renderFullStructuredMenu(merged.pages, root);
+  }
+
+  /**
+   * Dispatch: full `data.pages` OR simple root buckets.
+   * @param {unknown} data
+   * @param {HTMLElement} root
+   */
+  async function renderMenuFromData(data, root) {
+    console.log("Loaded menu data:", data);
+    if (!data || typeof data !== "object") {
+      root.replaceChildren();
+      root.innerHTML =
+        '<p class="menu-error" style="padding:1rem;color:#c00;">Invalid menu data.</p>';
+      return;
+    }
+    const d = /** @type {Record<string, unknown>} */ (data);
+    if (d.pages && typeof d.pages === "object") {
+      renderFullStructuredMenu(d.pages, root);
+      applyDensity(root);
+      return;
+    }
+    if (isSimpleMenuShape(data)) {
+      await renderSimpleMenu(data, root);
+      applyDensity(root);
+      return;
+    }
+    root.replaceChildren();
+    root.innerHTML =
+      '<p class="menu-error" style="padding:1rem;color:#c00;">Unrecognized menu JSON. Use <code>{ pages: { breakfast, lunch, extras } }</code> or <code>{ breakfast, lunch, extras }</code>.</p>';
   }
 
   /**
@@ -610,26 +689,61 @@
       const res = await fetch(legacyJsonHref, { cache: "no-store" });
       if (!res.ok) throw new Error("Failed to load menu-data.json");
       const data = await res.json();
-      renderAll(data, root);
-      applyDensity(root);
+      await renderMenuFromData(data, root);
       return;
     }
 
-    let simple;
     if (params.get("source") === "square") {
-      simple = squareItemsToSimpleMenu(SQUARE_DEMO_ITEMS);
-    } else {
+      const simple = squareItemsToSimpleMenu(SQUARE_DEMO_ITEMS);
+      const lr = await fetch(layoutJsonHref, { cache: "no-store" });
+      if (!lr.ok) throw new Error("Failed to load menu-layout.json");
+      const layout = await lr.json();
+      const merged = mergeLayoutWithSimple(layout, simple);
+      await renderMenuFromData(merged, root);
+      return;
+    }
+
+    if (params.get("source") === "simple") {
       const sr = await fetch(simpleJsonHref, { cache: "no-store" });
       if (!sr.ok) throw new Error("Failed to load menu-simple.json");
-      simple = await sr.json();
+      const simple = await sr.json();
+      const lr = await fetch(layoutJsonHref, { cache: "no-store" });
+      if (!lr.ok) throw new Error("Failed to load menu-layout.json");
+      const layout = await lr.json();
+      const merged = mergeLayoutWithSimple(layout, simple);
+      await renderMenuFromData(merged, root);
+      return;
+    }
+
+    const apiUrl = new URL("/api/menu", window.location.origin).href;
+    const apiRes = await fetch(apiUrl, { cache: "no-store" });
+    if (!apiRes.ok) {
+      console.warn("Print menu: /api/menu failed, using menu-simple.json fallback", apiRes.status);
+      const sr = await fetch(simpleJsonHref, { cache: "no-store" });
+      if (!sr.ok) throw new Error("Fallback menu-simple.json failed");
+      const simple = await sr.json();
+      const lr = await fetch(layoutJsonHref, { cache: "no-store" });
+      if (!lr.ok) throw new Error("Failed to load menu-layout.json");
+      const layout = await lr.json();
+      const merged = mergeLayoutWithSimple(layout, simple);
+      await renderMenuFromData(merged, root);
+      return;
+    }
+
+    const squareRaw = await apiRes.json();
+    console.log("Square Raw Data:", squareRaw);
+
+    const mapper = window.__PRINT_MENU_SQUARE__;
+    if (!mapper || typeof mapper.mapMenuApiToPages !== "function") {
+      throw new Error("square-map.js must load before menu.js");
     }
 
     const lr = await fetch(layoutJsonHref, { cache: "no-store" });
     if (!lr.ok) throw new Error("Failed to load menu-layout.json");
     const layout = await lr.json();
-    const merged = mergeLayoutWithSimple(layout, simple);
-    renderAll(merged, root);
-    applyDensity(root);
+    const mapped = mapper.mapMenuApiToPages(squareRaw, layout);
+    console.log("Mapped Menu Data:", mapped);
+    await renderMenuFromData(mapped, root);
   }
 
   /**
@@ -637,22 +751,7 @@
    * @param {HTMLElement} root
    */
   async function applyLoadedJson(parsed, root) {
-    if (
-      parsed &&
-      typeof parsed === "object" &&
-      Array.isArray(/** @type {{ breakfast?: unknown }} */ (parsed).breakfast) &&
-      !("pages" in /** @type {object} */ (parsed))
-    ) {
-      const lr = await fetch(layoutJsonHref, { cache: "no-store" });
-      if (!lr.ok) throw new Error("Failed to load menu-layout.json");
-      const layout = await lr.json();
-      const merged = mergeLayoutWithSimple(layout, /** @type {object} */ (parsed));
-      renderAll(merged, root);
-      applyDensity(root);
-      return;
-    }
-    renderAll(parsed, root);
-    applyDensity(root);
+    await renderMenuFromData(parsed, root);
   }
 
   function init() {
@@ -666,7 +765,7 @@
     loadDefaultMenus(root).catch((err) => {
       console.error(err);
       root.innerHTML =
-        '<p style="padding:1rem;color:#c00;">Could not load menu. Serve over HTTP(S) and ensure <code>menu-layout.json</code> + <code>menu-simple.json</code> exist. Use <code>?legacy=1</code> for single-file <code>menu-data.json</code>.</p>';
+        '<p style="padding:1rem;color:#c00;">Could not load print menu. Use HTTP(S). Default loads <code>/api/menu</code> + layout; fallback needs <code>menu-simple.json</code>. Try <code>?source=simple</code>, <code>?source=square</code>, or <code>?legacy=1</code>.</p>';
     });
 
     btnPrint.addEventListener("click", () => {

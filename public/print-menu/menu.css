@@ -26,6 +26,8 @@
 
 html {
   font-family: var(--font-stack);
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
 
 body {
@@ -534,6 +536,11 @@ body {
 
 /* ——— Print ——— */
 @media print {
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
   body {
     background: white;
   }

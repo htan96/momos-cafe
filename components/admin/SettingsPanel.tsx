@@ -39,6 +39,20 @@ export default function SettingsPanel() {
         Changes save automatically and apply across the site.
       </p>
 
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-cream-dark bg-cream px-4 py-3 mb-6">
+        <span className="text-sm font-medium text-charcoal">
+          Printer-ready menu (pulls live prices from Square)
+        </span>
+        <a
+          href="/print-menu/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="rounded-lg bg-red px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+        >
+          View / Print Menu
+        </a>
+      </div>
+
       <div className="space-y-6">
         {/* Business Hours */}
         <div>

@@ -1014,8 +1014,8 @@ textarea.category-description {
     break-inside: avoid;
     page-break-inside: avoid;
   }
-  .item-name  { font-size: 12px !important; line-height: 1.2 !important; }
-  .item-price { font-size: 12px !important; }
+  .item-name  { font-size: 11.75px !important; line-height: 1.2 !important; }
+  .item-price { font-size: 11.75px !important; }
   .item-desc  {
     font-size: 9.5px !important;
     line-height: 1.35 !important;

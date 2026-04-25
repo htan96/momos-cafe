@@ -941,11 +941,11 @@ textarea.category-description {
     gap: 8px !important;
   }
   .menu-header-left {
-    font-size: 8.5px !important;
+    font-size: 8px !important;
     letter-spacing: 0.08em !important;
   }
   .menu-header-right {
-    font-size: 23px !important;
+    font-size: 22px !important;
     line-height: 1.05 !important;
   }
   .menu-header-rule {
@@ -962,11 +962,8 @@ textarea.category-description {
     padding-bottom: 3px !important;
     margin-bottom: 0 !important;
   }
-  .cat-name {
-    font-size: 11px !important;
-  }
   .cat-desc {
-    font-size: 9.5px !important;
+    font-size: 9px !important;
     margin: 0 0 2px !important;
   }
 
@@ -976,7 +973,7 @@ textarea.category-description {
   .cat-desc--print-fallback {
     display: block !important;
     font-family: Inter, sans-serif;
-    font-size: 9.5px !important;
+    font-size: 9px !important;
     color: #6B6B6B !important;
     font-style: italic !important;
     line-height: 1.5 !important;
@@ -986,7 +983,7 @@ textarea.category-description {
   .inline-additions {
     display: block !important;
     line-height: 1.4 !important;
-    font-size: 8.5px !important;
+    font-size: 8px !important;
     margin-top: 8px !important;
     color: #444 !important;
   }
@@ -1020,7 +1017,7 @@ textarea.category-description {
   .item-name  { font-size: 12px !important; line-height: 1.2 !important; }
   .item-price { font-size: 12px !important; }
   .item-desc  {
-    font-size: 10px !important;
+    font-size: 9.5px !important;
     line-height: 1.35 !important;
     margin-top: 1px !important;
   }
@@ -1030,7 +1027,7 @@ textarea.category-description {
     padding: 5px 8px !important;
     gap: 3px !important;
   }
-  .additions-label { font-size: 9px !important; }
-  .additions-opts  { font-size: 10px !important; }
+  .additions-label { font-size: 8.5px !important; }
+  .additions-opts  { font-size: 9.5px !important; }
 }
 `;

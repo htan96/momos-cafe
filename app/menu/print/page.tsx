@@ -504,6 +504,7 @@ const PRINT_STYLES = `
   background: #ffffff;
   width: 100%;
   max-width: none;
+  min-width: 0;
   padding: 40px 28px 48px;
   border-radius: 2px;
   box-shadow:
@@ -519,6 +520,8 @@ const PRINT_STYLES = `
   align-items: baseline;
   gap: 16px;
   margin: 0 0 6px;
+  min-width: 0;
+  width: 100%;
 }
 .menu-header-left {
   font-family: Inter, sans-serif;
@@ -526,19 +529,24 @@ const PRINT_STYLES = `
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: #6b7280;
-  flex-shrink: 0;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
 }
 .menu-header-right {
   font-family: "Playfair Display", serif;
   font-size: 1.5em;
   font-weight: 700;
   color: #2e2a25;
-  line-height: 1.1;
+  line-height: 1.15;
   margin: 0;
+  flex: 1 1 0%;
   min-width: 0;
   text-align: right;
   text-transform: uppercase;
   letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
 }
 .menu-header-rule {
   height: 1px;
@@ -562,6 +570,8 @@ const PRINT_STYLES = `
   margin-bottom: 4px;
   padding-bottom: 10px;
   border-bottom: 1.5px solid #EDE3B2;
+  min-width: 0;
+  width: 100%;
 }
 .cat-name {
   font-family: Inter, sans-serif;
@@ -570,10 +580,15 @@ const PRINT_STYLES = `
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: #2f6d66;
-  white-space: nowrap;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 .cat-line {
-  flex: 1;
+  flex: 1 1 24px;
+  min-width: 24px;
   height: 1px;
   background: linear-gradient(to right, rgba(212,175,55,0.5) 0%, transparent 100%);
 }
@@ -862,6 +877,19 @@ textarea.category-description {
 .print-btn:active {
   transform: translateY(1px);
   box-shadow: 0 2px 0 #800;
+}
+
+/* Narrow preview — stack sheet title so it never fights the brand strip */
+@media (max-width: 560px) {
+  .menu-page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .menu-header-right {
+    text-align: left;
+    width: 100%;
+  }
 }
 
 /* ╔══════════════════════════════════════════╗

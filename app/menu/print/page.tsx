@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { MenuCategory, MenuItem } from "@/types/menu";
+import type { ModifierOption } from "@/types/ordering";
 
 // Category type → print page mapping
 const PAGE_1_TYPES = ["breakfast"];
@@ -192,9 +193,37 @@ function MenuPage({
 
 /* ─── Category ──────────────────────────────────────────────────────────── */
 
+// Collect modifier options with a price > 0 that appear on 2+ items in the category.
+// These get shown once as a category-level "Additions" note rather than repeating per item.
+function getCategoryAdditions(items: MenuItem[]) {
+  const groupMap = new Map<string, { opts: ModifierOption[]; count: number }>();
+
+  for (const item of items) {
+    const seen = new Set<string>();
+    for (const group of item.modifierGroups ?? []) {
+      if (seen.has(group.name)) continue;
+      seen.add(group.name);
+      const priced = group.options.filter((o) => o.price > 0);
+      if (priced.length === 0) continue;
+      const entry = groupMap.get(group.name);
+      if (entry) {
+        entry.count++;
+      } else {
+        groupMap.set(group.name, { opts: priced, count: 1 });
+      }
+    }
+  }
+
+  return Array.from(groupMap.entries())
+    .filter(([, v]) => v.count >= 2)
+    .map(([name, v]) => ({ name, opts: v.opts }));
+}
+
 function CategorySection({ category }: { category: MenuCategory }) {
   const items = category.menuitems?.filter((i) => i.is_active) ?? [];
   if (items.length === 0) return null;
+
+  const additions = getCategoryAdditions(items);
 
   return (
     <div className="cat-section">
@@ -211,6 +240,19 @@ function CategorySection({ category }: { category: MenuCategory }) {
           <ItemRow key={item.id} item={item} />
         ))}
       </div>
+
+      {additions.length > 0 && (
+        <div className="cat-additions">
+          {additions.map(({ name, opts }) => (
+            <div key={name} className="additions-row">
+              <span className="additions-label">{name}:</span>
+              <span className="additions-opts">
+                {opts.map((o) => `${o.name} +$${o.price}`).join("  ·  ")}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -349,6 +391,37 @@ const PRINT_STYLES = `
   font-style: italic;
   line-height: 1.5;
   margin: 4px 0 8px;
+}
+
+/* Category-level additions block */
+.cat-additions {
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: rgba(212,175,55,0.07);
+  border-left: 2px solid #d4af37;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.additions-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.additions-label {
+  font-family: Inter, sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #2f6d66;
+  white-space: nowrap;
+}
+.additions-opts {
+  font-family: Inter, sans-serif;
+  font-size: 11.5px;
+  color: #2e2a25;
 }
 
 /* Items list — single column on screen */
@@ -635,12 +708,16 @@ const PRINT_STYLES = `
   .item-price { font-size: 11.5px !important; }
   .item-desc  {
     font-size: 9.5px !important;
-    line-height: 1.3 !important;
+    line-height: 1.35 !important;
     margin-top: 1px !important;
-    display: -webkit-box !important;
-    -webkit-line-clamp: 2 !important;
-    -webkit-box-orient: vertical !important;
-    overflow: hidden !important;
   }
+
+  .cat-additions {
+    margin-top: 6px !important;
+    padding: 5px 8px !important;
+    gap: 3px !important;
+  }
+  .additions-label { font-size: 8.5px !important; }
+  .additions-opts  { font-size: 9.5px !important; }
 }
 `;

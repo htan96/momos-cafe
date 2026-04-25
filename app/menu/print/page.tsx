@@ -446,13 +446,13 @@ function CategorySection({
       </div>
       {griddleAddOnsLine ? (
         <p className="inline-additions">
-          <strong>ADD ONS:</strong>
+          <strong>ADD ONS:</strong>{" "}
           <span>{griddleAddOnsLine}</span>
         </p>
       ) : null}
       {griddleComboLine ? (
         <p className="inline-additions">
-          <strong>MAKE IT A COMBO:</strong>
+          <strong>MAKE IT A COMBO:</strong>{" "}
           <span>{griddleComboLine}</span>
         </p>
       ) : null}
@@ -618,10 +618,11 @@ const PRINT_STYLES = `
   margin-top: 4px;
 }
 .inline-additions strong {
-  display: block;
+  display: inline;
   font-weight: 600;
   letter-spacing: 0.04em;
   color: #2e2a25;
+  margin-right: 5px;
 }
 .inline-additions span {
   display: inline;
@@ -1043,10 +1044,11 @@ textarea.category-description {
     margin-top: 3px !important;
   }
   .inline-additions strong {
-    display: block !important;
+    display: inline !important;
     font-weight: 600 !important;
     letter-spacing: 0.04em !important;
     color: #2e2a25 !important;
+    margin-right: 4px !important;
   }
   .inline-additions span {
     display: inline !important;

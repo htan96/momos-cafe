@@ -231,7 +231,10 @@ body {
 
 .menu-page__col {
   min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
   font-size: 9pt;
+  contain: layout;
 }
 
 .menu-page__footer {
@@ -250,6 +253,8 @@ body {
 
 .menu-section,
 .section {
+  min-width: 0;
+  max-width: 100%;
   margin-bottom: 0.14in;
   break-inside: avoid;
   page-break-inside: avoid;
@@ -261,25 +266,29 @@ body {
 }
 
 .section-head {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: baseline;
-  gap: 0.35rem;
+  column-gap: 0.35rem;
+  width: 100%;
+  max-width: 100%;
   margin-bottom: 0.05in;
 }
 
 .section-head__title {
   margin: 0;
+  min-width: 0;
   font-size: 13.5pt;
   font-weight: 700;
   text-transform: uppercase;
   color: var(--menu-teal);
   line-height: 1.15;
+  overflow-wrap: anywhere;
 }
 
 .section-head__price {
-  flex-shrink: 0;
-  min-width: 50px;
+  justify-self: end;
+  min-width: 2.75rem;
   text-align: right;
   font-size: 13.5pt;
   font-weight: 600;
@@ -308,6 +317,8 @@ body {
 
 /* ——— Items ——— */
 .menu-item {
+  min-width: 0;
+  max-width: 100%;
   margin-bottom: 6px;
   padding-bottom: 4px;
   border-bottom: 1px dotted rgba(0, 0, 0, 0.15);
@@ -320,11 +331,12 @@ body {
 }
 
 .menu-item__row {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(2.75rem, max-content);
   align-items: baseline;
-  gap: 0.35rem;
+  column-gap: 0.35rem;
   width: 100%;
+  max-width: 100%;
 }
 
 .menu-item__leader {
@@ -332,23 +344,26 @@ body {
 }
 
 .menu-item__name {
-  flex: 1 1 auto;
   min-width: 0;
   font-size: 9.5pt;
   font-weight: 600;
   text-transform: uppercase;
   line-height: 1.2;
   color: var(--menu-teal);
+  overflow-wrap: anywhere;
+  word-break: normal;
 }
 
 .menu-item__price {
-  flex-shrink: 0;
-  min-width: 50px;
+  justify-self: end;
+  min-width: 2.75rem;
   text-align: right;
   font-size: 9.5pt;
   font-weight: 600;
   text-transform: uppercase;
   color: var(--menu-teal);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
 }
 
 /* Alias for custom markup / future use — aligns with item row spec */
@@ -359,12 +374,14 @@ body {
 }
 
 .menu-item__desc {
+  max-width: 100%;
   margin: 0.03in 0 0;
   font-size: 7.5pt;
   font-weight: 400;
   text-transform: uppercase;
   line-height: 1.35;
   color: var(--menu-teal);
+  overflow-wrap: anywhere;
 }
 
 .menu-item__note {
@@ -377,11 +394,12 @@ body {
 }
 
 .menu-item__extra-row {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(2.75rem, max-content);
   align-items: baseline;
-  gap: 0.35rem;
+  column-gap: 0.35rem;
   width: 100%;
+  max-width: 100%;
   margin: 0.04in 0 0 0.18in;
 }
 
@@ -390,46 +408,54 @@ body {
 }
 
 .menu-item__extra-text {
-  flex: 1 1 auto;
   min-width: 0;
   font-size: 8pt;
   font-weight: 600;
   text-transform: uppercase;
   color: var(--menu-teal);
+  overflow-wrap: anywhere;
 }
 
 .menu-item__extra-price {
-  flex-shrink: 0;
-  min-width: 50px;
+  justify-self: end;
+  min-width: 2.75rem;
   text-align: right;
   font-size: 8pt;
   font-weight: 600;
   text-transform: uppercase;
   color: var(--menu-teal);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
 }
 
 /* ——— Lunch: two internal columns ——— */
 .section-layout-two-col {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 0.12in 0.18in;
+  max-width: 100%;
 }
 
 /* ——— Additions box (breakfast ref) ——— */
 .section-with-additions {
   display: grid;
-  grid-template-columns: 1fr minmax(1.75rem, 2.25in);
-  gap: 0.14in 0.12in;
-  align-items: end;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.85in);
+  gap: 0.1in 0.1in;
+  align-items: start;
+  width: 100%;
+  max-width: 100%;
 }
 
 .section-with-additions .section-main {
   min-width: 0;
+  max-width: 100%;
 }
 
 .additions-box {
+  box-sizing: border-box;
   width: 100%;
-  max-width: 2.25in;
+  max-width: 1.85in;
+  min-width: 0;
   flex-shrink: 0;
   background: #ffffff;
   border: 2px solid #aa0000;

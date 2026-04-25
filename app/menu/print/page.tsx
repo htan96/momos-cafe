@@ -886,9 +886,29 @@ textarea.category-description {
     display: none !important;
   }
 
+  /* iOS Safari: avoid phantom overflow + text inflation throwing off print scale */
+  html {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
   body {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow-x: hidden !important;
+  }
+
+  .menu-wrap,
+  .menu-wrap * {
+    box-sizing: border-box !important;
   }
 
   /* ── Cover page in print ── */
@@ -939,14 +959,18 @@ textarea.category-description {
   .menu-page-header {
     margin: 0 0 1px !important;
     gap: 8px !important;
+    min-width: 0 !important;
   }
   .menu-header-left {
     font-size: 8px !important;
     letter-spacing: 0.08em !important;
+    flex-shrink: 0 !important;
   }
   .menu-header-right {
     font-size: 22px !important;
     line-height: 1.05 !important;
+    min-width: 0 !important;
+    overflow-wrap: anywhere !important;
   }
   .menu-header-rule {
     margin: 0 0 5px !important;
@@ -999,13 +1023,20 @@ textarea.category-description {
   .inline-additions span {
     display: inline !important;
     color: #555 !important;
+    overflow-wrap: anywhere !important;
   }
 
   /* ── Two-column item grid (print only) ── */
   .cat-items {
     display: grid !important;
-    grid-template-columns: 1fr 1fr !important;
-    gap: 0 40px !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+    gap: 0 28px !important;
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+
+  .cat-items > .item-row {
+    min-width: 0 !important;
   }
 
   /* ── Item rows (compact) ── */
@@ -1014,7 +1045,16 @@ textarea.category-description {
     break-inside: avoid;
     page-break-inside: avoid;
   }
-  .item-name  { font-size: 11.6px !important; line-height: 1.2 !important; }
+  .item-top {
+    min-width: 0 !important;
+    gap: 10px !important;
+  }
+  .item-name  {
+    font-size: 11.6px !important;
+    line-height: 1.2 !important;
+    min-width: 0 !important;
+    overflow-wrap: break-word !important;
+  }
   .item-price { font-size: 11.6px !important; }
   .item-desc  {
     font-size: 9.5px !important;

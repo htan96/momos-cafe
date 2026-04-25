@@ -447,11 +447,9 @@ console.log("MENU JS LOADED");
     const body = document.createElement("div");
     body.className = "menu-page__body";
     body.appendChild(renderColumn(breakfastSections, "left"));
-    const div = document.createElement("div");
-    div.className = "menu-page__divider";
-    div.setAttribute("aria-hidden", "true");
-    body.appendChild(div);
-    body.appendChild(renderColumn(breakfastSections, "right"));
+    const rightCol = renderColumn(breakfastSections, "right");
+    rightCol.classList.add("menu-page__col--right");
+    body.appendChild(rightCol);
     page.appendChild(body);
 
     const footer = document.createElement("footer");
@@ -477,11 +475,9 @@ console.log("MENU JS LOADED");
     const body = document.createElement("div");
     body.className = "menu-page__body";
     body.appendChild(renderColumn(lunchSections, "left"));
-    const div = document.createElement("div");
-    div.className = "menu-page__divider";
-    div.setAttribute("aria-hidden", "true");
-    body.appendChild(div);
-    body.appendChild(renderColumn(lunchSections, "right"));
+    const rightCol = renderColumn(lunchSections, "right");
+    rightCol.classList.add("menu-page__col--right");
+    body.appendChild(rightCol);
     page.appendChild(body);
 
     const footer = document.createElement("footer");
@@ -525,14 +521,10 @@ console.log("MENU JS LOADED");
       left.appendChild(renderSection(/** @type {Record<string, unknown>} */ (raw)));
     }
 
-    const div = document.createElement("div");
-    div.className = "menu-page__divider";
-    div.setAttribute("aria-hidden", "true");
     body.appendChild(left);
-    body.appendChild(div);
 
     const brandCol = document.createElement("div");
-    brandCol.className = "menu-page__col menu-page__col--branding";
+    brandCol.className = "menu-page__col menu-page__col--branding menu-page__col--right";
 
     const branding =
       extras.branding && typeof extras.branding === "object"

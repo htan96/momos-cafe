@@ -35,12 +35,14 @@ html {
 body {
   margin: 0;
   background: #c8c4bc;
+  overflow-x: hidden;
 }
 
 .menu-root {
   max-width: 11in;
   margin: 0 auto 2rem;
   padding: 0 12px;
+  overflow-x: hidden;
 }
 
 /* ——— Toolbar (hidden when printing) ——— */
@@ -120,6 +122,7 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  overflow-x: hidden;
   page-break-after: always;
   break-after: page;
 }
@@ -174,8 +177,8 @@ body {
   background: var(--menu-red);
   color: var(--menu-white);
   text-align: center;
-  /* Shorter red band: less padding top/bottom of “BREAKFAST” / “LUNCH” */
-  padding: 0.1in 0.24in;
+  /* Match body horizontal inset so red bar lines up with cream content */
+  padding: 0.1in var(--menu-page-pad-x);
 }
 
 .menu-page__header h1 {
@@ -205,37 +208,34 @@ body {
   flex: 1 1 auto;
   min-height: 0;
   display: grid;
-  grid-template-columns: 1fr 1px 1fr;
-  gap: 0;
+  /* Two columns only — vertical rule lives on .menu-page__col--right (no 1px grid track over text) */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: 0;
+  row-gap: 0;
   padding: var(--menu-page-pad-y) var(--menu-page-pad-x);
   align-content: start;
+  align-items: start;
   overflow: hidden;
-}
-
-.menu-page--breakfast .menu-page__divider {
-  background: var(--menu-divider-breakfast);
-}
-
-.menu-page--lunch .menu-page__divider {
-  background: var(--menu-divider-lunch);
-}
-
-.menu-page--extras .menu-page__divider {
-  background: var(--menu-divider-lunch);
-}
-
-.menu-page__divider {
-  width: 1px;
-  margin: 0 0.12in;
-  align-self: stretch;
-  min-height: 100%;
 }
 
 .menu-page__col {
   min-width: 0;
   max-width: 100%;
   overflow-x: hidden;
+  overflow-y: visible;
+  max-height: none;
   font-size: 9.5pt;
+}
+
+.menu-page__col--right {
+  box-sizing: border-box;
+  padding-left: 0.22in;
+  margin-left: 0;
+  border-left: 1px solid var(--menu-divider-lunch);
+}
+
+.menu-page--breakfast .menu-page__col--right {
+  border-left-color: var(--menu-divider-breakfast);
 }
 
 .menu-page__footer {
@@ -480,6 +480,7 @@ body {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 0.12in 0.18in;
+  width: 100%;
   max-width: 100%;
 }
 
@@ -673,7 +674,6 @@ body {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding-left: 0.15in;
   min-height: 100%;
   justify-content: flex-start;
 }
@@ -756,6 +756,9 @@ body {
 
   .menu-page__col {
     font-size: 10pt;
+    overflow-x: hidden;
+    overflow-y: visible;
+    max-height: none;
   }
 
   /* Never drop to “micro” type on paper — tighten margins via .menu-page--dense instead */

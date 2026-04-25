@@ -427,6 +427,14 @@
         o.description = "";
       }
     }
+    for (const title of ["BREAKFAST BURRITOS", "GRIDDLE FAVORITES"]) {
+      const sec = findSection(breakfast, title);
+      if (!sec || !Array.isArray(sec.items)) continue;
+      for (const it of sec.items) {
+        if (!it || typeof it !== "object") continue;
+        /** @type {Record<string, unknown>} */ (it).description = "";
+      }
+    }
 
     return out;
   }

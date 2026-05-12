@@ -7,7 +7,9 @@ import { useCommerceCart } from "@/context/CartContext";
 import { formatMoney } from "@/lib/commerce/fulfillmentPreview";
 import { getCartItemTotal } from "@/types/ordering";
 import type { UnifiedFoodLine, UnifiedMerchLine } from "@/types/commerce";
+import CommerceQuantityControl from "@/components/commerce/CommerceQuantityControl";
 
+/** Shared shell layout for the global cart surface (bottom sheet on mobile, centered card on desktop). */
 export default function UnifiedCartDrawer() {
   const router = useRouter();
   const {
@@ -38,14 +40,14 @@ export default function UnifiedCartDrawer() {
   const merchLines = lines.filter((l): l is UnifiedMerchLine => l.kind === "merch");
 
   return (
-    <div className="fixed inset-0 z-[750] flex justify-end lg:justify-center lg:items-start lg:pt-24">
+    <div className="fixed inset-0 z-[960] flex justify-end lg:justify-center lg:items-start lg:pt-24">
       <button
         type="button"
         aria-label="Close cart"
         className="absolute inset-0 bg-charcoal/50"
         onClick={() => setDrawerOpen(false)}
       />
-      <aside className="relative z-[751] w-full max-w-md bg-cream shadow-2xl flex flex-col max-h-[92vh] lg:max-h-[85vh] rounded-t-2xl lg:rounded-2xl overflow-hidden border border-cream-dark pb-[env(safe-area-inset-bottom)] mt-auto lg:mt-0">
+      <aside className="relative z-[961] w-full max-w-md bg-cream shadow-2xl flex flex-col max-h-[92vh] lg:max-h-[85vh] rounded-t-2xl lg:rounded-2xl overflow-hidden border border-cream-dark pb-[env(safe-area-inset-bottom)] mt-auto lg:mt-0">
         <header className="flex items-start justify-between px-5 py-4 border-b border-cream-dark bg-white gap-3">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-teal-dark">
@@ -94,19 +96,17 @@ export default function UnifiedCartDrawer() {
           )}
           {totalCount > 0 &&
             fulfillmentSummary.groups.map((g) => (
-            <section key={g.pipeline} className="rounded-xl border border-cream-dark bg-white p-4">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-teal-dark">
-                    {g.title}
-                  </p>
-                  <p className="text-xs text-charcoal/55 mt-0.5">{g.subtitle}</p>
+              <section key={g.pipeline} className="rounded-xl border border-cream-dark bg-white p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-teal-dark">{g.title}</p>
+                    <p className="text-xs text-charcoal/55 mt-0.5">{g.subtitle}</p>
+                  </div>
                 </div>
-              </div>
-              <p className="text-sm text-charcoal mt-2 leading-snug">{g.etaHint}</p>
-              <ul className="mt-3 space-y-2 border-t border-cream-dark pt-3">
-                {g.pipeline === "KITCHEN"
-                  ? foodLines.map((line, labelIdx) => (
+                <p className="text-sm text-charcoal mt-2 leading-snug">{g.etaHint}</p>
+                <ul className="mt-3 space-y-2 border-t border-cream-dark pt-3">
+                  {g.pipeline === "KITCHEN"
+                    ? foodLines.map((line, labelIdx) => (
                         <li
                           key={line.lineId}
                           className="flex gap-3 text-sm border-b border-cream-dark/60 pb-2 last:border-0 last:pb-0"
@@ -126,23 +126,10 @@ export default function UnifiedCartDrawer() {
                               )}
                             </p>
                           </div>
-                          <div className="inline-flex rounded-lg border border-cream-dark text-xs font-semibold overflow-hidden h-fit">
-                            <button
-                              type="button"
-                              className="px-2 py-1 hover:bg-cream"
-                              onClick={() => updateFoodQuantityAtIndex(labelIdx, -1)}
-                            >
-                              −
-                            </button>
-                            <span className="px-2 py-1 min-w-[1.75rem] text-center">{line.quantity}</span>
-                            <button
-                              type="button"
-                              className="px-2 py-1 hover:bg-cream"
-                              onClick={() => updateFoodQuantityAtIndex(labelIdx, 1)}
-                            >
-                              +
-                            </button>
-                          </div>
+                          <CommerceQuantityControl
+                            quantity={line.quantity}
+                            onDelta={(delta) => updateFoodQuantityAtIndex(labelIdx, delta)}
+                          />
                           <button
                             type="button"
                             className="text-xs text-red font-semibold underline-offset-2 hover:underline shrink-0"
@@ -152,47 +139,34 @@ export default function UnifiedCartDrawer() {
                           </button>
                         </li>
                       ))
-                  : merchLines.map((line) => (
-                      <li
-                        key={line.lineId}
-                        className="flex gap-3 text-sm border-b border-cream-dark/60 pb-2 last:border-0 last:pb-0"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-charcoal">{line.name}</p>
-                          <p className="text-[11px] text-charcoal/50">{line.variantSummary}</p>
-                          <p className="text-teal-dark font-semibold text-xs mt-0.5">
-                            {formatMoney(line.unitPrice * line.quantity)}
-                          </p>
-                        </div>
-                        <div className="inline-flex rounded-lg border border-cream-dark text-xs font-semibold overflow-hidden h-fit">
-                          <button
-                            type="button"
-                            className="px-2 py-1 hover:bg-cream"
-                            onClick={() => setMerchQuantity(line.lineId, line.quantity - 1)}
-                          >
-                            −
-                          </button>
-                          <span className="px-2 py-1 min-w-[1.75rem] text-center">{line.quantity}</span>
-                          <button
-                            type="button"
-                            className="px-2 py-1 hover:bg-cream"
-                            onClick={() => setMerchQuantity(line.lineId, line.quantity + 1)}
-                          >
-                            +
-                          </button>
-                        </div>
-                        <button
-                          type="button"
-                          className="text-xs text-red font-semibold underline-offset-2 hover:underline shrink-0"
-                          onClick={() => removeMerchLine(line.lineId)}
+                    : merchLines.map((line) => (
+                        <li
+                          key={line.lineId}
+                          className="flex gap-3 text-sm border-b border-cream-dark/60 pb-2 last:border-0 last:pb-0"
                         >
-                          Remove
-                        </button>
-                      </li>
-                    ))}
-              </ul>
-            </section>
-          ))}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-charcoal">{line.name}</p>
+                            <p className="text-[11px] text-charcoal/50">{line.variantSummary}</p>
+                            <p className="text-teal-dark font-semibold text-xs mt-0.5">
+                              {formatMoney(line.unitPrice * line.quantity)}
+                            </p>
+                          </div>
+                          <CommerceQuantityControl
+                            quantity={line.quantity}
+                            onDelta={(delta) => setMerchQuantity(line.lineId, line.quantity + delta)}
+                          />
+                          <button
+                            type="button"
+                            className="text-xs text-red font-semibold underline-offset-2 hover:underline shrink-0"
+                            onClick={() => removeMerchLine(line.lineId)}
+                          >
+                            Remove
+                          </button>
+                        </li>
+                      ))}
+                </ul>
+              </section>
+            ))}
 
           {totalCount > 0 && fulfillmentSummary.messages.length > 0 && (
             <div className="rounded-lg bg-cream-dark/40 border border-cream-dark px-3 py-2 text-xs text-charcoal/75 space-y-1">
@@ -222,32 +196,35 @@ export default function UnifiedCartDrawer() {
           )}
 
           <div className="flex flex-col gap-2">
-            {foodLines.length > 0 && (
+            {totalCount > 0 && (
               <button
                 type="button"
                 className="w-full rounded-xl bg-red text-white font-semibold py-3 text-sm tracking-wide hover:opacity-95"
                 onClick={() => {
                   setDrawerOpen(false);
-                  router.push("/order");
+                  router.push("/checkout");
                 }}
               >
-                Checkout food pickup
+                Checkout
               </button>
             )}
-            {merchLines.length > 0 && (
+            <div className="flex flex-col gap-2 sm:flex-row">
               <Link
-                href="/shop"
-                className="block text-center w-full rounded-xl border-2 border-teal-dark text-teal-dark font-semibold py-3 text-sm tracking-wide hover:bg-teal-dark/5"
+                href="/order"
+                className="flex-1 text-center rounded-xl border-2 border-teal-dark text-teal-dark font-semibold py-2.5 text-sm"
                 onClick={() => setDrawerOpen(false)}
               >
-                Continue in shop
+                Add food
               </Link>
-            )}
+              <Link
+                href="/shop"
+                className="flex-1 text-center rounded-xl border-2 border-teal-dark text-teal-dark font-semibold py-2.5 text-sm"
+                onClick={() => setDrawerOpen(false)}
+              >
+                Add shop picks
+              </Link>
+            </div>
           </div>
-          <p className="text-[11px] text-charcoal/45 text-center leading-snug">
-            Unified checkout for mixed carts rolls up next — today food uses the Order flow; merch checkout
-            stays on shop rails.
-          </p>
         </footer>
       </aside>
     </div>

@@ -19,6 +19,12 @@ export default async function OpsShippingPage() {
         description="Retail parcels — manual tracking today; carrier APIs plug into the same Shipment rows."
       />
 
+      <p className="text-[#c9bba8]/80 text-xs rounded-lg border border-dashed border-[#3d3830] px-3 py-2 mb-2">
+        Automated label purchase (Pirate Ship / others) remains disabled in ops — wire payment + rate selection on the storefront first (
+        <code className="text-[11px]">lib/shipping/pirateShipClient.ts</code>
+        ).
+      </p>
+
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-3">
           <h2 className="text-[13px] font-semibold text-[#f5e5c0]">Queue</h2>

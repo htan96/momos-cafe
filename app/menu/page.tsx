@@ -1,28 +1,28 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { MenuCategory, MenuItem } from "@/types/menu";
-import { useAdminSettings, getOrderingStatus } from "@/lib/useAdminSettings";
-import { useCart } from "@/context/CartContext";
+import type { MenuCategory } from "@/types/menu";
+import { useCart, useCommerceCart } from "@/context/CartContext";
+import { useCartNav } from "@/context/CartNavContext";
 import { useHeaderSubNav } from "@/context/HeaderSubNavContext";
-import type { SelectedModifier } from "@/types/ordering";
+import { useAdminSettings, getOrderingStatus } from "@/lib/useAdminSettings";
 import OrderingClosedBanner from "@/components/menu/OrderingClosedBanner";
 import CategoryNav from "@/components/sections/menu/CategoryNav";
 import MenuCategorySection from "@/components/sections/menu/MenuCategorySection";
 import CartSidebar from "@/components/sections/menu/CartSidebar";
-import CartDrawer from "@/components/sections/menu/CartDrawer";
 import MobileOrderBar from "@/components/sections/menu/MobileOrderBar";
 import ModifierModal from "@/components/sections/menu/ModifierModal";
+import type { MenuItem } from "@/types/menu";
+import type { SelectedModifier } from "@/types/ordering";
 
 export default function MenuPage() {
   const router = useRouter();
   const { settings } = useAdminSettings();
-  const { items, total, count, addItem, updateQuantity } = useCart();
+  const { addItem, updateQuantity } = useCart();
+  const { totalCount, grandTotal, setDrawerOpen } = useCommerceCart();
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [loading, setLoading] = useState(true);
-  const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
   const [modifierItem, setModifierItem] = useState<MenuItem | null>(null);
 
   useEffect(() => {
@@ -83,7 +83,6 @@ export default function MenuPage() {
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
   const { setSubNav } = useHeaderSubNav() ?? { setSubNav: () => {} };
 
-  // Header (64px) + category bar (~56px) = ~120px
   const SCROLL_OFFSET = 120;
 
   const scrollToSection = useCallback((slug: string) => {
@@ -95,11 +94,7 @@ export default function MenuPage() {
 
   useEffect(() => {
     setSubNav(
-      <CategoryNav
-        categories={categories}
-        onScrollTo={scrollToSection}
-        embeddedInHeader
-      />
+      <CategoryNav categories={categories} onScrollTo={scrollToSection} embeddedInHeader />
     );
     return () => setSubNav(null);
   }, [categories, scrollToSection, setSubNav]);
@@ -125,18 +120,17 @@ export default function MenuPage() {
           {categories.length === 0 ? (
             <div className="text-center py-16">
               <p className="text-gray-mid mb-4">No menu items yet.</p>
-              <Link
-                href="/"
-                className="text-teal font-semibold hover:underline"
-              >
+              <button type="button" onClick={() => router.push("/")} className="text-teal font-semibold hover:underline">
                 Back to Home
-              </Link>
+              </button>
             </div>
           ) : (
             categories.map((category) => (
               <MenuCategorySection
                 key={category.id}
-                ref={(el) => { sectionRefs.current[category.slug] = el; }}
+                ref={(el) => {
+                  sectionRefs.current[category.slug] = el;
+                }}
                 category={category}
                 headerOffset={64}
                 orderingDisabled={!canAcceptOrders}
@@ -147,41 +141,18 @@ export default function MenuPage() {
           )}
         </main>
 
-        <CartSidebar
-          items={items}
-          total={total}
-          headerOffset={64}
-          onQtyChange={handleQtyChange}
-          onPlaceOrder={() => router.push("/order")}
-          orderingDisabled={!canAcceptOrders}
-        />
+        <CartSidebar headerOffset={64} orderingDisabled={!canAcceptOrders} />
       </div>
 
-      {/* Mobile order bar - shown when cart has items, hidden on desktop */}
-      {count > 0 && (
+      {totalCount > 0 && (
         <MobileOrderBar
-          itemCount={count}
-          total={total}
-          onOpenCart={() => setCartDrawerOpen(true)}
+          itemCount={totalCount}
+          total={grandTotal}
+          onOpenCart={() => setDrawerOpen(true)}
           orderingDisabled={!canAcceptOrders}
         />
       )}
 
-      {/* Cart drawer (mobile) */}
-      <CartDrawer
-        isOpen={cartDrawerOpen}
-        onClose={() => setCartDrawerOpen(false)}
-        items={items}
-        total={total}
-        onQtyChange={handleQtyChange}
-        onPlaceOrder={() => {
-          setCartDrawerOpen(false);
-          router.push("/order");
-        }}
-        orderingDisabled={!canAcceptOrders}
-      />
-
-      {/* Modifier modal - opens when Customize is clicked */}
       <ModifierModal
         isOpen={!!modifierItem}
         onClose={() => setModifierItem(null)}
@@ -189,6 +160,9 @@ export default function MenuPage() {
         orderingDisabled={!canAcceptOrders}
         onAddToOrder={handleAddFromModal}
       />
+
+      {/* Spacer bottom nav */}
+      <div className={`lg:hidden ${totalCount > 0 ? "h-28" : "h-16"}`} aria-hidden="true" />
     </div>
   );
 }

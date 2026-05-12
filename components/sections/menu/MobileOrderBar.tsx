@@ -14,7 +14,7 @@ export default function MobileOrderBar({
   orderingDisabled = false,
 }: MobileOrderBarProps) {
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-[900] bg-red px-5 py-3 flex items-center justify-between lg:hidden shadow-[0_-4px_20px_rgba(0,0,0,0.2)]">
+    <div className="fixed bottom-16 left-0 right-0 z-[905] bg-red px-5 py-3 flex items-center justify-between lg:hidden shadow-[0_-4px_20px_rgba(0,0,0,0.2)]">
       <div>
         <strong className="text-white text-base font-display">
           {itemCount} item{itemCount !== 1 ? "s" : ""}

@@ -1,5 +1,7 @@
 "use client";
 
+import CommerceCategoryPill from "@/components/commerce/CommerceCategoryPill";
+
 import type { MerchStoreCollection } from "@/types/merchCatalog";
 import type { MerchFilterId } from "@/lib/merch/merchProductCollectionMatch";
 
@@ -31,20 +33,14 @@ export default function CollectionFilterBar({
           {chips.map((chip) => {
             const active = activeId === chip.id;
             return (
-              <button
+              <CommerceCategoryPill
                 key={chip.id}
-                type="button"
                 role="tab"
                 aria-selected={active}
+                label={chip.label}
+                active={active}
                 onClick={() => onSelect(chip.id)}
-                className={`snap-start shrink-0 rounded-full px-3.5 py-1.5 text-[12px] font-semibold uppercase tracking-wide transition-all border ${
-                  active
-                    ? "bg-charcoal text-cream border-charcoal shadow-sm"
-                    : "bg-white text-charcoal/70 border-cream-dark hover:border-teal hover:text-teal-dark"
-                }`}
-              >
-                {chip.label}
-              </button>
+              />
             );
           })}
         </div>

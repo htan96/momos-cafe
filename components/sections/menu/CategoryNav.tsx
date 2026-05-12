@@ -2,6 +2,7 @@
 
 import { useRef, useEffect, useState, useCallback } from "react";
 import { MenuCategory } from "@/types/menu";
+import CommerceCategoryPill from "@/components/commerce/CommerceCategoryPill";
 
 const STICKY_OFFSET = 140; // header + category nav height
 
@@ -124,19 +125,15 @@ export default function CategoryNav({
           className="flex-1 min-w-0 h-full overflow-x-auto overflow-y-hidden scrollbar-hide flex items-center gap-2 px-3 touch-pan-x py-2"
         >
           {categories.map((cat) => (
-            <button
+            <CommerceCategoryPill
               key={cat.slug}
-              data-slug={cat.slug}
-              type="button"
+              id={`cat-${cat.slug}`}
+              dataSlug={cat.slug}
+              label={cat.name}
+              active={activeId === cat.slug}
               onClick={() => scrollTo(cat.slug)}
-              className={`font-semibold text-[11px] md:text-xs tracking-wide uppercase rounded-full px-3.5 py-1.5 whitespace-nowrap flex-shrink-0 transition-all duration-150 border snap-start ${
-                activeId === cat.slug
-                  ? "bg-charcoal text-cream border-charcoal shadow-sm"
-                  : "bg-white text-charcoal/70 border-cream-dark hover:border-teal hover:text-teal-dark"
-              }`}
-            >
-              {cat.name}
-            </button>
+              className="whitespace-nowrap"
+            />
           ))}
         </div>
 

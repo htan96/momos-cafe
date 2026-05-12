@@ -27,7 +27,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     pathname === "/our-story" ||
     pathname === "/catering" ||
     pathname === "/find-us" ||
-    pathname === "/shop";
+    pathname === "/shop" ||
+    pathname === "/checkout";
 
   return (
     <CartProvider>

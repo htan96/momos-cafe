@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCommerceCart } from "@/context/CartContext";
 
 interface MixedCartCheckoutNoticeProps {
@@ -26,8 +27,11 @@ export default function MixedCartCheckoutNotice({
         {merchSubtotal > 0 ? ` (~$${merchSubtotal.toFixed(2)})` : ""}.
       </p>
       <p className="text-charcoal/75 mt-1 leading-snug">
-        Food checkout below covers menu pickup only. Retail follows the shop fulfillment window (often 2–3
-        business days).
+        Visit{" "}
+        <Link href="/checkout" className="font-semibold text-teal-dark underline-offset-2 hover:underline">
+          Checkout
+        </Link>{" "}
+        to pay for food pickup — shop items submit a separate retail draft so fulfillment groups stay aligned.
       </p>
       <ul className="mt-2 space-y-1 text-xs text-charcoal/65">
         {fulfillmentSummary.groups.map((g) => (

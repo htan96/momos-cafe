@@ -5,6 +5,7 @@ import Image from "next/image";
 import { MenuItem } from "@/types/menu";
 import type { ModifierGroup, SelectedModifier } from "@/types/ordering";
 import { useSwipeToClose } from "@/hooks/useSwipeToClose";
+import CommerceQuantityControl from "@/components/commerce/CommerceQuantityControl";
 
 interface ModifierModalProps {
   isOpen: boolean;
@@ -246,23 +247,11 @@ export default function ModifierModal({
 
             <div className="p-4 md:p-5 border-t border-cream-dark bg-white/60 flex-shrink-0">
               <div className="flex items-center gap-3 mb-3">
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setQty(Math.max(1, qty - 1))}
-                    className="w-9 h-9 rounded-lg border border-cream-dark bg-white flex items-center justify-center text-lg font-bold text-charcoal hover:border-teal transition-colors"
-                  >
-                    −
-                  </button>
-                  <span className="font-display text-xl text-charcoal min-w-[28px] text-center">{qty}</span>
-                  <button
-                    type="button"
-                    onClick={() => setQty(qty + 1)}
-                    className="w-9 h-9 rounded-lg border border-cream-dark bg-white flex items-center justify-center text-lg font-bold text-charcoal hover:border-teal transition-colors"
-                  >
-                    +
-                  </button>
-                </div>
+                <CommerceQuantityControl
+                  size="md"
+                  quantity={qty}
+                  onDelta={(d) => setQty((q) => Math.max(1, q + d))}
+                />
                 <div className="flex-1 text-right">
                   <span className="text-[10px] font-semibold uppercase tracking-wide text-charcoal/45">Total</span>
                   <strong className="font-display text-xl text-charcoal ml-2">${getTotalPrice().toFixed(2)}</strong>

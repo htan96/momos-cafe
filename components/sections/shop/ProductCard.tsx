@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import type { MerchProduct } from "@/types/merch";
+import CommerceBadge from "@/components/commerce/CommerceBadge";
 
 function formatMoney(amount: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -10,6 +11,24 @@ function formatMoney(amount: number): string {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   }).format(amount);
+}
+
+function InventoryRibbon({ inventory }: { inventory: MerchProduct["inventory"] }) {
+  if (inventory === "out_of_stock") {
+    return (
+      <span className="absolute left-2 top-2">
+        <CommerceBadge tone="charcoal">Sold out</CommerceBadge>
+      </span>
+    );
+  }
+  if (inventory === "low_stock") {
+    return (
+      <span className="absolute left-2 top-2">
+        <CommerceBadge tone="danger">Low stock</CommerceBadge>
+      </span>
+    );
+  }
+  return null;
 }
 
 const FALLBACK: Record<
@@ -22,24 +41,6 @@ const FALLBACK: Record<
   charcoal: "from-charcoal via-charcoal/85 to-teal-dark",
   red: "from-red via-red/85 to-charcoal",
 };
-
-function InventoryRibbon({ inventory }: { inventory: MerchProduct["inventory"] }) {
-  if (inventory === "out_of_stock") {
-    return (
-      <span className="absolute left-2 top-2 rounded bg-charcoal/90 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
-        Sold out
-      </span>
-    );
-  }
-  if (inventory === "low_stock") {
-    return (
-      <span className="absolute left-2 top-2 rounded bg-red px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white shadow-sm">
-        Low stock
-      </span>
-    );
-  }
-  return null;
-}
 
 function formatPriceDisplay(product: MerchProduct): string {
   if (product.priceLabel) return product.priceLabel;

@@ -1,28 +1,18 @@
 import { NextResponse } from "next/server";
-import { createSupabaseAdmin } from "@/lib/supabaseAdmin";
+import type { Prisma } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import type { AdminSettings } from "@/lib/useAdminSettings";
 
 const ROW_ID = "default";
 
 export async function GET() {
   try {
-    const supabase = createSupabaseAdmin();
-    const { data, error } = await supabase
-      .from("admin_settings")
-      .select("data")
-      .eq("id", ROW_ID)
-      .single();
+    const row = await prisma.adminSettings.findUnique({
+      where: { id: ROW_ID },
+    });
 
-    if (error) {
-      if (error.code === "PGRST116") {
-        return NextResponse.json(null);
-      }
-      console.error("Supabase admin_settings fetch error:", error);
-      return NextResponse.json(null);
-    }
-
-    if (!data?.data) return NextResponse.json(null);
-    return NextResponse.json(data.data as AdminSettings);
+    if (!row?.data) return NextResponse.json(null);
+    return NextResponse.json(row.data as AdminSettings);
   } catch (err) {
     console.error("Admin settings fetch error:", err);
     return NextResponse.json(null);
@@ -32,22 +22,19 @@ export async function GET() {
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    const supabase = createSupabaseAdmin();
 
-    const { error } = await supabase
-      .from("admin_settings")
-      .upsert(
-        { id: ROW_ID, data: body, updated_at: new Date().toISOString() },
-        { onConflict: "id" }
-      );
+    const data = body as Prisma.InputJsonValue;
 
-    if (error) {
-      console.error("Supabase admin_settings upsert error:", error);
-      return NextResponse.json(
-        { error: "Failed to save settings" },
-        { status: 500 }
-      );
-    }
+    await prisma.adminSettings.upsert({
+      where: { id: ROW_ID },
+      create: {
+        id: ROW_ID,
+        data,
+      },
+      update: {
+        data,
+      },
+    });
 
     return NextResponse.json({ ok: true });
   } catch (err) {

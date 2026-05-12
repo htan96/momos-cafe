@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
 import emailjs from "emailjs-com";
 import { useAdminSettings } from "@/lib/useAdminSettings";
 import CateringClosedMessage from "@/components/catering/CateringClosedMessage";
@@ -39,13 +38,13 @@ export default function CateringForm({
       details: formData.get("details") as string,
     };
 
-    /* 1️⃣ SAVE TO SUPABASE */
-    const { error } = await supabase
-      .from("CateringInquiries")
-      .insert([newInquiry]);
-
-    if (error) {
-      console.error(error);
+    const saveRes = await fetch("/api/catering/inquiries", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newInquiry),
+    });
+    if (!saveRes.ok) {
+      console.error("Catering save failed", await saveRes.text().catch(() => ""));
       alert("Something went wrong. Please try again.");
       return;
     }

@@ -1,0 +1,51 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model AdminSettings {
+  id        String   @id @default("default")
+  data      Json
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("admin_settings")
+}
+
+model CafeOrder {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  cart              Json
+  customer          Json
+  totalCents        Int       @map("total_cents")
+  fulfillmentType   String    @default("PICKUP") @map("fulfillment_type")
+  scheduledFor      DateTime? @map("scheduled_for") @db.Timestamptz(6)
+  estimatedPickupAt DateTime? @map("estimated_pickup_at") @db.Timestamptz(6)
+  status            String
+  isPaid            Boolean   @default(false) @map("is_paid")
+  squarePaymentId   String?   @map("square_payment_id")
+  squareOrderId     String?   @map("square_order_id")
+  notes             String?
+
+  @@index([createdAt(sort: Desc)], map: "cafe_orders_created_at_idx")
+  @@index([status], map: "cafe_orders_status_idx")
+  @@map("cafe_orders")
+}
+
+model CateringInquiry {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String
+  email      String
+  phone      String
+  eventDate  String   @map("event_date")
+  guestCount Int      @map("guest_count")
+  eventType  String?  @map("event_type")
+  details    String?
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("catering_inquiries")
+}

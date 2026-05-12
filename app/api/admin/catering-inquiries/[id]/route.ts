@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { prisma } from "@/lib/prisma";
 
 export async function DELETE(
   _req: Request,
@@ -11,21 +11,15 @@ export async function DELETE(
       return NextResponse.json({ error: "Missing id" }, { status: 400 });
     }
 
-    const supabase = createSupabaseAdmin();
-    const { error } = await supabase
-      .from("CateringInquiries")
-      .delete()
-      .eq("id", id);
-
-    if (error) {
-      console.error("Catering inquiry delete error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    await prisma.cateringInquiry.delete({
+      where: { id },
+    });
 
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("Catering inquiry delete API error:", err);
-    const message = err instanceof Error ? err.message : "Failed to delete";
+    const message =
+      err instanceof Error ? err.message : "Failed to delete";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -148,8 +148,8 @@ function isValidEmail(value: string): boolean {
 }
 
 /**
- * Supabase/PostgREST when `cafe_orders` was never migrated.
- * In that case we still complete Square payment and return an ephemeral id (no row in your DB).
+ * If `cafe_orders` persistence is unavailable, we still complete Square payment
+ * and return an ephemeral id (no row in your DB).
  */
 function parseCustomerPickupIso(scheduledFor: string | undefined): string | null {
   if (!scheduledFor || typeof scheduledFor !== "string") return null;
@@ -381,7 +381,7 @@ export async function POST(request: Request) {
 
     if (skipPersistEnv) {
       console.warn(
-        "[Order] SKIP_CAFE_ORDER_PERSIST is set — payments proceed; orders are not saved to Supabase."
+        "[Order] SKIP_CAFE_ORDER_PERSIST is set — payments proceed; orders are not saved to PostgreSQL."
       );
     }
 

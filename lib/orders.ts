@@ -1,4 +1,5 @@
-import { createSupabaseAdmin } from "@/lib/supabaseAdmin";
+import type { Prisma } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import type { CartItem } from "@/types/ordering";
 import type { CafeOrderCustomer, CafeOrderStatus } from "@/types/order";
 
@@ -15,11 +16,11 @@ export interface CreateCafeOrderInput {
   squareOrderId?: string | null;
 }
 
-function parseIsoToIsoOrNull(iso: string | null | undefined): string | null {
+function parseIsoToDate(iso: string | null | undefined): Date | null {
   if (!iso || typeof iso !== "string") return null;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return null;
-  return d.toISOString();
+  return d;
 }
 
 export function deriveInitialStatus(
@@ -35,77 +36,72 @@ export function deriveInitialStatus(
  * Persists an order before (or alongside) Square payment.
  * When `squareOrderId` is set, totals should match Square’s computed order total.
  */
-export async function createCafeOrder(input: CreateCafeOrderInput): Promise<{ id: string }> {
-  const supabase = createSupabaseAdmin();
-  const scheduledFor = parseIsoToIsoOrNull(input.scheduledForIso ?? null);
+export async function createCafeOrder(
+  input: CreateCafeOrderInput
+): Promise<{ id: string }> {
+  const scheduledFor = parseIsoToDate(input.scheduledForIso ?? null);
   const hasValidScheduledFor = scheduledFor !== null;
   const status = deriveInitialStatus(input.totalCents, hasValidScheduledFor);
-  const estimatedPickupAt = parseIsoToIsoOrNull(input.estimatedPickupAtIso);
+  const estimatedPickupAt = parseIsoToDate(input.estimatedPickupAtIso);
   if (!estimatedPickupAt) {
     throw new Error("estimatedPickupAtIso must be a valid ISO date");
   }
 
-  const { data, error } = await supabase
-    .from("cafe_orders")
-    .insert({
-      cart: input.cart,
-      customer: input.customer,
-      total_cents: input.totalCents,
-      fulfillment_type: input.fulfillmentType,
-      scheduled_for: scheduledFor,
-      estimated_pickup_at: estimatedPickupAt,
-      status,
-      is_paid: input.totalCents <= 0,
-      square_payment_id: null,
-      square_order_id: input.squareOrderId?.trim() || null,
-      notes: input.customer.notes?.trim() || null,
-    })
-    .select("id")
-    .single();
-
-  if (error) {
-    console.error("[orders] createCafeOrder error:", error);
-    throw new Error(error.message || "Failed to create order");
+  try {
+    const row = await prisma.cafeOrder.create({
+      data: {
+        cart: input.cart as unknown as Prisma.InputJsonValue,
+        customer: input.customer as unknown as Prisma.InputJsonValue,
+        totalCents: input.totalCents,
+        fulfillmentType: input.fulfillmentType,
+        scheduledFor,
+        estimatedPickupAt,
+        status,
+        isPaid: input.totalCents <= 0,
+        squarePaymentId: null,
+        squareOrderId: input.squareOrderId?.trim() || null,
+        notes: input.customer.notes?.trim() || null,
+      },
+      select: { id: true },
+    });
+    return { id: row.id };
+  } catch (err) {
+    console.error("[orders] createCafeOrder error:", err);
+    throw new Error(
+      err instanceof Error ? err.message : "Failed to create order"
+    );
   }
-  if (!data?.id) {
-    throw new Error("Failed to create order: no id returned");
-  }
-  return { id: data.id as string };
 }
 
 export async function markCafeOrderPaid(
   orderId: string,
   squarePaymentId: string
 ): Promise<void> {
-  const supabase = createSupabaseAdmin();
-  const { error } = await supabase
-    .from("cafe_orders")
-    .update({
-      square_payment_id: squarePaymentId,
-      status: "paid",
-      is_paid: true,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", orderId);
-
-  if (error) {
-    console.error("[orders] markCafeOrderPaid error:", error);
-    throw new Error(error.message || "Failed to update order payment");
+  try {
+    await prisma.cafeOrder.update({
+      where: { id: orderId },
+      data: {
+        squarePaymentId,
+        status: "paid",
+        isPaid: true,
+      },
+    });
+  } catch (err) {
+    console.error("[orders] markCafeOrderPaid error:", err);
+    throw new Error(
+      err instanceof Error ? err.message : "Failed to update order payment"
+    );
   }
 }
 
 export async function markCafeOrderPaymentFailed(orderId: string): Promise<void> {
-  const supabase = createSupabaseAdmin();
-  const { error } = await supabase
-    .from("cafe_orders")
-    .update({
-      status: "payment_failed",
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", orderId);
-
-  if (error) {
-    console.error("[orders] markCafeOrderPaymentFailed error:", error);
+  try {
+    await prisma.cafeOrder.update({
+      where: { id: orderId },
+      data: { status: "payment_failed" },
+    });
+  } catch (err) {
+    console.error("[orders] markCafeOrderPaymentFailed error:", err);
   }
 }
 
@@ -122,40 +118,37 @@ export interface InsertPaidCafeOrderInput extends CreateCafeOrderInput {
 export async function insertCafeOrderAfterSuccessfulPayment(
   input: InsertPaidCafeOrderInput
 ): Promise<{ id: string }> {
-  const supabase = createSupabaseAdmin();
-  const scheduledFor = parseIsoToIsoOrNull(input.scheduledForIso ?? null);
-  const estimatedPickupAt = parseIsoToIsoOrNull(input.estimatedPickupAtIso);
+  const scheduledFor = parseIsoToDate(input.scheduledForIso ?? null);
+  const estimatedPickupAt = parseIsoToDate(input.estimatedPickupAtIso);
   if (!estimatedPickupAt) {
     throw new Error("estimatedPickupAtIso must be a valid ISO date");
   }
 
-  const { data, error } = await supabase
-    .from("cafe_orders")
-    .insert({
-      id: input.id,
-      cart: input.cart,
-      customer: input.customer,
-      total_cents: input.totalCents,
-      fulfillment_type: input.fulfillmentType,
-      scheduled_for: scheduledFor,
-      estimated_pickup_at: estimatedPickupAt,
-      status: "paid",
-      is_paid: true,
-      square_payment_id: input.squarePaymentId,
-      square_order_id: input.squareOrderId?.trim() || null,
-      notes: input.customer.notes?.trim() || null,
-    })
-    .select("id")
-    .single();
-
-  if (error) {
-    console.error("[orders] insertCafeOrderAfterSuccessfulPayment error:", error);
-    throw new Error(error.message || "Failed to persist paid order");
+  try {
+    const row = await prisma.cafeOrder.create({
+      data: {
+        id: input.id,
+        cart: input.cart as unknown as Prisma.InputJsonValue,
+        customer: input.customer as unknown as Prisma.InputJsonValue,
+        totalCents: input.totalCents,
+        fulfillmentType: input.fulfillmentType,
+        scheduledFor,
+        estimatedPickupAt,
+        status: "paid",
+        isPaid: true,
+        squarePaymentId: input.squarePaymentId,
+        squareOrderId: input.squareOrderId?.trim() || null,
+        notes: input.customer.notes?.trim() || null,
+      },
+      select: { id: true },
+    });
+    return { id: row.id };
+  } catch (err) {
+    console.error("[orders] insertCafeOrderAfterSuccessfulPayment error:", err);
+    throw new Error(
+      err instanceof Error ? err.message : "Failed to persist paid order"
+    );
   }
-  if (!data?.id) {
-    throw new Error("Failed to persist paid order: no id returned");
-  }
-  return { id: data.id as string };
 }
 
 export interface InsertFreeCafeOrderInput extends CreateCafeOrderInput {
@@ -163,41 +156,40 @@ export interface InsertFreeCafeOrderInput extends CreateCafeOrderInput {
 }
 
 /** $0 checkout — no Square payment id. */
-export async function insertCafeOrderFreeOrder(input: InsertFreeCafeOrderInput): Promise<{ id: string }> {
-  const supabase = createSupabaseAdmin();
-  const scheduledFor = parseIsoToIsoOrNull(input.scheduledForIso ?? null);
+export async function insertCafeOrderFreeOrder(
+  input: InsertFreeCafeOrderInput
+): Promise<{ id: string }> {
+  const scheduledFor = parseIsoToDate(input.scheduledForIso ?? null);
   const hasValidScheduledFor = scheduledFor !== null;
   const status = deriveInitialStatus(0, hasValidScheduledFor);
-  const estimatedPickupAt = parseIsoToIsoOrNull(input.estimatedPickupAtIso);
+  const estimatedPickupAt = parseIsoToDate(input.estimatedPickupAtIso);
   if (!estimatedPickupAt) {
     throw new Error("estimatedPickupAtIso must be a valid ISO date");
   }
 
-  const { data, error } = await supabase
-    .from("cafe_orders")
-    .insert({
-      id: input.id,
-      cart: input.cart,
-      customer: input.customer,
-      total_cents: 0,
-      fulfillment_type: input.fulfillmentType,
-      scheduled_for: scheduledFor,
-      estimated_pickup_at: estimatedPickupAt,
-      status,
-      is_paid: true,
-      square_payment_id: null,
-      square_order_id: input.squareOrderId?.trim() || null,
-      notes: input.customer.notes?.trim() || null,
-    })
-    .select("id")
-    .single();
-
-  if (error) {
-    console.error("[orders] insertCafeOrderFreeOrder error:", error);
-    throw new Error(error.message || "Failed to persist free order");
+  try {
+    const row = await prisma.cafeOrder.create({
+      data: {
+        id: input.id,
+        cart: input.cart as unknown as Prisma.InputJsonValue,
+        customer: input.customer as unknown as Prisma.InputJsonValue,
+        totalCents: 0,
+        fulfillmentType: input.fulfillmentType,
+        scheduledFor,
+        estimatedPickupAt,
+        status,
+        isPaid: true,
+        squarePaymentId: null,
+        squareOrderId: input.squareOrderId?.trim() || null,
+        notes: input.customer.notes?.trim() || null,
+      },
+      select: { id: true },
+    });
+    return { id: row.id };
+  } catch (err) {
+    console.error("[orders] insertCafeOrderFreeOrder error:", err);
+    throw new Error(
+      err instanceof Error ? err.message : "Failed to persist free order"
+    );
   }
-  if (!data?.id) {
-    throw new Error("Failed to persist free order: no id returned");
-  }
-  return { id: data.id as string };
 }

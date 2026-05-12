@@ -167,7 +167,7 @@ export function useAdminSettings() {
   const [settings, setSettings] = useState<AdminSettings>(DEFAULT_SETTINGS);
   const [mounted, setMounted] = useState(false);
 
-  // Fetch from Supabase on mount; fallback to localStorage if API returns null
+  // Fetch persisted settings from internal API; fallback to localStorage if null
   useEffect(() => {
     let cancelled = false;
     fetch("/api/admin/settings")

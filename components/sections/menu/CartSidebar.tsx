@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
 import { useRouter } from "next/navigation";
-import type { CartItem } from "@/types/ordering";
-import { getCartItemTotal } from "@/types/ordering";
-import { getEstimatedPickupTime, formatPickupTime } from "@/lib/pickupTime";
+import { useMemo } from "react";
+import type { UnifiedFoodLine, UnifiedMerchLine } from "@/types/commerce";
 import { useCommerceCart } from "@/context/CartContext";
+import { formatMoney } from "@/lib/commerce/fulfillmentPreview";
+import { getCartItemTotal } from "@/types/ordering";
 import CommerceQuantityControl from "@/components/commerce/CommerceQuantityControl";
 
 interface CartSidebarProps {
@@ -15,198 +15,224 @@ interface CartSidebarProps {
 }
 
 export default function CartSidebar({
-  headerOffset = 128,
+  headerOffset = 64,
   orderingDisabled = false,
 }: CartSidebarProps) {
   const router = useRouter();
   const {
     lines,
+    fulfillmentSummary,
     merchCount,
     merchSubtotal,
     grandTotal,
     foodSubtotal,
+    totalCount,
     removeFoodLineAtIndex,
     updateFoodQuantityAtIndex,
     removeMerchLine,
     setMerchQuantity,
+    setDrawerOpen,
   } = useCommerceCart();
 
-  const items: CartItem[] = useMemo(
-    () =>
-      lines
-        .filter((l): l is typeof lines[number] & { kind: "food" } => l.kind === "food")
-        .map((line) => ({
-          id: line.id,
-          variationId: line.variationId,
-          name: line.name,
-          price: line.price,
-          quantity: line.quantity,
-          modifiers: line.modifiers,
-        })),
+  const foodLines = useMemo(
+    () => lines.filter((l): l is UnifiedFoodLine => l.kind === "food"),
     [lines]
   );
-
   const merchLines = useMemo(
-    () =>
-      lines.filter((l): l is typeof lines[number] & { kind: "merch" } => l.kind === "merch"),
+    () => lines.filter((l): l is UnifiedMerchLine => l.kind === "merch"),
     [lines]
   );
 
-  const itemCount = items.reduce((sum, i) => sum + i.quantity, 0);
-  const estimatedPickupTime = useMemo(
-    () => (itemCount > 0 ? getEstimatedPickupTime(itemCount) : null),
-    [itemCount]
-  );
+  const checkoutDisabled = orderingDisabled && merchCount === 0 && foodLines.length > 0;
 
-  const checkoutDisabled =
-    orderingDisabled &&
-    merchCount === 0 &&
-    items.length > 0;
+  const stickyTop = headerOffset + 52 + 16;
+  const stickyMaxH = `calc(100vh - ${headerOffset + 52 + 40}px)`;
 
   return (
     <aside
-      className="sticky hidden lg:flex flex-col bg-white border-[1.5px] border-cream-dark rounded-2xl overflow-hidden"
+      className="sticky hidden lg:flex flex-col w-full max-w-[360px] rounded-2xl border border-cream-dark bg-cream overflow-hidden shadow-[0_12px_40px_-24px_rgba(44,44,44,0.35)]"
       style={{
-        top: `${headerOffset + 52 + 20}px`,
-        maxHeight: `calc(100vh - ${headerOffset + 52 + 40}px)`,
+        top: `${stickyTop}px`,
+        maxHeight: stickyMaxH,
       }}
     >
-      <div className="bg-teal-dark px-5 py-4 flex items-center justify-between">
-        <h3 className="font-display text-[22px] text-cream tracking-wide">Your Cart</h3>
-        <span className="font-semibold text-[11px] text-white/65 tracking-wider uppercase">
-          Kitchen + Shop
-        </span>
-      </div>
+      <header className="flex items-start justify-between px-5 py-4 border-b border-cream-dark bg-white gap-3 shrink-0">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-teal-dark">Your cart</p>
+          <h3 className="font-display text-xl text-charcoal leading-tight">Kitchen + shop</h3>
+          {fulfillmentSummary.isMixed && (
+            <p className="text-xs text-charcoal/60 mt-1 leading-snug">
+              Mixed pickup timing — food is ASAP; retail follows its own window.
+            </p>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => setDrawerOpen(true)}
+          className="text-[11px] font-semibold uppercase tracking-wide text-teal-dark hover:text-charcoal shrink-0"
+        >
+          Expand
+        </button>
+      </header>
 
-      <div className="flex-1 overflow-y-auto p-4">
-        {items.length === 0 && merchLines.length === 0 ? (
-          <div className="text-center py-10">
-            <span className="text-5xl block mb-3 opacity-50">🛒</span>
-            <p className="font-semibold text-sm text-gray-mid tracking-wide">Your cart is empty</p>
-            <small className="text-xs text-charcoal/40 block mt-1.5">Add items from the menu or Shop</small>
+      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5 min-h-0">
+        {totalCount === 0 ? (
+          <div className="text-center py-10 px-2 rounded-xl border border-dashed border-cream-dark bg-white">
+            <p className="font-display text-lg text-charcoal">Cart is empty</p>
+            <p className="text-sm text-charcoal/55 mt-2 leading-snug">
+              Add plates from the menu — shop picks live in the same bag.
+            </p>
+            <Link
+              href="/shop"
+              className="inline-block mt-5 text-sm font-semibold text-teal-dark hover:underline underline-offset-2"
+            >
+              Browse the shop
+            </Link>
           </div>
         ) : (
-          <div className="space-y-5">
-            {items.length > 0 && (
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-teal-dark mb-2">Kitchen</p>
-                <div className="space-y-0">
-                  {items.map((item, foodIdx) => (
-                    <div
-                      key={`${item.id}-${item.variationId ?? "v"}-${foodIdx}`}
-                      className="flex gap-3 items-start py-3 border-b border-cream-dark last:border-0"
-                    >
-                      <span className="text-2xl flex-shrink-0">🍽️</span>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-sm text-charcoal mb-0.5">{item.name}</div>
-                        {item.modifiers && item.modifiers.length > 0 && (
-                          <div className="text-[11.5px] text-gray-mid leading-snug">
-                            {item.modifiers.map((m) => m.name).join(", ")}
+          <>
+            {fulfillmentSummary.groups.map((g) => (
+              <section key={g.pipeline} className="rounded-xl border border-cream-dark bg-white p-4">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-teal-dark">{g.title}</p>
+                  <p className="text-xs text-charcoal/55 mt-0.5">{g.subtitle}</p>
+                </div>
+                <p className="text-sm text-charcoal mt-2 leading-snug">{g.etaHint}</p>
+                <ul className="mt-3 space-y-2 border-t border-cream-dark pt-3">
+                  {g.pipeline === "KITCHEN"
+                    ? foodLines.map((line, labelIdx) => (
+                        <li
+                          key={line.lineId}
+                          className="flex gap-3 text-sm border-b border-cream-dark/60 pb-2 last:border-0 last:pb-0"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-charcoal">{line.name}</p>
+                            {line.modifiers && line.modifiers.length > 0 && (
+                              <p className="text-[11px] text-charcoal/50 mt-0.5 leading-snug">
+                                {line.modifiers.map((m) => m.name).join(", ")}
+                              </p>
+                            )}
+                            <p className="text-teal-dark font-semibold text-xs mt-0.5">
+                              {formatMoney(
+                                getCartItemTotal({
+                                  id: line.id,
+                                  variationId: line.variationId,
+                                  name: line.name,
+                                  price: line.price,
+                                  quantity: line.quantity,
+                                  modifiers: line.modifiers,
+                                })
+                              )}
+                            </p>
                           </div>
-                        )}
-                        <div className="flex items-center gap-2 mt-2">
                           <CommerceQuantityControl
-                            size="sm"
-                            quantity={item.quantity}
-                            onDelta={(delta) => updateFoodQuantityAtIndex(foodIdx, delta)}
+                            quantity={line.quantity}
+                            onDelta={(delta) => updateFoodQuantityAtIndex(labelIdx, delta)}
                           />
                           <button
                             type="button"
-                            className="text-[11px] font-semibold text-red uppercase tracking-wide hover:underline"
-                            onClick={() => removeFoodLineAtIndex(foodIdx)}
+                            className="text-xs text-red font-semibold underline-offset-2 hover:underline shrink-0 self-start pt-0.5"
+                            onClick={() => removeFoodLineAtIndex(labelIdx)}
                           >
                             Remove
                           </button>
-                        </div>
-                      </div>
-                      <span className="font-display text-xl text-red flex-shrink-0">
-                        ${getCartItemTotal(item).toFixed(2)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            {merchLines.length > 0 && (
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-teal-dark mb-2">Shop</p>
-                <div className="space-y-2">
-                  {merchLines.map((line) => (
-                    <div key={line.lineId} className="flex gap-2 items-start py-2 border-b border-cream-dark/70 last:border-0">
-                      <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-sm text-charcoal">{line.name}</div>
-                        <div className="text-[11px] text-charcoal/50">{line.variantSummary}</div>
-                        <div className="flex items-center gap-2 mt-1.5">
+                        </li>
+                      ))
+                    : merchLines.map((line) => (
+                        <li
+                          key={line.lineId}
+                          className="flex gap-3 text-sm border-b border-cream-dark/60 pb-2 last:border-0 last:pb-0"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-charcoal">{line.name}</p>
+                            <p className="text-[11px] text-charcoal/50">{line.variantSummary}</p>
+                            <p className="text-teal-dark font-semibold text-xs mt-0.5">
+                              {formatMoney(line.unitPrice * line.quantity)}
+                            </p>
+                          </div>
                           <CommerceQuantityControl
-                            size="sm"
                             quantity={line.quantity}
                             onDelta={(delta) => setMerchQuantity(line.lineId, line.quantity + delta)}
                           />
                           <button
                             type="button"
-                            className="text-[11px] font-semibold text-red uppercase tracking-wide hover:underline"
+                            className="text-xs text-red font-semibold underline-offset-2 hover:underline shrink-0 self-start pt-0.5"
                             onClick={() => removeMerchLine(line.lineId)}
                           >
                             Remove
                           </button>
-                        </div>
-                      </div>
-                      <span className="font-display text-lg text-teal-dark shrink-0 mt-1">
-                        ${(line.unitPrice * line.quantity).toFixed(2)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                        </li>
+                      ))}
+                </ul>
+              </section>
+            ))}
+
+            {fulfillmentSummary.messages.length > 0 && (
+              <div className="rounded-lg bg-cream-dark/40 border border-cream-dark px-3 py-2 text-xs text-charcoal/75 space-y-1">
+                {fulfillmentSummary.messages.map((m, i) => (
+                  <p key={i}>{m}</p>
+                ))}
               </div>
             )}
-          </div>
+          </>
         )}
       </div>
 
-      {(items.length > 0 || merchLines.length > 0) && (
-        <div className="p-4 border-t border-cream-dark bg-cream-mid space-y-2">
-          <div className="flex justify-between items-center text-sm text-charcoal/70">
-            <span>Food subtotal</span>
-            <span>${foodSubtotal.toFixed(2)}</span>
+      {totalCount > 0 && (
+        <footer className="border-t border-cream-dark bg-white px-5 py-4 space-y-3 shrink-0">
+          <div className="flex justify-between text-sm">
+            <span className="text-charcoal/65">Food subtotal</span>
+            <span className="font-semibold">{formatMoney(foodSubtotal)}</span>
           </div>
           {merchCount > 0 && (
-            <div className="flex justify-between items-center text-sm text-charcoal/70">
-              <span>Shop subtotal</span>
-              <span>${merchSubtotal.toFixed(2)}</span>
+            <div className="flex justify-between text-sm">
+              <span className="text-charcoal/65">Shop subtotal</span>
+              <span className="font-semibold">{formatMoney(merchSubtotal)}</span>
             </div>
           )}
-          <div className="flex justify-between items-baseline border-t border-cream-dark pt-2">
-            <span className="font-semibold text-sm text-gray-mid tracking-wider uppercase">Total</span>
-            <strong className="font-display text-[26px] text-charcoal">${grandTotal.toFixed(2)}</strong>
+          <div className="flex justify-between font-display text-lg border-t border-cream-dark pt-2">
+            <span className="text-charcoal">Total</span>
+            <span>{formatMoney(grandTotal)}</span>
           </div>
+
           <button
             type="button"
             disabled={checkoutDisabled}
-            className={`w-full py-3.5 px-4 rounded-lg font-semibold text-base transition-all ${
+            className={`w-full rounded-xl font-semibold py-3 text-sm tracking-wide transition-opacity ${
               checkoutDisabled
-                ? "bg-gray-mid text-white/80 cursor-not-allowed shadow-none"
-                : "bg-red text-white shadow-[0_3px_0_#800] hover:-translate-y-0.5"
+                ? "bg-charcoal/25 text-charcoal/50 cursor-not-allowed"
+                : "bg-red text-white hover:opacity-95"
             }`}
             onClick={() => {
               if (checkoutDisabled) return;
               router.push("/checkout");
             }}
           >
-            {checkoutDisabled ? "Ordering is unavailable" : "Checkout →"}
+            {checkoutDisabled ? "Kitchen checkout paused" : "Checkout"}
           </button>
-          <p className="text-center text-[11px] text-gray-mid font-medium tracking-wide">
-            {orderingDisabled && items.length > 0 && merchCount > 0
-              ? "Food ordering is paused — you can still finish shop items at checkout."
-              : estimatedPickupTime
-                ? `Est. food pickup: ${formatPickupTime(estimatedPickupTime)}`
-                : "Pickup at Morgen's Kitchen"}
+
+          <p className="text-center text-[11px] text-charcoal/55 leading-snug">
+            {orderingDisabled && foodLines.length > 0 && merchCount > 0
+              ? "Food checkout follows the next open window — shop items can still finish at checkout when eligible."
+              : "Same checkout as Shop — one ticket, coordinated pickup notes."}
           </p>
-          <div className="text-center text-[11px] text-charcoal/45">
-            <Link href="/shop" className="text-teal-dark font-semibold hover:underline">
-              Continue shopping
+
+          <div className="flex justify-center gap-3 text-[11px]">
+            <button
+              type="button"
+              className="font-semibold text-teal-dark hover:underline underline-offset-2"
+              onClick={() => setDrawerOpen(true)}
+            >
+              Open full cart
+            </button>
+            <span className="text-charcoal/25" aria-hidden>
+              ·
+            </span>
+            <Link href="/shop" className="font-semibold text-teal-dark hover:underline underline-offset-2">
+              Add shop picks
             </Link>
           </div>
-        </div>
+        </footer>
       )}
     </aside>
   );

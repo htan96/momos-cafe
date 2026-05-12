@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
+import { getCustomerSession } from "@/lib/auth/getCustomerSession";
 import { prisma } from "@/lib/prisma";
 import { parseUnifiedCartLines } from "@/lib/commerce/parseUnifiedCartLines";
 import { cartHasBlockingIssues, validateUnifiedCart } from "@/lib/commerce/cartValidation";
 import { createCommerceOrderWithGroups } from "@/lib/server/commerceOrderCreate";
 import { loadAdminSettingsFromDb } from "@/lib/server/loadAdminSettings";
 import { validateCartEligibilityFromAdminSettings } from "@/lib/ordering/validateCartEligibility";
+import { verifyInternalSecretFromRequest } from "@/lib/server/internalAuth";
 
 /** Draft commerce order + fulfillment groups — validates payload strictly */
 export async function POST(req: Request) {
@@ -52,9 +54,11 @@ export async function POST(req: Request) {
     }
 
     const warnings = validationIssues.filter((i) => i.severity === "warning");
+    const customer = await getCustomerSession();
     const result = await createCommerceOrderWithGroups({
       lines: linesForOrder,
       guestCartToken: body.guestToken?.trim() ?? null,
+      customerId: customer?.sub ?? null,
       metadata:
         warnings.length > 0
           ? { validationWarnings: warnings.map((w) => ({ code: w.code, message: w.message })) }
@@ -78,6 +82,10 @@ export async function POST(req: Request) {
 }
 
 export async function GET(req: Request) {
+  if (!verifyInternalSecretFromRequest(req)) {
+    return NextResponse.json({ error: "unauthorized", code: "INTERNAL_AUTH_REQUIRED" }, { status: 401 });
+  }
+
   const limit = Math.min(
     50,
     Math.max(1, Number(new URL(req.url).searchParams.get("limit") ?? "20"))

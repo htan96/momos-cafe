@@ -54,6 +54,12 @@ export default function Header() {
           ))}
           <HeaderAuthLink />
           <Link
+            href="/account"
+            className="font-semibold text-[13px] tracking-[0.15em] uppercase py-2 px-3.5 rounded-md text-teal-dark hover:bg-teal/10 hover:text-teal-dark transition-colors duration-200"
+          >
+            Track order
+          </Link>
+          <Link
             href="/order"
             className="font-semibold text-[13px] tracking-[0.15em] uppercase py-2.5 px-4 rounded-md bg-red text-white hover:bg-red-dark hover:shadow-[0_2px_8px_rgba(128,0,0,0.35)] transition-all duration-200 ml-2"
           >
@@ -62,7 +68,13 @@ export default function Header() {
         </nav>
       </div>
       {subNav && (
-        <div className="h-[52px] border-t border-gold/30 bg-teal-dark">
+        <div
+          className={
+            pathname === "/menu" || pathname === "/order"
+              ? "h-[52px] border-t border-cream-dark/70 bg-cream/95 backdrop-blur-md shadow-[0_8px_20px_-12px_rgba(44,44,44,0.14)]"
+              : "h-[52px] border-t border-gold/30 bg-teal-dark"
+          }
+        >
           {subNav}
         </div>
       )}

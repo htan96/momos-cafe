@@ -5,7 +5,7 @@ import type { MenuCategory, MenuItem } from "@/types/menu";
 import type { ModifierGroup } from "@/types/ordering";
 import ProductCard from "./ProductCard";
 import ItemModal from "./ItemModal";
-import CategoryNav from "./CategoryNav";
+import CategoryNav from "@/components/sections/menu/CategoryNav";
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/context/ToastContext";
 

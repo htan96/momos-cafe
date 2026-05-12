@@ -14,9 +14,11 @@ export interface CreatedCommerceOrderResult {
 export async function createCommerceOrderWithGroups(input: {
   lines: UnifiedCartLine[];
   guestCartToken?: string | null;
+  /** Linked when the storefront customer session is present at draft creation */
+  customerId?: string | null;
   metadata?: Prisma.InputJsonValue;
 }): Promise<CreatedCommerceOrderResult> {
-  const { lines, guestCartToken = null, metadata } = input;
+  const { lines, guestCartToken = null, customerId = null, metadata } = input;
   const { kitchenUsd, retailUsd, totalUsd } = partitionSubtotalsUsd(lines);
 
   return prisma.$transaction(async (tx) => {
@@ -24,6 +26,7 @@ export async function createCommerceOrderWithGroups(input: {
       data: {
         status: "draft",
         guestCartToken,
+        ...(customerId ? { customerId } : {}),
         totalCents: usdToCents(totalUsd),
         kitchenSubtotalCents: usdToCents(kitchenUsd),
         retailSubtotalCents: usdToCents(retailUsd),

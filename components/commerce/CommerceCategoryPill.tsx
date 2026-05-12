@@ -32,7 +32,7 @@ export default function CommerceCategoryPill({
       data-slug={dataSlug}
       aria-selected={ariaSelected ?? (role === "tab" ? active : undefined)}
       onClick={onClick}
-      className={`snap-start shrink-0 rounded-full px-3.5 py-1.5 text-[12px] font-semibold uppercase tracking-wide transition-all duration-150 border ${
+      className={`snap-start shrink-0 rounded-full px-3.5 py-1.5 text-[12px] font-semibold uppercase tracking-wide transition-all duration-200 ease-out border ${
         active
           ? "bg-charcoal text-cream border-charcoal shadow-sm"
           : "bg-white text-charcoal/70 border-cream-dark hover:border-teal hover:text-teal-dark"

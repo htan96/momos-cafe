@@ -20,6 +20,7 @@ import {
 } from "@/lib/squareOrderFromCart";
 import { verifySquarePaymentCaptured } from "@/lib/verifySquarePayment";
 import { parseUnifiedCartLines } from "@/lib/commerce/parseUnifiedCartLines";
+import { getCustomerSession } from "@/lib/auth/getCustomerSession";
 import { reconcileCommerceOrderAfterStorefrontPayment } from "@/lib/server/reconcileCommerceCheckout";
 import { persistStorefrontShipmentSelection } from "@/lib/server/persistStorefrontShipment";
 import type { UnifiedMerchLine } from "@/types/commerce";
@@ -806,11 +807,13 @@ export async function POST(request: Request) {
       }
 
       if (commerceOrderId) {
+        const storefrontCustomer = await getCustomerSession();
         try {
           await reconcileCommerceOrderAfterStorefrontPayment({
             commerceOrderId,
             squarePaymentId: paymentId,
             paidTotalCents: totalCents,
+            customerId: storefrontCustomer?.sub ?? null,
             shipping:
               shippingCents > 0
                 ? {

@@ -16,7 +16,7 @@ export default function OrderingNoticeBanner({
       className={
         schedule
           ? "bg-teal-dark/95 text-cream px-5 py-3.5 text-center text-sm font-medium leading-relaxed border-b border-teal"
-          : "bg-red/90 text-white px-6 py-4 text-center font-semibold text-sm tracking-wide"
+          : "bg-charcoal/88 text-cream px-5 py-3.5 text-center text-sm font-medium leading-relaxed border-b border-cream-dark/40"
       }
       role="status"
     >

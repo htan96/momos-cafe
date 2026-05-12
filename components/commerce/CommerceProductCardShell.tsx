@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 interface CommerceProductCardShellProps {
   children: ReactNode;
@@ -9,6 +9,8 @@ interface CommerceProductCardShellProps {
   orderingDisabled?: boolean;
   onCardClick?: () => void;
   idAttr?: string;
+  /** Staggered entrance — matches Shop `ProductCard` */
+  cardStyle?: CSSProperties;
 }
 
 /**
@@ -21,10 +23,12 @@ export default function CommerceProductCardShell({
   orderingDisabled = false,
   onCardClick,
   idAttr,
+  cardStyle,
 }: CommerceProductCardShellProps) {
   return (
     <article
       id={idAttr}
+      style={cardStyle}
       role={onCardClick ? "button" : undefined}
       tabIndex={onCardClick ? 0 : undefined}
       onClick={orderingDisabled ? undefined : onCardClick}

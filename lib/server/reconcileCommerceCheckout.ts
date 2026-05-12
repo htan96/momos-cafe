@@ -13,6 +13,8 @@ export async function reconcileCommerceOrderAfterStorefrontPayment(input: {
   commerceOrderId: string;
   squarePaymentId: string;
   paidTotalCents: number;
+  /** Attach logged-in customer after payment if the draft order was anonymous */
+  customerId?: string | null;
   shipping: {
     cents: number;
     label?: string;
@@ -77,6 +79,13 @@ export async function reconcileCommerceOrderAfterStorefrontPayment(input: {
         totalCents: input.paidTotalCents,
         metadata: mergedMetadata as Prisma.InputJsonValue,
       },
+    });
+  }
+
+  if (input.customerId) {
+    await prisma.commerceOrder.updateMany({
+      where: { id: input.commerceOrderId, customerId: null },
+      data: { customerId: input.customerId },
     });
   }
 }

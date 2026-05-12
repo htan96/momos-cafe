@@ -125,20 +125,20 @@ export default function ModifierModal({
 
   return (
     <div
-      className={`fixed inset-0 z-[2000] flex items-end md:items-center justify-center md:p-6 transition-opacity duration-250 ${
+      className={`fixed inset-0 z-[970] flex items-end md:items-center justify-center md:p-6 transition-opacity duration-300 ${
         isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
       }`}
     >
       <button
         type="button"
         aria-label="Close"
-        className="absolute inset-0 bg-charcoal/55 backdrop-blur-[2px]"
+        className="absolute inset-0 bg-charcoal/50"
         onClick={onClose}
       />
       <div
         role="dialog"
         aria-modal="true"
-        className={`relative z-[2001] bg-cream w-full max-w-[600px] md:max-w-lg max-h-[min(92vh,760px)] rounded-t-2xl md:rounded-2xl shadow-[0_-8px_40px_rgba(0,0,0,0.18)] md:shadow-2xl overflow-hidden flex flex-col transition-transform duration-300 ease-out ${
+        className={`relative z-[971] bg-cream w-full max-w-[600px] md:max-w-lg max-h-[min(92vh,760px)] rounded-t-2xl md:rounded-2xl border border-cream-dark shadow-2xl overflow-hidden flex flex-col transition-transform duration-300 ease-out ${
           isOpen ? "translate-y-0" : "translate-y-full md:translate-y-4"
         }`}
         style={isOpen ? swipe.style : undefined}
@@ -161,16 +161,18 @@ export default function ModifierModal({
                 <span className="font-display text-5xl">M</span>
               </div>
             )}
-            <span className="absolute left-3 top-3 rounded-full bg-white/95 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-teal-dark shadow">
-              Build your plate
+            <span className="absolute left-3 top-3">
+              <span className="rounded-full bg-white/93 backdrop-blur-sm px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-teal-dark shadow-sm ring-1 ring-white/60">
+                Customize
+              </span>
             </span>
           </div>
 
           <div className="flex flex-col flex-1 min-h-0 overflow-y-auto">
-            <div className="p-5 pb-0 md:p-6 shrink-0 flex justify-between gap-3 items-start border-b border-cream-dark/60">
+            <div className="p-5 pb-0 md:p-6 shrink-0 flex justify-between gap-3 items-start border-b border-cream-dark bg-white">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-teal-dark mb-1">
-                  Your order
+                  Your cart
                 </p>
                 <h3 className="font-display text-2xl text-charcoal leading-tight pr-2">{item.name}</h3>
                 <p className="font-display text-lg text-red mt-1">${basePrice.toFixed(2)}</p>
@@ -245,12 +247,13 @@ export default function ModifierModal({
               ))}
             </div>
 
-            <div className="p-4 md:p-5 border-t border-cream-dark bg-white/60 flex-shrink-0">
+            <div className="p-4 md:p-5 border-t border-cream-dark bg-white flex-shrink-0">
               <div className="flex items-center gap-3 mb-3">
                 <CommerceQuantityControl
                   size="md"
                   quantity={qty}
                   onDelta={(d) => setQty((q) => Math.max(1, q + d))}
+                  disabled={orderingDisabled}
                 />
                 <div className="flex-1 text-right">
                   <span className="text-[10px] font-semibold uppercase tracking-wide text-charcoal/45">Total</span>
@@ -261,13 +264,15 @@ export default function ModifierModal({
                 type="button"
                 onClick={handleConfirm}
                 disabled={orderingDisabled}
-                className={`w-full py-3.5 px-4 rounded-xl font-semibold text-sm uppercase tracking-wide transition-all ${
+                className={`w-full py-3 px-4 rounded-xl font-semibold text-sm tracking-wide transition-all ${
                   orderingDisabled
-                    ? "bg-gray-mid text-white/80 cursor-not-allowed shadow-none"
-                    : "bg-charcoal text-cream shadow-[0_3px_0_#111] hover:bg-teal-dark active:translate-y-px"
+                    ? "bg-charcoal/20 text-charcoal/45 cursor-not-allowed"
+                    : "bg-red text-white hover:opacity-95"
                 }`}
               >
-                {orderingDisabled ? "Ordering Closed" : `Add to order · $${getTotalPrice().toFixed(2)}`}
+                {orderingDisabled
+                  ? "Kitchen checkout is paused — we saved your selections"
+                  : `Add to cart · $${getTotalPrice().toFixed(2)}`}
               </button>
             </div>
           </div>

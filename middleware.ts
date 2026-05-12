@@ -40,6 +40,16 @@ async function opsGate(request: NextRequest): Promise<NextResponse> {
   return NextResponse.next();
 }
 
+/**
+ * Browser-facing storefront endpoints must not sit behind INTERNAL_API_SECRET
+ * (only server jobs / orchestration use that gate). OPS routes stay locked.
+ */
+function isPublicStorefrontApi(pathname: string): boolean {
+  if (pathname === "/api/orders" || pathname.startsWith("/api/orders/")) return true;
+  if (pathname === "/api/cart" || pathname.startsWith("/api/cart/")) return true;
+  return false;
+}
+
 /** Internal orchestration guard — Bearer token OR custom header must match `INTERNAL_API_SECRET`. */
 function internalGate(request: NextRequest): NextResponse {
   const secret = process.env.INTERNAL_API_SECRET?.trim();
@@ -82,6 +92,10 @@ export async function middleware(request: NextRequest) {
 
   if (pathname.startsWith("/ops") || pathname.startsWith("/api/ops")) {
     return opsGate(request);
+  }
+
+  if (isPublicStorefrontApi(pathname)) {
+    return NextResponse.next();
   }
 
   return internalGate(request);

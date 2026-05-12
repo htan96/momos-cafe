@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { buildMagicLinkEmail } from "@/lib/email/templates/magicLink";
 
 export async function sendCustomerMagicLinkEmail(params: {
   to: string;
@@ -12,31 +13,19 @@ export async function sendCustomerMagicLinkEmail(params: {
   }
 
   const resend = new Resend(apiKey);
-  const host = new URL(params.magicUrl).host;
+  const hostLabel = new URL(params.magicUrl).host;
+
+  const { subject, textBody, htmlBody } = buildMagicLinkEmail({
+    magicUrl: params.magicUrl,
+    hostLabel,
+  });
 
   const { data, error } = await resend.emails.send({
     from,
     to: params.to,
-    subject: "Your Momo's sign-in link",
-    text: [
-      "Hi — use this one-time link to sign in to Momo's:",
-      "",
-      params.magicUrl,
-      "",
-      `This link expires in 15 minutes. If you didn’t request it, you can ignore this email.`,
-      "",
-      `— Momo's Café (${host})`,
-    ].join("\n"),
-    html: `
-      <p>Hi — tap the button below to sign in to Momo's. This link expires in <strong>15 minutes</strong>.</p>
-      <p style="margin:24px 0">
-        <a href="${params.magicUrl}" style="display:inline-block;background:#9e1b1b;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:600;">
-          Sign in to Momo's
-        </a>
-      </p>
-      <p style="font-size:13px;color:#555">Or paste this URL into your browser:<br/><span style="word-break:break-all">${params.magicUrl}</span></p>
-      <p style="font-size:13px;color:#777">If you didn’t request this, you can ignore this email.</p>
-    `,
+    subject,
+    text: textBody,
+    html: htmlBody,
   });
 
   if (error) {

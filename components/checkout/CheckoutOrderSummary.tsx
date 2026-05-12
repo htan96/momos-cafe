@@ -49,8 +49,10 @@ export default function CheckoutOrderSummary({
   const inner = (
     <>
       <div className="px-4 py-3 border-b border-cream-dark bg-teal-dark/95 text-cream">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-cream/80">Order summary</p>
-        <p className="font-display text-lg mt-0.5">Your bag</p>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-cream/80">
+          Checkout summary
+        </p>
+        <p className="font-display text-lg mt-0.5">Kitchen + mercantile</p>
       </div>
       <div className="p-4 space-y-5 max-h-[min(62vh,520px)] overflow-y-auto">
         {groups.length === 0 &&
@@ -88,10 +90,10 @@ export default function CheckoutOrderSummary({
         {heldAsideFoodLines && heldAsideFoodLines.length > 0 ? (
           <div className="border-t border-dashed border-cream-dark pt-4">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-charcoal/45 mb-2">
-              Kitchen picks (saved in your bag)
+              Café picks saved for later
             </p>
             <p className="text-xs text-charcoal/55 leading-relaxed mb-3">
-              These aren&apos;t included in this checkout while the kitchen is outside its ordering window.
+              We hold these until the kitchen opens again — your shop lines still sail through checkout.
             </p>
             <ul className="space-y-2">
               {heldAsideFoodLines.map((f) => (
@@ -115,7 +117,7 @@ export default function CheckoutOrderSummary({
       <div className="px-4 py-3 border-t border-cream-dark bg-cream/80 text-sm space-y-1">
         {subtotals.food > 0 && (
           <div className="flex justify-between text-charcoal/70">
-            <span>Kitchen subtotal</span>
+            <span>Café pickup subtotal</span>
             <span>{formatMoney(subtotals.food)}</span>
           </div>
         )}
@@ -130,7 +132,7 @@ export default function CheckoutOrderSummary({
           <span>{formatMoney(subtotals.total)}</span>
         </div>
         <p className="text-[11px] text-charcoal/45 leading-snug pt-1">
-          Taxes, shipping, and your total are confirmed on the left after any delivery selection.
+          One tally for every fulfillment lane — finalize taxes, parcel selection, and your total beside payment.
         </p>
       </div>
     </>

@@ -219,9 +219,9 @@ export default function CheckoutPage() {
       <div className={`max-w-6xl mx-auto ${commerceSectionSpacing.gap} flex flex-col`}>
         <header className="space-y-2">
           <p className={commerceCheckoutShell.sectionLabel}>Checkout · Momo&apos;s</p>
-          <h1 className="font-display text-3xl text-charcoal">Kitchen &amp; shop</h1>
+          <h1 className="font-display text-3xl text-charcoal">One café commerce checkout</h1>
           <p className="text-sm text-charcoal/65 max-w-2xl leading-relaxed">
-            One calm flow for pickup and shop orders. Adjust your bag anytime from{" "}
+            Morgen&apos;s Kitchen plates, hoodies for the block, parcels heading out — all orchestrated once. Peek into{" "}
             <button
               type="button"
               onClick={() => setDrawerOpen(true)}
@@ -259,11 +259,10 @@ export default function CheckoutPage() {
                 className={`${commerceCheckoutShell.card} p-5 md:p-6`}
                 aria-label="Shipping"
               >
-                <p className={commerceCheckoutShell.sectionLabel}>Shipping · shop delivery</p>
-                <h2 className="font-display text-xl text-charcoal mt-1 mb-3">Where should we ship eligible items?</h2>
+                <p className={commerceCheckoutShell.sectionLabel}>Delivery · parcels</p>
+                <h2 className="font-display text-xl text-charcoal mt-1 mb-3">Where shall we ship your shop pieces?</h2>
                 <p className="text-sm text-charcoal/65 mb-4 leading-relaxed">
-                  Delivery choices appear once your address is filled in. Gift cards and pickup-only pieces skip this
-                  step automatically.
+                  Carrier choices unlock after a complete address — pickup-first merch skips this gracefully on its own.
                 </p>
                 <div className="grid sm:grid-cols-2 gap-3">
                   <label className="block text-[10px] font-semibold uppercase tracking-wider text-charcoal/55">

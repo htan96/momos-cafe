@@ -13,6 +13,13 @@ export const commerceSectionSpacing = {
   sectionMb: "mb-14",
 } as const;
 
+/** Header (64px) + category strip (~52px) + breathing room */
+export const commerceMenuScrollMargin = "scroll-mt-[128px]";
+
+/** Sticky collection / menu category chrome — pairs with `CollectionFilterBar` */
+export const commerceCategoryStripShell =
+  "bg-cream/95 backdrop-blur-md border-y border-cream-dark/70 shadow-[0_8px_20px_-12px_rgba(44,44,44,0.18)]";
+
 /** Shared checkout / shop shell — cream field, teal structure, red CTAs */
 export const commerceCheckoutShell = {
   page: "min-h-screen bg-cream text-charcoal",

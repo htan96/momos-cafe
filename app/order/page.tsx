@@ -9,7 +9,7 @@ import { useHeaderSubNav } from "@/context/HeaderSubNavContext";
 import { useAdminSettings, getOrderingStatus } from "@/lib/useAdminSettings";
 import OrderingNoticeBanner from "@/components/menu/OrderingNoticeBanner";
 import MenuGrid from "@/components/ordering/MenuGrid";
-import CategoryNav from "@/components/ordering/CategoryNav";
+import CategoryNav from "@/components/sections/menu/CategoryNav";
 import CheckoutFlow from "@/components/ordering/CheckoutFlow";
 
 export default function OrderPage() {
@@ -68,11 +68,7 @@ export default function OrderPage() {
   }, []);
 
   useEffect(() => {
-    setSubNav(
-      <div className="max-w-7xl mx-auto h-full px-4 flex items-center min-w-0">
-        <CategoryNav categories={categories} onScrollTo={scrollToSection} embeddedInHeader />
-      </div>
-    );
+    setSubNav(<CategoryNav categories={categories} onScrollTo={scrollToSection} embeddedInHeader />);
     return () => setSubNav(null);
   }, [categories, scrollToSection, setSubNav]);
 

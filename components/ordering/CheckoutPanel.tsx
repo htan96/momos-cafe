@@ -477,14 +477,14 @@ export default function CheckoutPanel({
       <div className={embedInPage ? "p-5 md:p-6" : "p-6"}>
         {count > 0 ? (
           <>
-            <h3 className="font-display text-xl text-charcoal mb-2">Fulfillment</h3>
+            <h3 className="font-display text-xl text-charcoal mb-2">Fulfillment choreography</h3>
             <p className="text-sm text-charcoal/70 mb-4 leading-relaxed">
-              Morgen&apos;s Kitchen pickup at the window during active ordering hours — we anchor prep to the next
-              available pickup inside today&apos;s posted window.
+              Hospitality runs in lanes: café pickups alongside mercantile + parcel drops. Morgen&apos;s Kitchen stays
+              on the posted window logic while retail paths hum quietly beside it.
               {count > 0 && !allowKitchenPay ? (
                 <span className="block mt-2 text-teal-dark font-semibold">
-                  The kitchen isn&apos;t accepting food orders in this moment. Merchandise and gifts in your bag can
-                  still be purchased — this payment will skip kitchen lines.
+                  The kitchen is resting — we&apos;ll gracefully skip plated items for this tender while mercantile
+                  continues uninterrupted.
                 </span>
               ) : null}
             </p>
@@ -520,8 +520,8 @@ export default function CheckoutPanel({
           </>
         ) : merchCount > 0 ? (
           <p className="text-sm text-charcoal/70 mb-6 leading-relaxed">
-            Shop pickup and shipping are arranged with the selections in your bag — Momo&apos;s team
-            handles each group from here.
+            Retail pickup or parcel shipping stays paired with mercantile items — Ops routes each lane while you settle
+            up once for everything.
           </p>
         ) : null}
 
@@ -530,11 +530,11 @@ export default function CheckoutPanel({
             {count > 0 && (
               <>
                 <div className="flex justify-between text-sm text-charcoal/65 py-1.5 border-b border-cream-dark">
-                  <span>Kitchen subtotal</span>
+                  <span>Café pickup subtotal</span>
                   <span>${foodTotalForPayment.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm text-charcoal/65 py-1.5 border-b border-cream-dark">
-                  <span>Kitchen tax (9.25%)</span>
+                  <span>Café tax (9.25%)</span>
                   <span>${tax.toFixed(2)}</span>
                 </div>
               </>

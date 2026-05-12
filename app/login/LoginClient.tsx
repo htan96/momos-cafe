@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { normalizeAuthEmail } from "@/lib/auth/emailNormalize";
 
 const ERROR_COPY: Record<string, string> = {
@@ -12,6 +12,8 @@ const ERROR_COPY: Record<string, string> = {
   rate_limited: "Too many attempts. Try again in a minute.",
   session_unconfigured: "Sign-in is temporarily unavailable. Please try again later.",
 };
+
+const MAGIC_RESEND_MS = 60_000;
 
 export default function LoginClient() {
   const router = useRouter();
@@ -33,6 +35,37 @@ export default function LoginClient() {
     urlError ? ERROR_COPY[urlError] ?? "Something went wrong. Try again." : null
   );
   const [busy, setBusy] = useState(false);
+  const [lastMagicSentAt, setLastMagicSentAt] = useState<number | null>(null);
+  const [nowTick, setNowTick] = useState(Date.now());
+
+  /** Guest customer session restores — skip when explicitly heading to ops console. */
+  useEffect(() => {
+    if (step !== "email") return;
+    if (nextPath.startsWith("/ops")) return;
+    let cancelled = false;
+    fetch("/api/auth/session")
+      .then((r) => r.json())
+      .then((d: { authenticated?: boolean }) => {
+        if (cancelled) return;
+        if (d.authenticated) {
+          router.replace(nextPath);
+          router.refresh();
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [router, step, nextPath]);
+
+  useEffect(() => {
+    if (step !== "magic_sent" || !lastMagicSentAt) return;
+    const id = window.setInterval(() => setNowTick(Date.now()), 400);
+    return () => window.clearInterval(id);
+  }, [step, lastMagicSentAt]);
+
+  const resendRemainSec =
+    lastMagicSentAt !== null ? Math.ceil(Math.max(0, MAGIC_RESEND_MS - (nowTick - lastMagicSentAt)) / 1000) : 0;
 
   async function onEmailContinue(e: React.FormEvent) {
     e.preventDefault();
@@ -75,11 +108,50 @@ export default function LoginClient() {
 
       if (data.mode === "magic_link_sent") {
         setStep("magic_sent");
+        setLastMagicSentAt(Date.now());
         setInfo(`We sent a sign-in link to ${norm}. It expires in 15 minutes.`);
         return;
       }
 
       setError("Unexpected response from server.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onRetryMagicSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (busy || resendRemainSec > 0) return;
+    const norm = normalizeAuthEmail(email);
+    if (!norm.includes("@")) {
+      setStep("email");
+      setError("Enter a valid email address.");
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/auth/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: norm, next: nextPath }),
+      });
+      const data = (await res.json()) as { mode?: string; error?: string };
+      if (!res.ok) {
+        if (data.error === "rate_limited") setError("Hold tight — inbox traffic is pacing.");
+        else setError("We couldn't send that link just now.");
+        return;
+      }
+      if (data.mode === "magic_link_sent") {
+        setLastMagicSentAt(Date.now());
+        setInfo(`Fresh link dispatched to ${norm}. Still valid for 15 minutes once opened.`);
+        return;
+      }
+      if (data.mode === "password_required") {
+        setStep("password");
+        setInfo("This mailbox routes to Ops — switching you to secure password mode.");
+      }
     } finally {
       setBusy(false);
     }
@@ -123,26 +195,44 @@ export default function LoginClient() {
         Sign in
       </h1>
       <p className="mt-2 text-center text-[14px] text-charcoal/75 leading-relaxed">
-        One place for your account and authorized café operations.
+        One calm door for café guests + trusted operators behind the curtain.
       </p>
 
       {step === "magic_sent" ? (
         <div className="mt-8 space-y-4 text-center">
+          <div className="flex justify-center text-[32px]" aria-hidden>
+            ✉️
+          </div>
           <p className="text-[15px] text-charcoal leading-relaxed">{info}</p>
-          <p className="text-[13px] text-charcoal/60">
-            Didn&apos;t get it? Check spam, then{" "}
-            <button
-              type="button"
-              className="text-teal-dark font-semibold underline-offset-2 hover:underline"
-              onClick={() => {
-                setStep("email");
-                setInfo(null);
-              }}
-            >
-              try again
-            </button>
-            .
+          <p className="text-[13px] text-charcoal/55">
+            {resendRemainSec > 0
+              ? `Resend available in ${resendRemainSec}s.`
+              : "You can request another link anytime below."}
           </p>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void onRetryMagicSubmit(e);
+            }}
+          >
+            <button
+              type="submit"
+              disabled={busy || resendRemainSec > 0}
+              className="w-full rounded-lg border border-teal-dark/35 text-teal-dark font-semibold py-3 text-[14px] disabled:opacity-40 hover:bg-teal/5 transition-colors"
+            >
+              Resend magic link
+            </button>
+          </form>
+          <button
+            type="button"
+            className="w-full text-[13px] text-charcoal/60 hover:text-charcoal pt-2"
+            onClick={() => {
+              setStep("email");
+              setInfo(null);
+            }}
+          >
+            Edit email address
+          </button>
         </div>
       ) : step === "password" ? (
         <form onSubmit={onOpsPassword} className="mt-8 space-y-4">
@@ -201,13 +291,16 @@ export default function LoginClient() {
               autoComplete="email"
               required
               value={email}
-              onChange={(ev) => setEmail(ev.target.value)}
+              onChange={(ev) => {
+                setEmail(ev.target.value);
+                setLastMagicSentAt(null);
+              }}
               placeholder="you@example.com"
               className="mt-1 w-full rounded-lg border border-charcoal/15 bg-white px-3 py-2.5 text-[15px] text-charcoal placeholder:text-charcoal/35 outline-none focus:border-teal-dark"
             />
           </label>
           <p className="text-[12px] text-charcoal/55 leading-relaxed">
-            Customers receive a one-time magic link. Authorized operators may be asked for a password.
+            Café guests glide in with magic links — operators optionally step through a password checkpoint.
           </p>
           {error ? (
             <p className="text-sm text-red bg-red/10 border border-red/25 rounded-lg px-3 py-2">{error}</p>

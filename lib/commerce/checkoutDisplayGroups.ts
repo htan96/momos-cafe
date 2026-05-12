@@ -15,17 +15,17 @@ export function buildCheckoutDisplayGroups(lines: UnifiedCartLine[]): CheckoutDi
 
   const groups: CheckoutDisplayGroup[] = [];
   if (food.length > 0) {
-    groups.push({ key: "kitchen", title: "Kitchen pickup", lines: food });
+    groups.push({ key: "kitchen", title: "Café pickup (kitchen window)", lines: food });
   }
 
   const retailPickup = merch.filter((m) => !m.shippingEligible);
   const retailShip = merch.filter((m) => m.shippingEligible);
 
   if (retailPickup.length > 0) {
-    groups.push({ key: "retail_pickup", title: "Retail pickup", lines: retailPickup });
+    groups.push({ key: "retail_pickup", title: "Shop · pickup alongside us", lines: retailPickup });
   }
   if (retailShip.length > 0) {
-    groups.push({ key: "retail_ship", title: "Retail shipping", lines: retailShip });
+    groups.push({ key: "retail_ship", title: "Shop · ship to your door", lines: retailShip });
   }
 
   return groups;

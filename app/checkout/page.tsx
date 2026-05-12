@@ -57,12 +57,14 @@ export default function CheckoutPage() {
   const [shipZip, setShipZip] = useState("");
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [shippingOptions, setShippingOptions] = useState<
-    { uid: string; name: string; amountCents: number }[]
+    { uid: string; name: string; amountCents: number; estimatedDays?: number; provider?: string }[]
   >([]);
   const [selectedShip, setSelectedShip] = useState<{
     uid: string;
     name: string;
     amountCents: number;
+    estimatedDays?: number;
+    provider?: string;
   } | null>(null);
   const [quoteHint, setQuoteHint] = useState<string | null>(null);
 
@@ -107,7 +109,13 @@ export default function CheckoutPage() {
         }),
       });
       const data = (await res.json()) as {
-        options?: { uid: string; name: string; amountCents: number }[];
+        options?: {
+          uid: string;
+          name: string;
+          amountCents: number;
+          estimatedDays?: number;
+          provider?: string;
+        }[];
         message?: string;
       };
       if (!res.ok) {
@@ -123,7 +131,7 @@ export default function CheckoutPage() {
         setQuoteHint(
           typeof data.message === "string"
             ? data.message
-            : "No delivery rates returned yet — Square may still be configuring shipping, or try another address."
+            : "No delivery options matched this address yet — try another ZIP or shop pickup."
         );
       } else {
         setSelectedShip(opts[0] ?? null);
@@ -254,7 +262,7 @@ export default function CheckoutPage() {
                 <p className={commerceCheckoutShell.sectionLabel}>Shipping · shop delivery</p>
                 <h2 className="font-display text-xl text-charcoal mt-1 mb-3">Where should we ship eligible items?</h2>
                 <p className="text-sm text-charcoal/65 mb-4 leading-relaxed">
-                  Rates come from Square based on your cart and address. Gift cards and pickup-only pieces skip this
+                  Delivery choices appear once your address is filled in. Gift cards and pickup-only pieces skip this
                   step automatically.
                 </p>
                 <div className="grid sm:grid-cols-2 gap-3">
@@ -348,6 +356,7 @@ export default function CheckoutPage() {
                   shippingCents={selectedShip?.amountCents ?? 0}
                   selectedShippingQuoteUid={selectedShip?.uid ?? null}
                   selectedShippingLabel={selectedShip?.name ?? null}
+                  selectedShippingProvider={selectedShip?.provider ?? null}
                   requiresShippingChoice={requiresShippingChoice}
                   commerceOrderId={commerceOrderId}
                   onCommerceOrderResolved={(id) => setCommerceOrderId(id)}

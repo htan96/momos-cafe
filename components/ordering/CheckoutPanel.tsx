@@ -42,10 +42,11 @@ interface CheckoutPanelProps {
   kitchenFoodPaymentAllowed?: boolean;
   /** @deprecated Use `kitchenFoodPaymentAllowed` — storefront is never hard-closed. */
   orderingDisabled?: boolean;
-  /** Cents from Square shipping quote (storefront checkout). */
+  /** Cents from storefront delivery quote (unified checkout). */
   shippingCents?: number;
   selectedShippingQuoteUid?: string | null;
   selectedShippingLabel?: string | null;
+  selectedShippingProvider?: string | null;
   /** When shop items need ship quotes first */
   requiresShippingChoice?: boolean;
   commerceOrderId?: string | null;
@@ -72,6 +73,7 @@ export default function CheckoutPanel({
   shippingCents = 0,
   selectedShippingQuoteUid = null,
   selectedShippingLabel = null,
+  selectedShippingProvider = null,
   requiresShippingChoice = false,
   commerceOrderId = null,
   onCommerceOrderResolved,
@@ -130,10 +132,10 @@ export default function CheckoutPanel({
 
   /**
    * One Square card flow for the combined bag when possible: a single `orders.create` + `payments.create`
-   * carries kitchen catalog lines, shop lines, tax, and a `TOTAL_PHASE` shipping charge (see `/api/order`).
+   * carries kitchen catalog lines, shop lines, tax, and a `TOTAL_PHASE` delivery charge (see `/api/order`).
    *
    * Square only allows one fulfillment on `orders.create`; we keep kitchen pickup on the paid order and
-   * treat ship-to-home operationally via fulfillment groups + `SHIPMENT`-style quotes from `orders.calculate`.
+   * attach ship-to-home operations on retail fulfillment groups using checkout delivery quotes + ops labels.
    */
   const combinedGrandTotal = foodGrandTotal + merchSubtotal + merchTax + shippingUsd;
 
@@ -251,6 +253,7 @@ export default function CheckoutPanel({
           shippingCents,
           selectedShippingLabel: selectedShippingLabel ?? undefined,
           selectedShippingQuoteUid: selectedShippingQuoteUid ?? undefined,
+          selectedShippingProvider: selectedShippingProvider ?? undefined,
           commerceOrderId: resolvedCommerceId ?? undefined,
           scheduledFor: pickupIso,
         }),
@@ -300,6 +303,7 @@ export default function CheckoutPanel({
       shippingCents,
       selectedShippingLabel,
       selectedShippingQuoteUid,
+      selectedShippingProvider,
       ensureCommerceOrder,
       pickupDisplayInstant,
       onOrderPlaced,

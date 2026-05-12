@@ -21,6 +21,7 @@ import {
 import { verifySquarePaymentCaptured } from "@/lib/verifySquarePayment";
 import { parseUnifiedCartLines } from "@/lib/commerce/parseUnifiedCartLines";
 import { reconcileCommerceOrderAfterStorefrontPayment } from "@/lib/server/reconcileCommerceCheckout";
+import { persistStorefrontShipmentSelection } from "@/lib/server/persistStorefrontShipment";
 import type { UnifiedMerchLine } from "@/types/commerce";
 
 const TAX_RATE = 0.0925;
@@ -265,8 +266,7 @@ export async function POST(request: Request) {
      *   shipping service charge (`buildUnifiedSquareCreateOrderRequest` in `lib/squareOrderFromCart.ts`).
      * - `PaymentsApi.createPayment` — single customer charge; `orderId` set when the itemized Square order path succeeds.
      *
-     * Shipping quotes (preview): `OrdersApi.calculateOrder` in `lib/shipping/squareShippingQuote.ts` and
-     * `POST /api/checkout/shipping-quote` with a `SHIPMENT` fulfillment — see that module for details.
+     * Delivery quotes (preview): `POST /api/checkout/shipping-quote` — carrier rate lookup for eligible shop lines.
      *
      * Square allows only one fulfillment on `orders.create`; pickup is used on the paid order while shipment
      * quotes use `calculateOrder` + ops fulfillment groups for retail shipping.
@@ -294,6 +294,7 @@ export async function POST(request: Request) {
       shippingCents: rawShippingCents,
       selectedShippingLabel,
       selectedShippingQuoteUid,
+      selectedShippingProvider,
       commerceOrderId: rawCommerceOrderId,
     } = (body ?? {}) as {
       cart?: CartItem[];
@@ -305,10 +306,12 @@ export async function POST(request: Request) {
       paymentIdempotencyKey?: string;
       /** Serialized `UnifiedMerchLine` rows — same shape as unified cart storage */
       merchLines?: unknown;
-      /** Whole cents — from Square shipping quote selection */
+      /** Whole cents — from storefront delivery quote selection */
       shippingCents?: number;
       selectedShippingLabel?: string;
       selectedShippingQuoteUid?: string;
+      /** Carrier brand from quote — persisted with order metadata */
+      selectedShippingProvider?: string;
       commerceOrderId?: string;
     };
 
@@ -463,6 +466,11 @@ export async function POST(request: Request) {
     const shippingQuoteUidNormalized =
       typeof selectedShippingQuoteUid === "string" && selectedShippingQuoteUid.trim().length > 0
         ? selectedShippingQuoteUid.trim().slice(0, 120)
+        : undefined;
+
+    const selectedShippingProviderNormalized =
+      typeof selectedShippingProvider === "string" && selectedShippingProvider.trim().length > 0
+        ? selectedShippingProvider.trim().slice(0, 120)
         : undefined;
 
     if (canUseSquareOrders) {
@@ -809,6 +817,9 @@ export async function POST(request: Request) {
                     cents: shippingCents,
                     label: shippingLabelNormalized,
                     quoteUid: shippingQuoteUidNormalized,
+                    ...(selectedShippingProviderNormalized
+                      ? { provider: selectedShippingProviderNormalized }
+                      : {}),
                   }
                 : null,
           });
@@ -818,6 +829,24 @@ export async function POST(request: Request) {
             paymentId,
             error: commerceErr instanceof Error ? commerceErr.message : String(commerceErr),
           });
+        }
+
+        if (shippingCents > 0) {
+          try {
+            await persistStorefrontShipmentSelection({
+              commerceOrderId,
+              shippingCents,
+              selectedShippoRateId: shippingQuoteUidNormalized,
+              shippingService: shippingLabelNormalized,
+              carrierHint: selectedShippingProviderNormalized,
+            });
+          } catch (shipErr) {
+            console.error("[Order] Shipment row persistence failed", {
+              commerceOrderId,
+              paymentId,
+              error: shipErr instanceof Error ? shipErr.message : String(shipErr),
+            });
+          }
         }
       }
     }

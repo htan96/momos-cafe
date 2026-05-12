@@ -16,12 +16,13 @@ export default async function OpsShippingPage() {
     <>
       <OpsPageHeader
         title="Shipping"
-        description="Retail parcels — manual tracking today; carrier APIs plug into the same Shipment rows."
+        description="Retail parcels — storefront quotes, automated labels, or manual tracking on Shipment rows."
       />
 
       <p className="text-[#c9bba8]/80 text-xs rounded-lg border border-dashed border-[#3d3830] px-3 py-2 mb-2">
-        Labels stay manual in ops for now — carriers and tracking numbers are entered here. Storefront delivery
-        rates are sourced from Square; totals and selected methods flow through unified checkout.
+        Storefront guests pick a delivery tier at checkout; ops can buy the label when ready via{" "}
+        <code className="text-[#8FC4C4]/90">POST /api/ops/shipping/purchase-label</code> with a{" "}
+        <code className="text-[#8FC4C4]/90">shipmentId</code> that has a saved rate id. Manual tracking below still works.
       </p>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">

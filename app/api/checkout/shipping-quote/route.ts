@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { parseUnifiedCartLines } from "@/lib/commerce/parseUnifiedCartLines";
 import { isUnifiedMerchLine } from "@/lib/commerce/parseUnifiedCartLines";
-import { fetchSquareShippingQuotes } from "@/lib/shipping/squareShippingQuote";
+import { buildParcelEstimate } from "@/lib/shipping/buildParcelEstimate";
+import { getShippoRates, readShippoWarehouseAddress } from "@/lib/shipping/shippoClient";
 import type { UnifiedMerchLine } from "@/types/commerce";
+import type { AddressCreateRequest } from "shippo";
 
 function exposeShippingQuoteDetailToClient(): boolean {
   return (
@@ -13,15 +15,10 @@ function exposeShippingQuoteDetailToClient(): boolean {
 
 /**
  * POST /api/checkout/shipping-quote
- * Square **Orders.calculateOrder** — see `lib/shipping/squareShippingQuote.ts`.
+ * Carrier rate preview for eligible shop lines — server-side integration only (no carrier branding in UI).
  */
 export async function POST(req: Request) {
   try {
-    const locationId = process.env.SQUARE_LOCATION_ID?.trim();
-    if (!locationId) {
-      return NextResponse.json({ error: "checkout_unavailable" }, { status: 503 });
-    }
-
     const body = (await req.json()) as {
       lines?: unknown;
       address?: {
@@ -39,7 +36,8 @@ export async function POST(req: Request) {
     }
 
     const merchShippable = lines.filter(
-      (l): l is UnifiedMerchLine => isUnifiedMerchLine(l) && l.shippingEligible
+      (l): l is UnifiedMerchLine =>
+        isUnifiedMerchLine(l) && l.shippingEligible && l.kind === "merch" && l.fulfillmentSlug !== "gift_card"
     );
 
     if (merchShippable.length === 0) {
@@ -60,31 +58,64 @@ export async function POST(req: Request) {
         : "Guest";
     const phoneDigits = (body.contact?.phone ?? "").replace(/\D/g, "");
     const phone =
-      phoneDigits.length >= 10 ? body.contact!.phone!.trim() : "+15555555555";
+      phoneDigits.length >= 10 ? body.contact!.phone!.trim().slice(0, 32) : "+15555555555";
 
-    const { options, detail } = await fetchSquareShippingQuotes({
-      locationId,
-      merchShippableLines: merchShippable,
-      address: { street, city, state, postalCode },
-      contact: {
-        name,
-        phone,
-        email: body.contact?.email?.trim() || undefined,
-      },
-    });
+    const from = readShippoWarehouseAddress();
+    if (!from) {
+      console.error("[checkout/shipping-quote] Missing SHIPPO_FROM_* warehouse address env");
+      return NextResponse.json(
+        {
+          options: [],
+          message: "Delivery quotes are not available right now. Try shop pickup or contact the restaurant.",
+        },
+        { status: 503 }
+      );
+    }
+
+    const to: AddressCreateRequest = {
+      name,
+      street1: street.slice(0, 120),
+      city: city.slice(0, 120),
+      state: state.slice(0, 8),
+      zip: postalCode.slice(0, 16),
+      country: "US",
+      phone,
+      ...(body.contact?.email?.trim() ? { email: body.contact.email.trim().slice(0, 254) } : {}),
+    };
+
+    const parcel = buildParcelEstimate(merchShippable);
+    const result = await getShippoRates({ from, to, parcel });
+
+    if (!result.ok) {
+      console.error("[checkout/shipping-quote] Rate lookup failed:", result.logDetail);
+      return NextResponse.json({
+        options: [],
+        message:
+          "We couldn’t load delivery prices right now. Check your address, choose contactless shop pickup, or try again shortly.",
+        ...(exposeShippingQuoteDetailToClient() ? { detail: "rate_unavailable" } : {}),
+      });
+    }
+
+    const options = result.options;
 
     return NextResponse.json({
       options,
-      ...(exposeShippingQuoteDetailToClient() && detail ? { detail } : {}),
+      ...(exposeShippingQuoteDetailToClient() && options.length === 0 ? { detail: "no_rates" } : {}),
       ...(options.length === 0
         ? {
             message:
-              "We couldn’t load delivery prices yet. Check your address, choose contactless shop pickup, or ask the restaurant to finish turning on shipping in their checkout settings.",
+              "No delivery options matched this address yet. Try another ZIP or choose shop pickup.",
           }
         : {}),
     });
   } catch (e) {
     console.error("[checkout/shipping-quote POST]", e);
-    return NextResponse.json({ error: "quote_failed" }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: "quote_failed",
+        message: "Something went wrong loading delivery options. Please try again.",
+      },
+      { status: 500 }
+    );
   }
 }

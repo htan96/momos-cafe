@@ -18,6 +18,8 @@ export async function reconcileCommerceOrderAfterStorefrontPayment(input: {
     label?: string;
     quoteUid?: string;
     addressSummary?: string;
+    /** Carrier brand from quote selection — storefront-only metadata */
+    provider?: string;
   } | null;
 }): Promise<void> {
   const order = await prisma.commerceOrder.findUnique({ where: { id: input.commerceOrderId } });
@@ -33,6 +35,7 @@ export async function reconcileCommerceOrderAfterStorefrontPayment(input: {
         ...(input.shipping.label ? { selectedLabel: input.shipping.label } : {}),
         ...(input.shipping.quoteUid ? { quoteUid: input.shipping.quoteUid } : {}),
         ...(input.shipping.addressSummary ? { addressSummary: input.shipping.addressSummary } : {}),
+        ...(input.shipping.provider ? { carrierQuoteProvider: input.shipping.provider } : {}),
       }
     : {};
 

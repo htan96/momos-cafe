@@ -159,7 +159,7 @@ model FulfillmentGroup {
   pickupWindow      PickupWindow?     @relation(fields: [pickupWindowId], references: [id], onDelete: SetNull)
 
   items     FulfillmentItem[]
-  /// Manual carrier tracking — one active row typical per retail ship group; storefront rates come from Square.
+  /// Manual carrier tracking — one active row typical per retail ship group; storefront quotes persist on `Shipment`.
   shipments Shipment[]
 
   @@index([orderId])
@@ -178,6 +178,13 @@ model Shipment {
   status             String             @default("pending") @map("status")
   shippedAt          DateTime?          @map("shipped_at") @db.Timestamptz(6)
   notes              String?            @map("notes") @db.Text
+  /// Whole cents charged at checkout for this shipment row (storefront quote selection).
+  shippingCents      Int?               @map("shipping_cents")
+  /// Human-readable carrier service label from the storefront quote (e.g. tier name).
+  shippingService    String?            @map("shipping_service")
+  /// Carrier rate object id used to purchase a label (expires ~7 days per carrier API rules).
+  selectedShippoRateId String?        @map("selected_shippo_rate_id")
+  metadata           Json?
 
   @@index([fulfillmentGroupId])
   @@map("shipments")

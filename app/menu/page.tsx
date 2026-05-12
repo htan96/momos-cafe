@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { MenuCategory } from "@/types/menu";
@@ -16,6 +16,7 @@ import ModifierModal from "@/components/sections/menu/ModifierModal";
 import MenuPickupContextStrip from "@/components/sections/menu/MenuPickupContextStrip";
 import type { MenuItem } from "@/types/menu";
 import type { SelectedModifier } from "@/types/ordering";
+import { commerceMenuScrollMargin } from "@/lib/commerce/tokens";
 
 export default function MenuPage() {
   const router = useRouter();
@@ -25,6 +26,7 @@ export default function MenuPage() {
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [modifierItem, setModifierItem] = useState<MenuItem | null>(null);
+  const [activeCategorySlug, setActiveCategorySlug] = useState<string | null>(null);
 
   const orderingDisabled = settings ? !settings.isOrderingOpen : false;
 
@@ -76,22 +78,37 @@ export default function MenuPage() {
     [addItem]
   );
 
-  const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
   const { setSubNav } = useHeaderSubNav() ?? { setSubNav: () => {} };
 
-  const SCROLL_OFFSET = 120;
+  const effectiveCategorySlug =
+    activeCategorySlug && categories.some((c) => c.slug === activeCategorySlug)
+      ? activeCategorySlug
+      : categories[0]?.slug ?? "";
 
-  const scrollToSection = useCallback((slug: string) => {
-    const el = sectionRefs.current[slug];
-    if (!el) return;
-    const y = el.getBoundingClientRect().top + window.scrollY - SCROLL_OFFSET;
-    window.scrollTo({ top: y, behavior: "smooth" });
+  const activeCategory =
+    effectiveCategorySlug ? categories.find((c) => c.slug === effectiveCategorySlug) : undefined;
+
+  const selectMenuCategory = useCallback((slug: string) => {
+    setActiveCategorySlug(slug);
+    requestAnimationFrame(() => {
+      document.getElementById("menu-catalog")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
   }, []);
 
   useEffect(() => {
-    setSubNav(<CategoryNav categories={categories} onScrollTo={scrollToSection} embeddedInHeader />);
+    setSubNav(
+      <CategoryNav
+        categories={categories}
+        activeSlug={effectiveCategorySlug}
+        onSelect={selectMenuCategory}
+        embeddedInHeader
+      />
+    );
     return () => setSubNav(null);
-  }, [categories, scrollToSection, setSubNav]);
+  }, [categories, effectiveCategorySlug, selectMenuCategory, setSubNav]);
 
   const orderingStatus = getOrderingStatus(settings ?? DEFAULT_SETTINGS);
 
@@ -127,7 +144,7 @@ export default function MenuPage() {
               Momo&apos;s kitchen menu
             </h1>
             <p className="text-[13px] text-charcoal/55 mt-2 max-w-xl leading-relaxed">
-              Browse by category — everything lands in the same cart as Shop for one calm checkout.
+              One category at a time — same cart as Shop for one calm checkout.
             </p>
           </div>
           <Link
@@ -157,21 +174,18 @@ export default function MenuPage() {
                 Back home
               </button>
             </div>
-          ) : (
-            categories.map((category) => (
+          ) : activeCategory ? (
+            <div id="menu-catalog" className={commerceMenuScrollMargin}>
               <MenuCategorySection
-                key={category.id}
-                ref={(el) => {
-                  sectionRefs.current[category.slug] = el;
-                }}
-                category={category}
+                category={activeCategory}
+                className="!mb-0"
                 headerOffset={64}
                 orderingDisabled={orderingDisabled}
                 onAdd={(item) => addToCart(item, 1)}
                 onCustomize={(item) => setModifierItem(item)}
               />
-            ))
-          )}
+            </div>
+          ) : null}
         </main>
 
         <CartSidebar headerOffset={64} orderingDisabled={orderingDisabled} />

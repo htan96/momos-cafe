@@ -13,18 +13,33 @@ interface CategoryNavProps {
   onScrollTo?: (slug: string) => void;
   /** Rendered inside site header — outer chrome is provided by `Header`. */
   embeddedInHeader?: boolean;
+  /**
+   * Filter mode (Shop-style): parent owns selection; scroll-spy disabled.
+   * Pass with `onSelect` — mirrors `CollectionFilterBar` + `activeId`.
+   */
+  activeSlug?: string;
+  onSelect?: (slug: string) => void;
 }
 
 export default function CategoryNav({
   categories,
   onScrollTo,
   embeddedInHeader = false,
+  activeSlug: activeSlugProp,
+  onSelect,
 }: CategoryNavProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [activeId, setActiveId] = useState<string>(categories[0]?.slug ?? "");
+  const filterMode = typeof onSelect === "function";
+  const [internalActive, setInternalActive] = useState<string>(categories[0]?.slug ?? "");
+
+  const activeId = filterMode
+    ? (activeSlugProp && categories.some((c) => c.slug === activeSlugProp)
+        ? activeSlugProp
+        : categories[0]?.slug ?? "")
+    : internalActive;
 
   useEffect(() => {
-    if (categories.length === 0) return;
+    if (filterMode || categories.length === 0) return;
 
     const updateActive = () => {
       let best: string | null = null;
@@ -53,7 +68,7 @@ export default function CategoryNav({
         }
         best = closest;
       }
-      if (best) setActiveId(best);
+      if (best) setInternalActive(best);
     };
 
     updateActive();
@@ -70,7 +85,14 @@ export default function CategoryNav({
       window.removeEventListener("scroll", onScroll);
       if (raf) cancelAnimationFrame(raf);
     };
-  }, [categories]);
+  }, [categories, filterMode]);
+
+  useEffect(() => {
+    if (filterMode || categories.length === 0) return;
+    setInternalActive((prev) =>
+      prev && categories.some((c) => c.slug === prev) ? prev : categories[0]!.slug
+    );
+  }, [categories, filterMode]);
 
   useEffect(() => {
     if (!activeId) return;
@@ -82,10 +104,14 @@ export default function CategoryNav({
     }
   }, [activeId]);
 
-  const scrollTo = useCallback(
+  const handlePillActivate = useCallback(
     (slug: string) => {
-      onScrollTo?.(slug);
-      setActiveId(slug);
+      if (filterMode) {
+        onSelect?.(slug);
+      } else {
+        onScrollTo?.(slug);
+        setInternalActive(slug);
+      }
       const btn = scrollRef.current?.querySelector(`[data-slug="${slug}"]`) as HTMLElement | null;
       const container = scrollRef.current;
       if (btn && container) {
@@ -93,7 +119,7 @@ export default function CategoryNav({
         container.scrollTo({ left: Math.max(0, scrollLeft), behavior: "smooth" });
       }
     },
-    [onScrollTo]
+    [filterMode, onSelect, onScrollTo]
   );
 
   if (categories.length === 0) return null;
@@ -122,7 +148,7 @@ export default function CategoryNav({
                 dataSlug={cat.slug}
                 label={cat.name}
                 active={active}
-                onClick={() => scrollTo(cat.slug)}
+                onClick={() => handlePillActivate(cat.slug)}
               />
             );
           })}

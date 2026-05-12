@@ -6,7 +6,7 @@
 # Deps → Prisma migrate deploy + generate → next build → PM2 reload
 #
 # Requires on server:
-#   - .env and/or .env.production with DATABASE_URL, Supabase, Square vars (see .env.example)
+#   - .env and/or .env.production with DATABASE_URL and app secrets (see .env.example)
 #   - PM2; for reboot persistence run: `pm2 save` after `pm2 start` and enable `pm2 startup`
 # -----------------------------------------------------------------------------
 set -euo pipefail
@@ -18,7 +18,6 @@ PM2_NAME="${PM2_NAME:-momos-web}"
 LOG_PREFIX="${LOG_PREFIX:-[momos-deploy]}"
 
 export PATH="/usr/local/bin:/usr/bin:/bin:${PATH:-}"
-export NODE_ENV=production
 
 NODE_BIN="${NODE_BIN:-/usr/bin/node}"
 NPM_BIN="${NPM_BIN:-/usr/bin/npm}"
@@ -62,8 +61,15 @@ if [[ ! -f "$ROOT/.env" && ! -f "$ROOT/.env.production" ]]; then
   echo "$LOG_PREFIX WARN: Missing .env and .env.production — Prisma and Next need DATABASE_URL and app secrets." >&2
 fi
 
-echo "$LOG_PREFIX npm install"
-"$NPM_BIN" ci 2>/dev/null || "$NPM_BIN" install
+# npm omits devDependencies when NODE_ENV=production; this deploy used to export
+# NODE_ENV=production before `npm ci`, which dropped Tailwind/PostCSS and broke Turbopack.
+# We install with NODE_ENV=development, then set production for Prisma/build/PM2.
+# Tailwind, PostCSS, Autoprefixer, Prisma CLI, TypeScript, and @types/* are also in
+# `dependencies` so strict production-only installs (e.g. CI) still resolve the toolchain.
+echo "$LOG_PREFIX npm ci / install (NODE_ENV=development so devDependencies install)"
+NODE_ENV=development "$NPM_BIN" ci 2>/dev/null || NODE_ENV=development "$NPM_BIN" install
+
+export NODE_ENV=production
 
 echo "$LOG_PREFIX Prisma: migrate deploy"
 "$NPM_BIN" run db:migrate

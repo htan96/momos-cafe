@@ -164,7 +164,9 @@ function SquarePaymentFormInner({
         };
       } catch (err) {
         if (!cancelled) {
-          console.error("Square card init error:", err);
+          if (DEBUG_SQUARE) {
+            console.error("[SquarePaymentForm] card init failed:", err);
+          }
           onErrorRef.current?.("Could not load payment form. Please refresh and try again.");
         }
       } finally {
@@ -226,8 +228,10 @@ function SquarePaymentFormInner({
             applePayRef.current = applePay;
             setApplePayReady(true);
           }
-        } catch {
-          // Apple Pay not available (browser, device, domain verification, etc.)
+        } catch (err) {
+          if (DEBUG_SQUARE) {
+            console.error("[SquarePaymentForm] Apple Pay init skipped or failed:", err);
+          }
         }
 
         try {
@@ -258,11 +262,15 @@ function SquarePaymentFormInner({
             }
             setGooglePayReady(true);
           }
-        } catch {
-          // Google Pay not available
+        } catch (err) {
+          if (DEBUG_SQUARE) {
+            console.error("[SquarePaymentForm] Google Pay init skipped or failed:", err);
+          }
         }
-      } catch {
-        // Silent
+      } catch (err) {
+        if (DEBUG_SQUARE) {
+          console.error("[SquarePaymentForm] wallet bootstrap failed:", err);
+        }
       }
     };
 
@@ -303,12 +311,24 @@ function SquarePaymentFormInner({
       ? "https://web.squarecdn.com/v1/square.js"
       : "https://sandbox.web.squarecdn.com/v1/square.js";
 
+  /** Next `loadScript` bails without calling `onLoad` when the URL is already in LoadCache (remount / back navigation). `onReady` still runs in that case — see next/dist/client/script.js */
+  const handleSquareScriptLoaded = useCallback(() => {
+    setSquareReady(true);
+  }, []);
+
   return (
     <>
       <Script
+        id={environment === "production" ? "square-web-sdk-production" : "square-web-sdk-sandbox"}
         src={scriptUrl}
         strategy="afterInteractive"
-        onLoad={() => setSquareReady(true)}
+        onLoad={handleSquareScriptLoaded}
+        onReady={handleSquareScriptLoaded}
+        onError={(e) => {
+          if (process.env.NODE_ENV === "development") {
+            console.error("[SquarePaymentForm] square.js script failed to load:", scriptUrl, e);
+          }
+        }}
       />
       <div
         className={`flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-2 mb-3 ${!(applePayReady || googlePayReady) ? "hidden" : ""}`}

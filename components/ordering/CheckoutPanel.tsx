@@ -54,9 +54,13 @@ interface CheckoutPanelProps {
   embedInPage?: boolean;
 }
 
-const SQUARE_APP_ID = process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID ?? "";
-const SQUARE_LOC_ID = process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID ?? "";
-const SQUARE_ENV = (process.env.NEXT_PUBLIC_SQUARE_ENVIRONMENT ?? "production") as "sandbox" | "production";
+const SQUARE_APP_ID =
+  process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID?.trim() ||
+  process.env.NEXT_PUBLIC_SQUARE_APP_ID?.trim() ||
+  "";
+const SQUARE_LOC_ID = process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID?.trim() ?? "";
+const SQUARE_ENV_RAW = (process.env.NEXT_PUBLIC_SQUARE_ENVIRONMENT ?? "production").trim().toLowerCase();
+const SQUARE_ENV = (SQUARE_ENV_RAW === "sandbox" ? "sandbox" : "production") as "sandbox" | "production";
 
 export default function CheckoutPanel({
   onCartClick,

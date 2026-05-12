@@ -93,7 +93,6 @@ export const config = {
     "/api/ops/:path*",
     "/api/orders/:path*",
     "/api/cart/:path*",
-    "/api/checkout/:path*",
     "/api/fulfillment/:path*",
     "/api/square/catalog/sync",
     "/api/square/catalog/discovery",

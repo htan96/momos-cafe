@@ -1,0 +1,41 @@
+0 verbose cli /home/ubuntu/.cursor-server/bin/linux-x64/75c0dfd29aecf2cc208dbaf761d5cc459c601aa0/node /usr/lib/node_modules/npm/bin/npm-cli.js
+1 info using npm@10.8.2
+2 info using node@v20.18.2
+3 silly config load:file:/usr/lib/node_modules/npm/npmrc
+4 silly config load:file:/var/www/htworks/momos/.npmrc
+5 silly config load:file:/home/ubuntu/.npmrc
+6 silly config load:file:/home/ubuntu/.cursor-server/bin/linux-x64/etc/npmrc
+7 verbose title npm exec tsx@4.19.2 scripts/investigate-commerce-pipeline.ts
+8 verbose argv "exec" "--yes" "--" "tsx@4.19.2" "scripts/investigate-commerce-pipeline.ts"
+9 verbose logfile logs-max:10 dir:/var/www/htworks/momos/.npm-cache/_logs/2026-05-12T11_04_30_770Z-
+10 verbose logfile /var/www/htworks/momos/.npm-cache/_logs/2026-05-12T11_04_30_770Z-debug-0.log
+11 silly logfile done cleaning log files
+12 silly packumentCache heap:2062024704 maxSize:515506176 maxEntrySize:257753088
+13 http fetch GET 200 https://registry.npmjs.org/npm 173ms
+14 http fetch GET 200 https://registry.npmjs.org/tsx 59ms (cache miss)
+15 silly packumentCache heap:2062024704 maxSize:515506176 maxEntrySize:257753088
+16 verbose stack Error: ENOENT: no such file or directory, lstat '/home/ubuntu/.cursor-server/bin/linux-x64/lib'
+16 verbose stack     at async lstat (node:internal/fs/promises:1030:18)
+16 verbose stack     at async #loadActual (/usr/lib/node_modules/npm/node_modules/@npmcli/arborist/lib/arborist/load-actual.js:112:20)
+16 verbose stack     at async exec (/usr/lib/node_modules/npm/node_modules/libnpmexec/lib/index.js:207:26)
+16 verbose stack     at async Npm.exec (/usr/lib/node_modules/npm/lib/npm.js:207:9)
+16 verbose stack     at async module.exports (/usr/lib/node_modules/npm/lib/cli/entry.js:74:5)
+17 error code ENOENT
+18 error syscall lstat
+19 error path /home/ubuntu/.cursor-server/bin/linux-x64/lib
+20 error errno -2
+21 error enoent ENOENT: no such file or directory, lstat '/home/ubuntu/.cursor-server/bin/linux-x64/lib'
+22 error enoent This is related to npm not being able to find a file.
+22 error enoent
+23 verbose cwd /var/www/htworks/momos
+24 verbose os Linux 6.8.0-1046-aws
+25 verbose node v20.18.2
+26 verbose npm  v10.8.2
+27 notice
+27 notice New major version of npm available! 10.8.2 -> 11.14.1
+27 notice Changelog: https://github.com/npm/cli/releases/tag/v11.14.1
+27 notice To update run: npm install -g npm@11.14.1
+27 notice  { force: true, [Symbol(proc-log.meta)]: true }
+28 verbose exit -2
+29 verbose code -2
+30 error A complete log of this run can be found in: /var/www/htworks/momos/.npm-cache/_logs/2026-05-12T11_04_30_770Z-debug-0.log

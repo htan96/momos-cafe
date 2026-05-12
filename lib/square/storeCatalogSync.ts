@@ -1,6 +1,7 @@
 /**
- * Production Square Catalog sync — **only** ITEMs in Square category named exactly `Store`.
- * Restaurant/menu catalogs stay untouched by design.
+ * Production Square Catalog sync — ITEMs in the Square category **tree** rooted at category
+ * named `Store` (matches discovery / CommerceGraph `storefrontDomain: shop`), including nested
+ * subcategories. Menu/catalog items outside that tree stay untouched.
  */
 
 import type { Prisma } from "@prisma/client";
@@ -21,6 +22,49 @@ export interface StoreCatalogSyncResult {
 
 function catName(obj: { categoryData?: { name?: string }; category_data?: { name?: string } }) {
   return obj.categoryData?.name ?? obj.category_data?.name ?? "";
+}
+
+function categoryNameMatchesStore(name: string): boolean {
+  const t = name.trim();
+  return t === STORE_CATEGORY_NAME || t.toLowerCase() === STORE_CATEGORY_NAME.toLowerCase();
+}
+
+function readParentCategoryId(obj: Record<string, unknown>): string | null {
+  const cd = (obj.categoryData ?? obj.category_data) as Record<string, unknown> | undefined;
+  if (!cd) return null;
+  const p = (cd.parentCategory ?? cd.parent_category) as Record<string, unknown> | undefined;
+  if (!p) return null;
+  const id = (p.id ?? p.catalog_object_id) as string | undefined;
+  return typeof id === "string" && id.length > 0 ? id : null;
+}
+
+async function loadCategoryParentMap(client: SquareClient): Promise<Map<string, string | null>> {
+  const map = new Map<string, string | null>();
+  const pager = await client.catalog.list({ types: "CATEGORY" });
+  for await (const obj of pager) {
+    const o = obj as { type?: string; id?: string };
+    if (o.type !== "CATEGORY" || !o.id) continue;
+    map.set(o.id, readParentCategoryId(obj as unknown as Record<string, unknown>));
+  }
+  return map;
+}
+
+/** Any category on the item is the Store root or a descendant of it (matches discovery graph). */
+function itemIsInStoreCategoryTree(
+  item: Record<string, unknown>,
+  storeRootCategoryId: string,
+  parentByCategoryId: Map<string, string | null>
+): boolean {
+  for (const cid of itemCategories(item)) {
+    let cur: string | null | undefined = cid;
+    const seen = new Set<string>();
+    while (cur && !seen.has(cur)) {
+      seen.add(cur);
+      if (cur === storeRootCategoryId) return true;
+      cur = parentByCategoryId.get(cur) ?? null;
+    }
+  }
+  return false;
 }
 
 function itemCategories(item: Record<string, unknown>): string[] {
@@ -88,33 +132,36 @@ async function resolveStoreCategorySquareId(client: SquareClient): Promise<strin
   for await (const obj of pager) {
     const o = obj as { type?: string; id?: string };
     if (o.type !== "CATEGORY" || !o.id) continue;
-    if (catName(obj as never).trim() === STORE_CATEGORY_NAME) return o.id;
+    if (categoryNameMatchesStore(catName(obj as never))) return o.id;
   }
   return null;
 }
 
-/** Collect Square ITEM ids linked to the Store category via SearchCatalogItems */
-async function collectStoreItemIds(client: SquareClient, storeCategoryId: string): Promise<string[]> {
+/**
+ * Collect every Square ITEM that belongs to the Store tree (root or nested categories).
+ * We list all ITEMs and filter by category ancestry — Square SearchCatalogItems(categoryIds)
+ * can omit items that only reference descendant categories (verified in production: 7 vs 13).
+ */
+async function collectStoreItemIds(
+  client: SquareClient,
+  storeCategoryId: string,
+  parentByCategoryId: Map<string, string | null>
+): Promise<string[]> {
   const ids: string[] = [];
-  let cursor: string | undefined;
-  do {
-    const page = await client.catalog.searchItems({
-      categoryIds: [storeCategoryId],
-      limit: 100,
-      cursor,
-    });
-    const items = page.items ?? [];
-    for (const row of items) {
-      const itemId =
-        (row as { id?: string }).id ??
-        (row as { catalogItem?: { id?: string } }).catalogItem?.id ??
-        (row as { itemData?: { itemId?: string } }).itemData?.itemId;
-      if (!itemId) continue;
-      ids.push(itemId);
+  const pager = await client.catalog.list({ types: "ITEM" });
+  for await (const raw of pager) {
+    const o = raw as { type?: string; id?: string };
+    if (o.type !== "ITEM" || !o.id) continue;
+    if (
+      itemIsInStoreCategoryTree(
+        raw as unknown as Record<string, unknown>,
+        storeCategoryId,
+        parentByCategoryId
+      )
+    ) {
+      ids.push(o.id);
     }
-    cursor = page.cursor ?? undefined;
-    if (cursor) await sleep(160);
-  } while (cursor);
+  }
   return [...new Set(ids)];
 }
 
@@ -208,9 +255,14 @@ export async function runProductionStoreCatalogSync(): Promise<StoreCatalogSyncR
     throw new Error(`Square catalog has no CATEGORY named "${STORE_CATEGORY_NAME}".`);
   }
 
-  const storeItemIds = await collectStoreItemIds(client, storeCategorySquareId);
+  const categoryParentById = await loadCategoryParentMap(client);
+  const storeItemIds = await collectStoreItemIds(
+    client,
+    storeCategorySquareId,
+    categoryParentById
+  );
   if (storeItemIds.length === 0) {
-    warnings.push("search_items_returned_zero_rows_for_store_category");
+    warnings.push("no_items_found_in_store_category_tree");
   }
 
   const batchObjects = await batchGetCatalogObjects(client, storeItemIds);
@@ -224,7 +276,9 @@ export async function runProductionStoreCatalogSync(): Promise<StoreCatalogSyncR
   const storeItems = storeItemIds
     .map((id) => itemById.get(id))
     .filter((obj): obj is Record<string, unknown> => !!obj)
-    .filter((obj) => itemCategories(obj).includes(storeCategorySquareId));
+    .filter((obj) =>
+      itemIsInStoreCategoryTree(obj, storeCategorySquareId, categoryParentById)
+    );
 
   const imageIds: string[] = [];
   const variationIds: string[] = [];

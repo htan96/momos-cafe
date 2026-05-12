@@ -4,17 +4,66 @@ import { SquareClient, SquareEnvironment } from "square";
 import type { CartItem } from "@/types/ordering";
 import { getEstimatedPickupTime } from "@/lib/pickupTime";
 import {
+  computeValidatedKitchenPickupUtc,
+  getCanonicalEarliestKitchenPickupUtc,
+} from "@/lib/ordering/validateFoodPickupUtc";
+import { getKitchenAvailability } from "@/lib/ordering/getKitchenAvailability";
+import { loadAdminSettingsFromDb } from "@/lib/server/loadAdminSettings";
+import {
   insertCafeOrderAfterSuccessfulPayment,
   insertCafeOrderFreeOrder,
 } from "@/lib/orders";
 import {
-  buildSquareCreateOrderRequest,
+  buildUnifiedSquareCreateOrderRequest,
   cartHasSquareCatalogBinding,
   squareMoneyAmountToCents,
 } from "@/lib/squareOrderFromCart";
 import { verifySquarePaymentCaptured } from "@/lib/verifySquarePayment";
+import { parseUnifiedCartLines } from "@/lib/commerce/parseUnifiedCartLines";
+import { reconcileCommerceOrderAfterStorefrontPayment } from "@/lib/server/reconcileCommerceCheckout";
+import type { UnifiedMerchLine } from "@/types/commerce";
 
 const TAX_RATE = 0.0925;
+
+function getMerchSubtotalAndTaxCents(lines: UnifiedMerchLine[]): {
+  subtotalCents: number;
+  taxCents: number;
+} {
+  let sub = 0;
+  for (const l of lines) {
+    sub += Math.round(l.unitPrice * 100) * l.quantity;
+  }
+  const tax = Math.round(sub * TAX_RATE);
+  return { subtotalCents: sub, taxCents: tax };
+}
+
+function parseMerchLinesOnly(
+  raw: unknown
+): { lines: UnifiedMerchLine[] } | { error: NextResponse } {
+  if (raw === undefined) return { lines: [] };
+  if (!Array.isArray(raw)) {
+    return {
+      error: NextResponse.json({ error: "merch_lines_invalid" }, { status: 400 }),
+    };
+  }
+  const { lines, issues } = parseUnifiedCartLines(raw);
+  if (issues.length > 0) {
+    return {
+      error: NextResponse.json({ error: "merch_lines_invalid", issues }, { status: 422 }),
+    };
+  }
+  const merch: UnifiedMerchLine[] = [];
+  for (const l of lines) {
+    if (l.kind !== "merch") {
+      return {
+        error: NextResponse.json({ error: "merch_lines_only_expected" }, { status: 422 }),
+      };
+    }
+    merch.push(l);
+  }
+  return { lines: merch };
+}
+
 
 const ORDER_DEBUG =
   process.env.NODE_ENV === "development" || process.env.ORDER_DEBUG_LOGS === "1";
@@ -210,6 +259,18 @@ function isUniqueViolation(err: unknown): boolean {
 
 export async function POST(request: Request) {
   try {
+    /**
+     * Square surfaces used here:
+     * - `OrdersApi.createOrder` — unified kitchen + shop lines, pickup fulfillment, optional `TOTAL_PHASE`
+     *   shipping service charge (`buildUnifiedSquareCreateOrderRequest` in `lib/squareOrderFromCart.ts`).
+     * - `PaymentsApi.createPayment` — single customer charge; `orderId` set when the itemized Square order path succeeds.
+     *
+     * Shipping quotes (preview): `OrdersApi.calculateOrder` in `lib/shipping/squareShippingQuote.ts` and
+     * `POST /api/checkout/shipping-quote` with a `SHIPMENT` fulfillment — see that module for details.
+     *
+     * Square allows only one fulfillment on `orders.create`; pickup is used on the paid order while shipment
+     * quotes use `calculateOrder` + ops fulfillment groups for retail shipping.
+     */
     let body: unknown;
     try {
       body = await request.json();
@@ -221,24 +282,55 @@ export async function POST(request: Request) {
       console.log("[Order] REQUEST BODY:", safeJson(redactBodyForLog(body)));
     }
 
-    const { cart, customer, fulfillment_type, token, scheduledFor, checkoutAttemptId, paymentIdempotencyKey } =
-      (body ?? {}) as {
-        cart?: CartItem[];
-        customer?: { name?: string; phone?: string; email?: string; notes?: string };
-        fulfillment_type?: string;
-        token?: string;
-        /** ISO 8601 — optional customer-chosen pickup time (stored with status `scheduled`) */
-        scheduledFor?: string;
-        /** Client-generated UUID for this checkout attempt — stabilizes Square idempotency + DB id on retry */
-        checkoutAttemptId?: string;
-        /** Optional override for Square `payments.create` idempotency (1–45 chars) */
-        paymentIdempotencyKey?: string;
-      };
+    const {
+      cart: rawCart,
+      customer,
+      fulfillment_type,
+      token,
+      scheduledFor,
+      checkoutAttemptId,
+      paymentIdempotencyKey,
+      merchLines: rawMerchLines,
+      shippingCents: rawShippingCents,
+      selectedShippingLabel,
+      selectedShippingQuoteUid,
+      commerceOrderId: rawCommerceOrderId,
+    } = (body ?? {}) as {
+      cart?: CartItem[];
+      customer?: { name?: string; phone?: string; email?: string; notes?: string };
+      fulfillment_type?: string;
+      token?: string;
+      scheduledFor?: string;
+      checkoutAttemptId?: string;
+      paymentIdempotencyKey?: string;
+      /** Serialized `UnifiedMerchLine` rows — same shape as unified cart storage */
+      merchLines?: unknown;
+      /** Whole cents — from Square shipping quote selection */
+      shippingCents?: number;
+      selectedShippingLabel?: string;
+      selectedShippingQuoteUid?: string;
+      commerceOrderId?: string;
+    };
+
+    const cart = Array.isArray(rawCart) ? rawCart : [];
+    const merchParsed = parseMerchLinesOnly(rawMerchLines);
+    if ("error" in merchParsed) return merchParsed.error;
+    const merchLines = merchParsed.lines;
+
+    const shippingCents =
+      typeof rawShippingCents === "number" && Number.isFinite(rawShippingCents)
+        ? Math.max(0, Math.floor(rawShippingCents))
+        : 0;
+
+    const commerceOrderId =
+      typeof rawCommerceOrderId === "string" && UUID_RE.test(rawCommerceOrderId.trim())
+        ? rawCommerceOrderId.trim()
+        : undefined;
 
     const fulfillmentType = fulfillment_type === "DELIVERY" ? "DELIVERY" : "PICKUP";
     const fulfillmentLabel = fulfillmentType === "DELIVERY" ? "Delivery" : "Pickup";
 
-    if (!Array.isArray(cart) || cart.length === 0) {
+    if (cart.length === 0 && merchLines.length === 0) {
       console.warn("[Order] 400: Empty cart");
       return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
     }
@@ -264,7 +356,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid email address" }, { status: 400 });
     }
 
-    if (VARIATION_DEBUG) {
+    if (VARIATION_DEBUG && cart.length > 0) {
       const variationRows = cart.map((item) => ({
         name: item.name,
         id: item.id,
@@ -277,8 +369,60 @@ export async function POST(request: Request) {
       console.log("VARIATION: items WITHOUT variationId:", withoutVariationId.length, withoutVariationId);
     }
 
-    const itemCount = cart.reduce((sum, i) => sum + i.quantity, 0);
-    const estimatedPickupAt = getEstimatedPickupTime(itemCount);
+    const foodItemCount = cart.reduce((sum, i) => sum + i.quantity, 0);
+    const adminSettings = await loadAdminSettingsFromDb();
+
+    let estimatedPickupAt = getEstimatedPickupTime(foodItemCount > 0 ? foodItemCount : 1);
+
+    /** Kitchen pickup instant — anchored to Ops windows + validated client `scheduledFor` */
+    let kitchenPickupAtUtc: Date | null = null;
+
+    if (foodItemCount > 0) {
+      const kitchenGate = getKitchenAvailability(
+        new Date(),
+        adminSettings.weeklyHours,
+        adminSettings.orderingRules,
+        foodItemCount,
+        { isOrderingOpen: adminSettings.isOrderingOpen }
+      );
+      if (!kitchenGate.foodOrderingLive) {
+        console.warn("[Order] 422: Kitchen food ordering unavailable (window or Ops gate)");
+        return NextResponse.json(
+          {
+            error:
+              "The kitchen isn’t accepting online food orders in this window. Refresh checkout, remove kitchen items, or finish shop-only checkout.",
+            code: "kitchen_food_unavailable",
+          },
+          { status: 422 }
+        );
+      }
+
+      const canon = getCanonicalEarliestKitchenPickupUtc(
+        new Date(),
+        adminSettings.weeklyHours,
+        adminSettings.orderingRules,
+        foodItemCount
+      );
+      if (!canon) {
+        console.warn("[Order] 422: Kitchen pickup unavailable for current Ops schedule");
+        return NextResponse.json(
+          {
+            error:
+              "Kitchen pickup isn’t schedulable with current hours/rules. Refresh checkout or tweak Ops pickup windows.",
+          },
+          { status: 422 }
+        );
+      }
+      const resolved = computeValidatedKitchenPickupUtc({
+        nowUtc: new Date(),
+        scheduledForIso: scheduledFor,
+        weeklyHours: adminSettings.weeklyHours,
+        orderingRulesPartial: adminSettings.orderingRules,
+        foodItemCount,
+      });
+      kitchenPickupAtUtc = resolved.pickupUtc;
+      estimatedPickupAt = kitchenPickupAtUtc;
+    }
 
     const { orderId, squarePaymentIdempotencyKey } = resolveCheckoutCorrelationKeys({
       checkoutAttemptId,
@@ -293,13 +437,26 @@ export async function POST(request: Request) {
       ? SquareEnvironment.Production
       : SquareEnvironment.Sandbox;
 
-    const canUseSquareOrders =
-      Boolean(accessToken && locationId) && cartHasSquareCatalogBinding(cart);
+    const hasAnyLine = cart.length > 0 || merchLines.length > 0;
+    const foodCatalogOk = cart.length === 0 || cartHasSquareCatalogBinding(cart);
+    const canUseSquareOrders = Boolean(accessToken && locationId) && hasAnyLine && foodCatalogOk;
 
     let squareOrderId: string | undefined;
     /** Payment amount must match Square order total when paying for an order. */
     let paymentAmountBigInt: bigint;
     let totalCents: number;
+
+    const { subtotalCents: merchSubtotalCents, taxCents: merchTaxCents } =
+      getMerchSubtotalAndTaxCents(merchLines);
+
+    const shippingLabelNormalized =
+      typeof selectedShippingLabel === "string" && selectedShippingLabel.trim().length > 0
+        ? selectedShippingLabel.trim().slice(0, 120)
+        : undefined;
+    const shippingQuoteUidNormalized =
+      typeof selectedShippingQuoteUid === "string" && selectedShippingQuoteUid.trim().length > 0
+        ? selectedShippingQuoteUid.trim().slice(0, 120)
+        : undefined;
 
     if (canUseSquareOrders) {
       const squareClient = new SquareClient({
@@ -307,11 +464,14 @@ export async function POST(request: Request) {
         environment: squareEnvironment,
       });
       const squareOrdersCreateKey = squareOrderCreateIdempotencyKey(orderId);
-      const customerPickupIso = parseCustomerPickupIso(scheduledFor);
-      const pickupAtIso = customerPickupIso ?? estimatedPickupAt.toISOString();
-      const squareReq = buildSquareCreateOrderRequest({
+      const pickupAtIso =
+        foodItemCount > 0 && kitchenPickupAtUtc
+          ? kitchenPickupAtUtc.toISOString()
+          : (parseCustomerPickupIso(scheduledFor) ?? estimatedPickupAt.toISOString());
+      const squareReq = buildUnifiedSquareCreateOrderRequest({
         locationId: locationId!,
-        cart,
+        foodCart: cart,
+        merchLines,
         idempotencyKey: squareOrdersCreateKey,
         referenceId: orderId,
         pickup: {
@@ -321,13 +481,22 @@ export async function POST(request: Request) {
           recipientPhone: phone,
           recipientEmail: email,
           pickupNote:
-            [notes && `Note: ${notes}`].filter(Boolean).join(" ").slice(0, 500) || undefined,
+            [
+              notes && `Note: ${notes}`,
+              merchLines.length > 0 ? `Includes ${merchLines.length} shop line(s).` : "",
+            ]
+              .filter(Boolean)
+              .join(" ")
+              .slice(0, 500) || undefined,
         },
+        shippingServiceCharge:
+          shippingCents > 0
+            ? { cents: shippingCents, name: shippingLabelNormalized ?? "Shipping" }
+            : undefined,
       });
 
-      const orderPayload = squareReq;
       if (SQUARE_ORDER_LOG) {
-        console.log("SQUARE ORDER PAYLOAD:", safeJson(orderPayload));
+        console.log("SQUARE ORDER PAYLOAD:", safeJson(squareReq));
       }
 
       let squareOrderResp: unknown;
@@ -367,7 +536,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Invalid order total" }, { status: 400 });
       }
     } else {
-      totalCents = getCartTotalCents(cart);
+      totalCents = getCartTotalCents(cart) + merchSubtotalCents + merchTaxCents + shippingCents;
       if (totalCents < 0) {
         return NextResponse.json({ error: "Invalid order total" }, { status: 400 });
       }
@@ -401,11 +570,12 @@ export async function POST(request: Request) {
 
     const customerPayload = { name, phone, email, notes: notes || undefined };
     const estimatedPickupAtIso = estimatedPickupAt.toISOString();
-    const scheduledForIso = scheduledFor ?? null;
+    const scheduledForIso =
+      foodItemCount > 0 ? estimatedPickupAtIso : parseCustomerPickupIso(scheduledFor);
 
     if (totalCents === 0) {
       let persistedToDatabase = false;
-      if (persistOrdersToDb) {
+      if (persistOrdersToDb && cart.length > 0) {
         try {
           await insertCafeOrderFreeOrder({
             id: orderId,
@@ -431,6 +601,8 @@ export async function POST(request: Request) {
             );
           }
         }
+      } else if (persistOrdersToDb && cart.length === 0) {
+        persistedToDatabase = true;
       }
       return NextResponse.json({
         success: true,
@@ -585,32 +757,60 @@ export async function POST(request: Request) {
 
     let persistedToDatabase = false;
     if (persistOrdersToDb) {
-      try {
-        await insertCafeOrderAfterSuccessfulPayment({
-          id: orderId,
-          cart,
-          customer: customerPayload,
-          totalCents,
-          fulfillmentType,
-          scheduledForIso,
-          estimatedPickupAtIso,
-          squareOrderId: squareOrderId ?? null,
-          squarePaymentId: paymentId,
-        });
-        persistedToDatabase = true;
-        console.log("[Order] DB insert success after payment", orderId);
-      } catch (insertErr) {
-        if (isUniqueViolation(insertErr)) {
+      if (cart.length > 0) {
+        try {
+          await insertCafeOrderAfterSuccessfulPayment({
+            id: orderId,
+            cart,
+            customer: customerPayload,
+            totalCents,
+            fulfillmentType,
+            scheduledForIso,
+            estimatedPickupAtIso,
+            squareOrderId: squareOrderId ?? null,
+            squarePaymentId: paymentId,
+          });
           persistedToDatabase = true;
-          console.log(
-            "[Order] DB insert skipped — paid row already exists (idempotent retry)",
-            orderId
-          );
-        } else {
-          console.error(
-            "[Order] CRITICAL: Payment succeeded but DB persistence failed",
-            { orderId, paymentId, error: insertErr instanceof Error ? insertErr.message : String(insertErr) }
-          );
+          console.log("[Order] DB insert success after payment", orderId);
+        } catch (insertErr) {
+          if (isUniqueViolation(insertErr)) {
+            persistedToDatabase = true;
+            console.log(
+              "[Order] DB insert skipped — paid row already exists (idempotent retry)",
+              orderId
+            );
+          } else {
+            console.error(
+              "[Order] CRITICAL: Payment succeeded but DB persistence failed",
+              { orderId, paymentId, error: insertErr instanceof Error ? insertErr.message : String(insertErr) }
+            );
+          }
+        }
+      } else {
+        persistedToDatabase = true;
+      }
+
+      if (commerceOrderId) {
+        try {
+          await reconcileCommerceOrderAfterStorefrontPayment({
+            commerceOrderId,
+            squarePaymentId: paymentId,
+            paidTotalCents: totalCents,
+            shipping:
+              shippingCents > 0
+                ? {
+                    cents: shippingCents,
+                    label: shippingLabelNormalized,
+                    quoteUid: shippingQuoteUidNormalized,
+                  }
+                : null,
+          });
+        } catch (commerceErr) {
+          console.error("[Order] Commerce order reconcile failed", {
+            commerceOrderId,
+            paymentId,
+            error: commerceErr instanceof Error ? commerceErr.message : String(commerceErr),
+          });
         }
       }
     }

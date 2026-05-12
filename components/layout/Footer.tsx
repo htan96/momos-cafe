@@ -24,7 +24,7 @@ export default function Footer() {
   const { settings } = useAdminSettings();
   const mapsUrl = useMapsUrl();
   const weeklyHours = settings?.weeklyHours ?? DEFAULT_SETTINGS.weeklyHours;
-  const todayKey = getTodayKey();
+  const todayKey = getTodayKey(settings);
   const todayHours = weeklyHours[todayKey];
   const hoursSummary = getHoursSummary(weeklyHours);
 

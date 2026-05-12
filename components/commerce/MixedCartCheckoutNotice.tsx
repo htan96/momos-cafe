@@ -23,15 +23,15 @@ export default function MixedCartCheckoutNotice({
       aria-label="Shop bag reminder"
     >
       <p className="font-semibold text-teal-dark">
-        You still have {merchCount} shop item{merchCount === 1 ? "" : "s"} in your unified cart
+        You have {merchCount} shop item{merchCount === 1 ? "" : "s"} in your bag
         {merchSubtotal > 0 ? ` (~$${merchSubtotal.toFixed(2)})` : ""}.
       </p>
       <p className="text-charcoal/75 mt-1 leading-snug">
-        Visit{" "}
+        Finish everything on the{" "}
         <Link href="/checkout" className="font-semibold text-teal-dark underline-offset-2 hover:underline">
-          Checkout
+          checkout
         </Link>{" "}
-        to pay for food pickup — shop items submit a separate retail draft so fulfillment groups stay aligned.
+        page — kitchen pickup and shop lines stay on one Square receipt when you pay there.
       </p>
       <ul className="mt-2 space-y-1 text-xs text-charcoal/65">
         {fulfillmentSummary.groups.map((g) => (

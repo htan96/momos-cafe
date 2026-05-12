@@ -20,9 +20,8 @@ export default async function OpsShippingPage() {
       />
 
       <p className="text-[#c9bba8]/80 text-xs rounded-lg border border-dashed border-[#3d3830] px-3 py-2 mb-2">
-        Automated label purchase (Pirate Ship / others) remains disabled in ops — wire payment + rate selection on the storefront first (
-        <code className="text-[11px]">lib/shipping/pirateShipClient.ts</code>
-        ).
+        Labels stay manual in ops for now — carriers and tracking numbers are entered here. Storefront delivery
+        rates are sourced from Square; totals and selected methods flow through unified checkout.
       </p>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">

@@ -8,7 +8,8 @@ import type {
 const KITCHEN_ETA = "Food ready in ~15 minutes for pickup.";
 const RETAIL_ETA =
   "Shop items (like hoodies) are usually ready for pickup in 2–3 business days.";
-const SHIPPING_STUB = "Shipping for merch is rolling out soon.";
+const SHIPPING_HINT =
+  "Ship-eligible shop items use delivery rates from Square — choose a method at checkout.";
 
 export function partitionByFulfillmentPipeline(lines: UnifiedCartLine[]): {
   kitchen: UnifiedCartLine[];
@@ -50,7 +51,7 @@ function groupPreview(
     pipeline,
     title: "Retail & gifts",
     subtitle: "Merch prep runs separately from the kitchen line.",
-    etaHint: RETAIL_ETA + (shippingEligible ? ` ${SHIPPING_STUB}` : ""),
+    etaHint: RETAIL_ETA + (shippingEligible ? ` ${SHIPPING_HINT}` : ""),
     pickupEligible,
     shippingEligible,
     lineIds,
@@ -88,7 +89,7 @@ export function buildFulfillmentSummary(lines: UnifiedCartLine[]): CheckoutFulfi
     );
   }
   if (retail.some((l) => l.shippingEligible)) {
-    messages.push(SHIPPING_STUB);
+    messages.push(SHIPPING_HINT);
   }
 
   return { isMixed, groups, messages };

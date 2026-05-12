@@ -43,7 +43,7 @@ export default function FindUsHero() {
   const locationNote =
     settings?.locationNote ?? DEFAULT_SETTINGS.locationNote;
   const weeklyHours = settings?.weeklyHours ?? DEFAULT_SETTINGS.weeklyHours;
-  const isOpenToday = getIsOpenToday(weeklyHours);
+  const isOpenToday = getIsOpenToday(settings);
 
   return (
     <section

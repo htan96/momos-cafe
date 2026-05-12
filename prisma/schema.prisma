@@ -159,7 +159,7 @@ model FulfillmentGroup {
   pickupWindow      PickupWindow?     @relation(fields: [pickupWindowId], references: [id], onDelete: SetNull)
 
   items     FulfillmentItem[]
-  /// Manual carrier tracking until Shippo / Pirate Ship — one active row typical per retail ship group.
+  /// Manual carrier tracking — one active row typical per retail ship group; storefront rates come from Square.
   shipments Shipment[]
 
   @@index([orderId])

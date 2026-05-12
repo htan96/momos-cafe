@@ -12,3 +12,14 @@ export const commerceSectionSpacing = {
   gap: "gap-2.5 md:gap-4",
   sectionMb: "mb-14",
 } as const;
+
+/** Shared checkout / shop shell — cream field, teal structure, red CTAs */
+export const commerceCheckoutShell = {
+  page: "min-h-screen bg-cream text-charcoal",
+  card: "rounded-2xl border border-cream-dark bg-white shadow-sm",
+  cardHeader:
+    "bg-teal-dark text-cream px-4 py-3 rounded-t-2xl border border-cream-dark border-b-0",
+  sectionLabel: "text-[10px] font-semibold uppercase tracking-[0.28em] text-teal-dark",
+  input:
+    "mt-1 block w-full rounded-xl border border-cream-dark px-3 py-2.5 bg-cream text-[15px] text-charcoal focus:outline-none focus:ring-2 focus:ring-teal/25",
+} as const;

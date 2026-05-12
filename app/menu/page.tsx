@@ -7,7 +7,7 @@ import { useCart, useCommerceCart } from "@/context/CartContext";
 import { useCartNav } from "@/context/CartNavContext";
 import { useHeaderSubNav } from "@/context/HeaderSubNavContext";
 import { useAdminSettings, getOrderingStatus } from "@/lib/useAdminSettings";
-import OrderingClosedBanner from "@/components/menu/OrderingClosedBanner";
+import OrderingNoticeBanner from "@/components/menu/OrderingNoticeBanner";
 import CategoryNav from "@/components/sections/menu/CategoryNav";
 import MenuCategorySection from "@/components/sections/menu/MenuCategorySection";
 import CartSidebar from "@/components/sections/menu/CartSidebar";
@@ -108,13 +108,12 @@ export default function MenuPage() {
   }
 
   const orderingStatus = getOrderingStatus(settings);
-  const canAcceptOrders = orderingStatus.canAccept;
 
   return (
     <div className="min-h-screen bg-cream text-charcoal overflow-x-clip">
-      {!canAcceptOrders && orderingStatus.closedMessage && (
-        <OrderingClosedBanner message={orderingStatus.closedMessage} />
-      )}
+      {orderingStatus.scheduleNote ? (
+        <OrderingNoticeBanner tone="schedule" message={orderingStatus.scheduleNote} />
+      ) : null}
       <div className="max-w-[1200px] mx-auto px-4 md:px-5 py-8 pb-32 lg:pb-8 grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-8 lg:gap-10 items-start">
         <main className="min-w-0">
           {categories.length === 0 ? (
@@ -133,7 +132,7 @@ export default function MenuPage() {
                 }}
                 category={category}
                 headerOffset={64}
-                orderingDisabled={!canAcceptOrders}
+                orderingDisabled={false}
                 onAdd={(item) => addToCart(item, 1)}
                 onCustomize={(item) => setModifierItem(item)}
               />
@@ -141,7 +140,7 @@ export default function MenuPage() {
           )}
         </main>
 
-        <CartSidebar headerOffset={64} orderingDisabled={!canAcceptOrders} />
+        <CartSidebar headerOffset={64} orderingDisabled={false} />
       </div>
 
       {totalCount > 0 && (
@@ -149,7 +148,7 @@ export default function MenuPage() {
           itemCount={totalCount}
           total={grandTotal}
           onOpenCart={() => setDrawerOpen(true)}
-          orderingDisabled={!canAcceptOrders}
+          orderingDisabled={false}
         />
       )}
 
@@ -157,7 +156,7 @@ export default function MenuPage() {
         isOpen={!!modifierItem}
         onClose={() => setModifierItem(null)}
         item={modifierItem}
-        orderingDisabled={!canAcceptOrders}
+        orderingDisabled={false}
         onAddToOrder={handleAddFromModal}
       />
 

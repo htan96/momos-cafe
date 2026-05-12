@@ -1,8 +1,11 @@
 "use client";
 
-import { useState, useEffect, useImperativeHandle } from "react";
+import { useState, useEffect, useImperativeHandle, useMemo } from "react";
 import { useCart } from "@/context/CartContext";
 import type { OrderPlacedVerification } from "@/types/order";
+import { useAdminSettings } from "@/lib/useAdminSettings";
+import { useCommerceCart } from "@/context/CartContext";
+import { validateCartEligibilityFromAdminSettings } from "@/lib/ordering/validateCartEligibility";
 import CartSummary from "./CartSummary";
 import CheckoutPanel from "./CheckoutPanel";
 import OrderConfirmation from "./OrderConfirmation";
@@ -14,11 +17,40 @@ interface CheckoutFlowProps {
   onBackToMenu?: () => void;
   /** Ref to expose goToCheckout for external triggers (e.g. CartDrawer) */
   checkoutRef?: React.RefObject<{ goToCheckout: () => void } | null>;
+  /** Kitchen food payment allowed for this moment (same-day active window). */
+  kitchenFoodPaymentAllowed?: boolean;
+  /** @deprecated — storefront browsing is never disabled; prefer `kitchenFoodPaymentAllowed`. */
   orderingDisabled?: boolean;
 }
 
-export default function CheckoutFlow({ onCartClick, onBackToMenu, checkoutRef, orderingDisabled = false }: CheckoutFlowProps) {
+export default function CheckoutFlow({
+  onCartClick,
+  onBackToMenu,
+  checkoutRef,
+  kitchenFoodPaymentAllowed: kitchenFoodPaymentAllowedProp,
+  orderingDisabled = false,
+}: CheckoutFlowProps) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  const { settings } = useAdminSettings();
+  const { lines } = useCommerceCart();
+  const [eligibilityTick, setEligibilityTick] = useState(0);
+
+  useEffect(() => {
+    const id = window.setInterval(() => setEligibilityTick((t) => t + 1), 25000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const computedKitchen = useMemo(
+    () =>
+      validateCartEligibilityFromAdminSettings(new Date(), lines, settings)
+        .kitchenAcceptsFoodNow,
+    [lines, settings, eligibilityTick]
+  );
+
+  const kitchenFoodPaymentAllowed =
+    kitchenFoodPaymentAllowedProp !== undefined
+      ? kitchenFoodPaymentAllowedProp
+      : computedKitchen;
   const [orderNum, setOrderNum] = useState("");
   const [estimatedPickupTime, setEstimatedPickupTime] = useState<string | undefined>();
   const [orderVerification, setOrderVerification] = useState<OrderPlacedVerification | null>(null);
@@ -101,6 +133,7 @@ export default function CheckoutFlow({ onCartClick, onBackToMenu, checkoutRef, o
               onBackToMenu={onBackToMenu}
               onBack={() => setStep(1)}
               onOrderPlaced={handleOrderPlaced}
+              kitchenFoodPaymentAllowed={kitchenFoodPaymentAllowed}
               orderingDisabled={orderingDisabled}
             />
           </>
@@ -116,7 +149,7 @@ export default function CheckoutFlow({ onCartClick, onBackToMenu, checkoutRef, o
       </div>
 
       {/* Sticky checkout CTA — visible when on step 1 with items */}
-      <StickyCheckoutBar onGoToCheckout={goToCheckout} visible={step === 1 && count > 0} orderingDisabled={orderingDisabled} />
+      <StickyCheckoutBar onGoToCheckout={goToCheckout} visible={step === 1 && count > 0} orderingDisabled={false} />
     </div>
   );
 }

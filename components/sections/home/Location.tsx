@@ -15,9 +15,9 @@ export default function Location() {
   const { settings } = useAdminSettings();
   const mapsUrl = useMapsUrl();
   const weeklyHours = settings?.weeklyHours ?? DEFAULT_SETTINGS.weeklyHours;
-  const todayKey = getTodayKey();
+  const todayKey = getTodayKey(settings);
   const hoursDisplay = formatDayHours(weeklyHours[todayKey]);
-  const isOpenToday = getIsOpenToday(weeklyHours);
+  const isOpenToday = getIsOpenToday(settings);
   return (
     <section id="location" className="py-16 md:py-20 bg-white">
       <div className="container max-w-[1140px] mx-auto px-5">

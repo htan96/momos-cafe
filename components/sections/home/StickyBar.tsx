@@ -12,7 +12,7 @@ export default function StickyBar() {
   const [visible, setVisible] = useState(false);
   const { settings } = useAdminSettings();
   const weeklyHours = settings?.weeklyHours ?? DEFAULT_SETTINGS.weeklyHours;
-  const isOpenToday = getIsOpenToday(weeklyHours);
+  const isOpenToday = getIsOpenToday(settings);
 
   useEffect(() => {
     const handleScroll = () => {

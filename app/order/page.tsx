@@ -7,7 +7,7 @@ import { useCart, useCommerceCart } from "@/context/CartContext";
 import { useCartNav } from "@/context/CartNavContext";
 import { useHeaderSubNav } from "@/context/HeaderSubNavContext";
 import { useAdminSettings, getOrderingStatus } from "@/lib/useAdminSettings";
-import OrderingClosedBanner from "@/components/menu/OrderingClosedBanner";
+import OrderingNoticeBanner from "@/components/menu/OrderingNoticeBanner";
 import MenuGrid from "@/components/ordering/MenuGrid";
 import CategoryNav from "@/components/ordering/CategoryNav";
 import CheckoutFlow from "@/components/ordering/CheckoutFlow";
@@ -77,13 +77,12 @@ export default function OrderPage() {
   }, [categories, scrollToSection, setSubNav]);
 
   const orderingStatus = getOrderingStatus(settings);
-  const canAcceptOrders = orderingStatus.canAccept;
 
   return (
     <div className="min-h-screen bg-cream text-charcoal flex flex-col overflow-x-clip">
-      {!canAcceptOrders && orderingStatus.closedMessage && (
-        <OrderingClosedBanner message={orderingStatus.closedMessage} />
-      )}
+      {orderingStatus.scheduleNote ? (
+        <OrderingNoticeBanner tone="schedule" message={orderingStatus.scheduleNote} />
+      ) : null}
       <div className="flex-1 max-w-7xl w-full mx-auto px-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-6 items-start">
           <div id="menu-section" className="lg:col-span-2 min-w-0">
@@ -92,7 +91,7 @@ export default function OrderPage() {
               loading={loading}
               hideCategoryNav
               sectionRefs={sectionRefs}
-              orderingDisabled={!canAcceptOrders}
+              orderingDisabled={false}
             />
           </div>
 
@@ -103,7 +102,7 @@ export default function OrderPage() {
               onBackToMenu={() =>
                 document.getElementById("menu-section")?.scrollIntoView({ behavior: "smooth", block: "start" })
               }
-              orderingDisabled={!canAcceptOrders}
+              orderingDisabled={false}
             />
           </div>
         </div>

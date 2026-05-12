@@ -12,7 +12,7 @@ export default function LocationBlockHeader() {
   const locationNote =
     settings?.locationNote ?? DEFAULT_SETTINGS.locationNote;
   const weeklyHours = settings?.weeklyHours ?? DEFAULT_SETTINGS.weeklyHours;
-  const isOpenToday = getIsOpenToday(weeklyHours);
+  const isOpenToday = getIsOpenToday(settings);
   const hoursSummary = getHoursSummary(weeklyHours);
 
   return (

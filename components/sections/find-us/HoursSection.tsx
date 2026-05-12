@@ -25,8 +25,8 @@ export default function HoursSection() {
   const { settings } = useAdminSettings();
   const mapsUrl = useMapsUrl();
   const weeklyHours = settings?.weeklyHours ?? DEFAULT_SETTINGS.weeklyHours;
-  const isOpenToday = getIsOpenToday(weeklyHours);
-  const todayKey = getTodayKey();
+  const isOpenToday = getIsOpenToday(settings);
+  const todayKey = getTodayKey(settings);
 
   return (
     <motion.div

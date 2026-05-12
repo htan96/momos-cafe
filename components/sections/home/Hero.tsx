@@ -13,7 +13,7 @@ export default function Hero() {
   const { settings } = useAdminSettings();
   const weeklyHours = settings?.weeklyHours ?? DEFAULT_SETTINGS.weeklyHours;
   const hoursSummary = getHoursSummary(weeklyHours);
-  const isOpenToday = getIsOpenToday(weeklyHours);
+  const isOpenToday = getIsOpenToday(settings);
   return (
     <section
       id="hero"

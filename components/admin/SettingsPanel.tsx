@@ -5,6 +5,8 @@ import {
   type AdminSettings,
   type DayKey,
   DAY_ORDER,
+  DEFAULT_ORDERING_RULES,
+  resolveOrderingRules,
 } from "@/lib/useAdminSettings";
 
 const inputClass =
@@ -30,6 +32,12 @@ export default function SettingsPanel() {
         },
       },
     });
+  };
+
+  const ordering = resolveOrderingRules(settings.orderingRules);
+
+  const orderingRulePatch = (patch: Partial<typeof DEFAULT_ORDERING_RULES>) => {
+    updateSettings({ orderingRules: patch });
   };
 
   return (
@@ -104,6 +112,117 @@ export default function SettingsPanel() {
               );
             })}
           </div>
+        </div>
+
+        {/* Ordering rules */}
+        <div>
+          <h3 className="font-semibold text-[11px] tracking-wider uppercase text-teal-dark mb-4">
+            Ordering Rules
+          </h3>
+          <p className="text-xs text-charcoal/60 mb-4 leading-relaxed">
+            Uses <strong className="text-charcoal font-semibold">Business Hours</strong> above as kitchen pickup windows — no redeploy needed.{" "}
+            {/* TODO(holidays/blackouts): add closed dates */}
+          </p>
+          <div className="grid sm:grid-cols-2 gap-4 mb-4">
+            <label className="block text-[10px] font-semibold uppercase tracking-wider text-charcoal/55">
+              Min prep lead (minutes)
+              <input
+                type="number"
+                min={15}
+                max={720}
+                value={ordering.minimumPrepLeadMinutes}
+                onChange={(e) =>
+                  orderingRulePatch({
+                    minimumPrepLeadMinutes:
+                      Number(e.target.value) || DEFAULT_ORDERING_RULES.minimumPrepLeadMinutes,
+                  })
+                }
+                className={`${inputClass} w-full mt-1`}
+              />
+            </label>
+            <label className="block text-[10px] font-semibold uppercase tracking-wider text-charcoal/55">
+              Last order cutoff (minutes before close)
+              <input
+                type="number"
+                min={0}
+                max={180}
+                value={ordering.lastOrderCutoffMinutes}
+                onChange={(e) =>
+                  orderingRulePatch({
+                    lastOrderCutoffMinutes:
+                      Number(e.target.value) || DEFAULT_ORDERING_RULES.lastOrderCutoffMinutes,
+                  })
+                }
+                className={`${inputClass} w-full mt-1`}
+              />
+            </label>
+            <label className="block text-[10px] font-semibold uppercase tracking-wider text-charcoal/55">
+              Pickup slot interval (minutes)
+              <input
+                type="number"
+                min={5}
+                max={240}
+                value={ordering.pickupIntervalMinutes}
+                onChange={(e) =>
+                  orderingRulePatch({
+                    pickupIntervalMinutes:
+                      Number(e.target.value) || DEFAULT_ORDERING_RULES.pickupIntervalMinutes,
+                  })
+                }
+                className={`${inputClass} w-full mt-1`}
+              />
+            </label>
+            <label className="block text-[10px] font-semibold uppercase tracking-wider text-charcoal/55">
+              Max days ahead customers can reserve
+              <input
+                type="number"
+                min={0}
+                max={30}
+                value={ordering.maxFutureOrderDays}
+                onChange={(e) =>
+                  orderingRulePatch({
+                    maxFutureOrderDays:
+                      Number(e.target.value) ||
+                      DEFAULT_ORDERING_RULES.maxFutureOrderDays,
+                  })
+                }
+                className={`${inputClass} w-full mt-1`}
+              />
+            </label>
+            <label className="flex flex-col sm:col-span-2 text-[10px] font-semibold uppercase tracking-wider text-charcoal/55">
+              Restaurant IANA timezone
+              <input
+                type="text"
+                value={ordering.restaurantTimeZone}
+                onChange={(e) =>
+                  orderingRulePatch({
+                    restaurantTimeZone: e.target.value.trim().length > 2
+                      ? e.target.value.trim()
+                      : DEFAULT_ORDERING_RULES.restaurantTimeZone,
+                  })
+                }
+                placeholder="America/Los_Angeles"
+                className={`${inputClass} w-full mt-1 font-normal normal-case`}
+              />
+            </label>
+          </div>
+          <div className="flex items-center gap-3 mb-2 opacity-60">
+            <input
+              id="future-ordering"
+              type="checkbox"
+              checked={ordering.enableFutureOrdering}
+              disabled
+              readOnly
+              className="w-5 h-5 rounded border-2 border-cream-dark text-teal focus:ring-teal cursor-not-allowed"
+            />
+            <label htmlFor="future-ordering" className="font-medium text-charcoal text-sm">
+              Future-dated food pickup (disabled — same-day kitchen windows only)
+            </label>
+          </div>
+          <p className="text-xs text-charcoal/55 leading-relaxed">
+            The storefront schedules food pickup only inside active Ops hours for the current day. Ops still uses lead
+            time, cutoff, and slot spacing below.
+          </p>
         </div>
 
         <div>

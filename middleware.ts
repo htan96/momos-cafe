@@ -48,6 +48,7 @@ export const config = {
     "/api/checkout/:path*",
     "/api/fulfillment/:path*",
     "/api/square/catalog/sync",
+    "/api/square/catalog/discovery",
     "/api/payments/:path*",
     "/api/email/send",
     "/api/email/send/:path*",

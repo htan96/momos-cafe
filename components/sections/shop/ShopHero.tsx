@@ -32,17 +32,17 @@ const BRIDGE_SVG = (
 );
 
 const HERO_TEASERS = [
-  { emoji: "👕", title: "Momo's Tee", desc: "Classic logo tee" },
-  { emoji: "☕", title: "Café Mug", desc: "12oz ceramic" },
-  { emoji: "🎁", title: "Gift Card", desc: "From $10" },
-  { emoji: "🧢", title: "Snapback", desc: "Bridge logo" },
+  { title: "Apparel", desc: "Tees & layers" },
+  { title: "Drinkware", desc: "Mugs & cups" },
+  { title: "Gift cards", desc: "From $10" },
+  { title: "Hats", desc: "Caps & more" },
 ];
 
 export default function ShopHero() {
   return (
     <section
       id="shop-hero"
-      className="relative bg-teal-dark min-h-[80vh] flex items-center overflow-hidden"
+      className="relative bg-teal-dark min-h-[72vh] md:min-h-[80vh] flex items-center overflow-hidden"
     >
       <div
         className="absolute inset-0"
@@ -54,7 +54,7 @@ export default function ShopHero() {
       />
       {BRIDGE_SVG}
 
-      <div className="container max-w-[1140px] mx-auto px-5 relative z-[2] w-full py-20 md:py-24">
+      <div className="container max-w-[1140px] mx-auto px-5 relative z-[2] w-full py-16 md:py-24">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -63,41 +63,50 @@ export default function ShopHero() {
           <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full py-1.5 pl-2 pr-4 mb-7">
             <span className="w-2 h-2 rounded-full bg-gold animate-pulse" aria-hidden />
             <span className="font-medium text-xs tracking-[0.2em] uppercase text-white/90">
-              Merch &amp; More — Vallejo, CA
+              Retail · Vallejo — not same-day like food pickup
             </span>
           </div>
 
-          <h1 className="font-display text-[clamp(60px,11vw,118px)] leading-[0.92] text-cream mb-3">
+          <h1 className="font-display text-[clamp(52px,10vw,112px)] leading-[0.92] text-cream mb-3">
             <span className="block">Shop Momo&apos;s.</span>
             <span className="block text-red">Take It Home.</span>
           </h1>
 
-          <p className="text-[clamp(15px,2vw,18px)] text-white/75 max-w-[480px] leading-relaxed mt-5 mb-9">
-            Apparel, mugs, gift cards, and more —
-            <strong className="text-teal-light font-bold"> the same heart we put into every plate</strong>,
-            now something you can keep.
+          <p className="text-[clamp(15px,2vw,18px)] text-white/75 max-w-[480px] leading-relaxed mt-5 mb-7">
+            Premium café merch — apparel, drinkware, and gifts with{" "}
+            <strong className="text-teal-light font-bold">the same care as our plates</strong>.
           </p>
 
           <div className="flex gap-3.5 flex-wrap">
             <a
-              href="#shop-products"
+              href="#shop-collections"
               className="inline-flex items-center justify-center font-semibold text-base tracking-wider uppercase py-4 px-8 rounded-lg bg-red text-white shadow-[0_4px_0_#800,0_6px_20px_rgba(200,39,45,0.35)] hover:opacity-90 hover:-translate-y-0.5 transition-all"
             >
-              🛍️ Browse Shop
+              Browse collections
             </a>
             <Link
               href="/menu"
               className="inline-flex items-center justify-center font-semibold text-sm tracking-wider uppercase py-3.5 px-6 rounded-lg bg-transparent text-white border-2 border-white/70 hover:bg-white/15 transition-all"
             >
-              Order Food →
+              Order food pickup →
             </Link>
           </div>
 
-          <div className="flex flex-wrap gap-2 mt-10">
-            {["Free shipping over $50", "Gift cards available", "Supports our crew", "Ships from Vallejo"].map((pill) => (
+          <p className="mt-7 text-[13px] text-white/65 max-w-lg leading-relaxed border-l-2 border-gold/50 pl-4">
+            Merch is typically{" "}
+            <strong className="text-white/90 font-semibold">ready in 2–3 business days</strong> for pickup.
+            Craving breakfast today? Use{" "}
+            <Link href="/menu" className="underline underline-offset-2 decoration-white/35 hover:text-white">
+              Order Pickup
+            </Link>{" "}
+            — that&apos;s our kitchen flow (~15 minutes).
+          </p>
+
+          <div className="flex flex-wrap gap-2 mt-8">
+            {["Pickup in Vallejo", "Gift cards", "Supports our crew", "Shipping roadmap"].map((pill) => (
               <span
                 key={pill}
-                className="bg-white/5 border border-white/15 text-white/75 text-[13px] py-1.5 px-3.5 rounded-full"
+                className="bg-white/5 border border-white/15 text-white/75 text-[12px] py-1.5 px-3 rounded-full"
               >
                 <span className="text-gold">✓</span> {pill}
               </span>
@@ -106,19 +115,21 @@ export default function ShopHero() {
         </motion.div>
       </div>
 
-      {/* Desktop floating product teasers */}
-      <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[400px] grid grid-cols-2 gap-3.5 p-5 z-[2] hidden lg:grid" aria-hidden>
+      <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[380px] grid grid-cols-2 gap-3 p-5 z-[2] hidden lg:grid" aria-hidden>
         {HERO_TEASERS.map((item, i) => (
-          <div
+          <a
             key={item.title}
-            className={`bg-white/5 border border-white/10 rounded-2xl p-4 text-center backdrop-blur-sm hover:-translate-y-1 transition-transform ${
-              i === 1 ? "mt-7" : i === 3 ? "-mt-7" : ""
+            href="#shop-collections"
+            className={`rounded-xl border border-white/15 bg-white/8 backdrop-blur-sm p-4 hover:bg-white/13 hover:-translate-y-0.5 transition-all ${
+              i === 1 ? "mt-6" : i === 3 ? "-mt-6" : ""
             }`}
           >
-            <span className="text-4xl block mb-2">{item.emoji}</span>
-            <h4 className="font-semibold text-xs text-white/90 tracking-wide">{item.title}</h4>
-            <p className="text-[11px] text-white/50 mt-1">{item.desc}</p>
-          </div>
+            <p className="font-display text-lg text-white/95 leading-tight">{item.title}</p>
+            <p className="text-[11px] text-white/55 mt-1 font-medium">{item.desc}</p>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-gold mt-2 inline-block">
+              Explore →
+            </span>
+          </a>
         ))}
       </div>
     </section>

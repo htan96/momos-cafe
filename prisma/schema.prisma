@@ -49,3 +49,197 @@ model CateringInquiry {
 
   @@map("catering_inquiries")
 }
+
+/// Guest / future Clerk-linked profile — cafe_orders remain separate until unified checkout migrates.
+model Customer {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  email                String?  @unique
+  phone                String?
+  externalAuthSubject  String?  @unique @map("external_auth_subject")
+  squareCustomerId     String?  @map("square_customer_id")
+
+  cartSessions CartSession[]
+  orders       CommerceOrder[]
+  addresses    ShippingAddress[]
+
+  @@map("customers")
+}
+
+model CartSession {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  guestToken  String?   @unique @map("guest_token")
+  customerId  String?   @map("customer_id") @db.Uuid
+  customer    Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  expiresAt   DateTime? @map("expires_at") @db.Timestamptz(6)
+
+  items             CartItem[]
+  shippingAddresses ShippingAddress[]
+
+  @@index([customerId])
+  @@map("cart_sessions")
+}
+
+/// Normalized row mirroring client `UnifiedCartLine` snapshots for server orchestration + future reporting.
+model CartItem {
+  id                  String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionId           String      @map("session_id") @db.Uuid
+  session             CartSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  lineId              String      @map("line_id")
+  kind                String      @map("kind")
+  quantity            Int
+  payload             Json
+  squareCatalogItemId String?     @map("square_catalog_item_id")
+  squareVariationId   String?     @map("square_variation_id")
+  fulfillmentPipeline String      @map("fulfillment_pipeline")
+
+  @@unique([sessionId, lineId])
+  @@index([sessionId])
+  @@map("cart_items")
+}
+
+/// Platform order shell — distinct from legacy `CafeOrder` until checkout merges onto one pipeline.
+model CommerceOrder {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  status               String    @default("draft")
+  customerId           String?   @map("customer_id") @db.Uuid
+  customer             Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  guestCartToken       String?   @map("guest_cart_token")
+  totalCents           Int       @map("total_cents")
+  kitchenSubtotalCents Int       @default(0) @map("kitchen_subtotal_cents")
+  retailSubtotalCents  Int       @default(0) @map("retail_subtotal_cents")
+  metadata             Json?
+
+  items               CommerceOrderItem[]
+  fulfillmentGroups   FulfillmentGroup[]
+  payments            PaymentRecord[]
+
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+  @@map("commerce_orders")
+}
+
+model CommerceOrderItem {
+  id                  String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId             String        @map("order_id") @db.Uuid
+  order               CommerceOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  kind                String        @map("kind")
+  title               String        @map("title")
+  quantity            Int
+  unitPriceCents      Int           @map("unit_price_cents")
+  payload             Json?
+  squareCatalogItemId String?       @map("square_catalog_item_id")
+  squareVariationId   String?       @map("square_variation_id")
+  fulfillmentPipeline String        @map("fulfillment_pipeline")
+
+  fulfillmentLinks FulfillmentItem[]
+
+  @@index([orderId])
+  @@map("commerce_order_items")
+}
+
+model FulfillmentGroup {
+  id                String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId           String            @map("order_id") @db.Uuid
+  order             CommerceOrder     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  pipeline          String            @map("pipeline")
+  status            String            @default("pending") @map("status")
+  estimatedReadyAt  DateTime?         @map("estimated_ready_at") @db.Timestamptz(6)
+  pickupWindowId    String?           @map("pickup_window_id") @db.Uuid
+  pickupWindow      PickupWindow?     @relation(fields: [pickupWindowId], references: [id], onDelete: SetNull)
+
+  items FulfillmentItem[]
+
+  @@index([orderId])
+  @@map("fulfillment_groups")
+}
+
+model FulfillmentItem {
+  id          String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId     String             @map("group_id") @db.Uuid
+  group       FulfillmentGroup   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  orderItemId String             @map("order_item_id") @db.Uuid
+  orderItem   CommerceOrderItem  @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, orderItemId])
+  @@map("fulfillment_items")
+}
+
+model ProductCache {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  squareCatalogItemId String   @unique @map("square_catalog_item_id")
+  squareCategoryId    String?  @map("square_category_id")
+  slug                String?  @map("slug")
+  title               String   @map("title")
+  data                Json
+  syncedAt            DateTime @default(now()) @map("synced_at") @db.Timestamptz(6)
+
+  variants ProductVariantCache[]
+
+  @@map("product_cache")
+}
+
+model ProductVariantCache {
+  id                String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  productCacheId    String       @map("product_cache_id") @db.Uuid
+  product           ProductCache @relation(fields: [productCacheId], references: [id], onDelete: Cascade)
+  squareVariationId String       @unique @map("square_variation_id")
+  sku               String?      @map("sku")
+  priceCents        Int?         @map("price_cents")
+  data              Json?
+  syncedAt          DateTime     @default(now()) @map("synced_at") @db.Timestamptz(6)
+
+  @@index([productCacheId])
+  @@map("product_variant_cache")
+}
+
+model PickupWindow {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  label       String   @map("label")
+  pipeline    String   @default("KITCHEN") @map("pipeline")
+  startsAt    DateTime @map("starts_at") @db.Timestamptz(6)
+  endsAt      DateTime @map("ends_at") @db.Timestamptz(6)
+  capacity    Int?     @map("capacity")
+
+  fulfillmentGroups FulfillmentGroup[]
+
+  @@map("pickup_windows")
+}
+
+model ShippingAddress {
+  id            String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  customerId    String?      @map("customer_id") @db.Uuid
+  customer      Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  cartSessionId String?      @map("cart_session_id") @db.Uuid
+  cartSession   CartSession? @relation(fields: [cartSessionId], references: [id], onDelete: SetNull)
+  line1         String       @map("line1")
+  line2         String?      @map("line2")
+  city          String       @map("city")
+  state         String       @map("state")
+  postalCode    String       @map("postal_code")
+  country       String       @default("US") @map("country")
+
+  @@index([customerId])
+  @@map("shipping_addresses")
+}
+
+model PaymentRecord {
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  orderId         String?        @map("order_id") @db.Uuid
+  order           CommerceOrder? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  squarePaymentId String?        @map("square_payment_id")
+  amountCents     Int            @map("amount_cents")
+  currency        String         @default("USD") @map("currency")
+  status          String         @default("pending") @map("status")
+  metadata        Json?
+
+  @@index([orderId])
+  @@map("payment_records")
+}

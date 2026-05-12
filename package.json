@@ -8,6 +8,8 @@
     "build": "next build",
     "start": "next start --hostname 127.0.0.1",
     "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "deploy": "bash deploy.sh",
     "db:migrate": "prisma migrate deploy",
     "db:generate": "prisma generate"
@@ -38,6 +40,7 @@
     "babel-plugin-react-compiler": "1.0.0",
     "baseline-browser-mapping": "^2.10.9",
     "eslint": "^9",
-    "eslint-config-next": "16.0.2"
+    "eslint-config-next": "16.0.2",
+    "vitest": "^4.1.6"
   }
 }

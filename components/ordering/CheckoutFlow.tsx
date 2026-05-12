@@ -7,6 +7,7 @@ import CartSummary from "./CartSummary";
 import CheckoutPanel from "./CheckoutPanel";
 import OrderConfirmation from "./OrderConfirmation";
 import StickyCheckoutBar from "./StickyCheckoutBar";
+import MixedCartCheckoutNotice from "@/components/commerce/MixedCartCheckoutNotice";
 
 interface CheckoutFlowProps {
   onCartClick?: () => void;
@@ -86,14 +87,23 @@ export default function CheckoutFlow({ onCartClick, onBackToMenu, checkoutRef, o
 
       {/* Step content — only one visible */}
       <div className="bg-white border-[1.5px] border-cream-dark rounded-b-2xl overflow-hidden -mt-px">
-        {step === 1 && <CartSummary onNext={() => setStep(2)} />}
+        {step === 1 && (
+          <>
+            <MixedCartCheckoutNotice variant="cart" />
+            <CartSummary onNext={() => setStep(2)} />
+          </>
+        )}
         {step === 2 && (
-          <CheckoutPanel
-            onCartClick={onCartClick}
-            onBackToMenu={onBackToMenu}
-            onBack={() => setStep(1)}
-            onOrderPlaced={handleOrderPlaced}
-          />
+          <>
+            <MixedCartCheckoutNotice variant="checkout" />
+            <CheckoutPanel
+              onCartClick={onCartClick}
+              onBackToMenu={onBackToMenu}
+              onBack={() => setStep(1)}
+              onOrderPlaced={handleOrderPlaced}
+              orderingDisabled={orderingDisabled}
+            />
+          </>
         )}
         {step === 3 && (
           <OrderConfirmation

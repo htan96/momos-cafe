@@ -3,6 +3,8 @@
 import Header from "./Header";
 import Footer from "./Footer";
 import BottomNav from "@/components/ordering/BottomNav";
+import ShopStickyMerchCart from "@/components/sections/shop/ShopStickyMerchCart";
+import UnifiedCartDrawer from "@/components/commerce/UnifiedCartDrawer";
 import { usePathname } from "next/navigation";
 import { CartProvider } from "@/context/CartContext";
 import { CartNavProvider } from "@/context/CartNavContext";
@@ -12,7 +14,6 @@ import { HeaderSubNavProvider } from "@/context/HeaderSubNavContext";
 export default function Layout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
-  // These pages get full-width layout (hero sections, menu, order, our-story, catering, find-us, shop)
   const isFullWidth =
     pathname === "/" ||
     pathname === "/index" ||
@@ -29,18 +30,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <ToastProvider>
         <CartNavProvider>
           <HeaderSubNavProvider>
-          <div className="flex flex-col min-h-screen bg-cream text-charcoal">
-            <Header />
+            <div className="flex flex-col min-h-screen bg-cream text-charcoal">
+              <Header />
 
-            <main className={`flex-1 pt-0 ${isFullWidth ? "" : "px-6 md:px-12 lg:px-20"}`}>
-              {children}
-            </main>
+              <main className={`flex-1 pt-0 ${isFullWidth ? "" : "px-6 md:px-12 lg:px-20"}`}>
+                {children}
+              </main>
 
-            <Footer />
-            <BottomNav />
-            {/* Spacer for fixed bottom nav on mobile */}
-            <div className="lg:hidden h-16" aria-hidden="true" />
-          </div>
+              <Footer />
+              <BottomNav />
+              <UnifiedCartDrawer />
+              <ShopStickyMerchCart />
+              <div className="lg:hidden h-16" aria-hidden="true" />
+            </div>
           </HeaderSubNavProvider>
         </CartNavProvider>
       </ToastProvider>

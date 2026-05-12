@@ -1,0 +1,77 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { parseUnifiedCartLines } from "@/lib/commerce/parseUnifiedCartLines";
+import { cartHasBlockingIssues, validateUnifiedCart } from "@/lib/commerce/cartValidation";
+import { createCommerceOrderWithGroups } from "@/lib/server/commerceOrderCreate";
+
+/** Draft commerce order + fulfillment groups — validates payload strictly */
+export async function POST(req: Request) {
+  try {
+    const body = (await req.json()) as { guestToken?: string; lines?: unknown };
+
+    const { lines, issues: parseIssues } = parseUnifiedCartLines(body.lines);
+    if (parseIssues.length > 0) {
+      return NextResponse.json({ error: "invalid_cart_payload", parseIssues }, { status: 422 });
+    }
+    if (lines.length === 0) {
+      return NextResponse.json({ error: "lines required" }, { status: 400 });
+    }
+
+    const validationIssues = validateUnifiedCart(lines);
+    if (cartHasBlockingIssues(validationIssues)) {
+      return NextResponse.json(
+        { error: "cart_validation_failed", validationIssues },
+        { status: 422 }
+      );
+    }
+
+    const warnings = validationIssues.filter((i) => i.severity === "warning");
+    const result = await createCommerceOrderWithGroups({
+      lines,
+      guestCartToken: body.guestToken?.trim() ?? null,
+      metadata:
+        warnings.length > 0
+          ? { validationWarnings: warnings.map((w) => ({ code: w.code, message: w.message })) }
+          : undefined,
+    });
+
+    return NextResponse.json({
+      ok: true,
+      orderId: result.orderId,
+      fulfillmentGroupsCreated: result.fulfillmentGroupsCreated,
+      warnings,
+    });
+  } catch (e) {
+    console.error("[orders POST]", e);
+    const msg = e instanceof Error ? e.message : "";
+    if (msg.startsWith("MISSING_LINE_ID_IN_PAYLOAD") || msg.startsWith("missing_order_item_for_line")) {
+      return NextResponse.json({ error: "order_integrity_failed", detail: msg }, { status: 500 });
+    }
+    return NextResponse.json({ error: "order_create_failed" }, { status: 500 });
+  }
+}
+
+export async function GET(req: Request) {
+  const limit = Math.min(
+    50,
+    Math.max(1, Number(new URL(req.url).searchParams.get("limit") ?? "20"))
+  );
+  try {
+    const orders = await prisma.commerceOrder.findMany({
+      take: limit,
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        status: true,
+        createdAt: true,
+        totalCents: true,
+        kitchenSubtotalCents: true,
+        retailSubtotalCents: true,
+      },
+    });
+    return NextResponse.json({ orders });
+  } catch (e) {
+    console.error("[orders GET]", e);
+    return NextResponse.json({ error: "order_list_failed" }, { status: 500 });
+  }
+}

@@ -21,7 +21,7 @@ import {
 } from "@/lib/adminScheduling";
 
 export type { AdminSettings };
-export type { OrderingRules, DayKey, DayHours, WeeklyHours } from "@/lib/adminSettings.model";
+export type { OrderingRules, DayKey, DayHours, WeeklyHours, BusinessLocation } from "@/lib/adminSettings.model";
 export type { OrderingStatus } from "@/lib/adminScheduling";
 
 export {

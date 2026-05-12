@@ -10,10 +10,16 @@ import {
   getIsOpenToday,
 } from "@/lib/useAdminSettings";
 import { useMapsUrl } from "@/lib/mapsUrl";
+import {
+  businessPhoneDisplay,
+  businessPhoneTelHref,
+  formatBusinessAddressOneLine,
+} from "@/lib/businessLocation";
 
 export default function Location() {
   const { settings } = useAdminSettings();
   const mapsUrl = useMapsUrl();
+  const loc = settings?.businessLocation ?? DEFAULT_SETTINGS.businessLocation;
   const weeklyHours = settings?.weeklyHours ?? DEFAULT_SETTINGS.weeklyHours;
   const todayKey = getTodayKey(settings);
   const hoursDisplay = formatDayHours(weeklyHours[todayKey]);
@@ -82,13 +88,10 @@ export default function Location() {
             <p className="text-charcoal/60 leading-relaxed mb-7">
               Inside Morgen&apos;s Kitchen
               <br />
-              1922 Broadway St, Vallejo CA 94589
+              {formatBusinessAddressOneLine(loc)}
               <br />
-              <a
-                href="tel:+17076547180"
-                className="text-teal hover:underline"
-              >
-                (707) 654-7180
+              <a href={businessPhoneTelHref(loc)} className="text-teal hover:underline">
+                {businessPhoneDisplay(loc)}
               </a>
             </p>
             <p className="text-sm text-charcoal/65 mb-6">{hoursDisplay}</p>
@@ -100,7 +103,7 @@ export default function Location() {
                 Order Ahead
               </Link>
               <a
-                href="tel:+17076547180"
+                href={businessPhoneTelHref(loc)}
                 className="inline-flex items-center justify-center font-semibold text-sm py-3 px-6 rounded-lg bg-transparent text-teal border-2 border-teal hover:bg-teal hover:text-white transition-colors"
               >
                 Call Us

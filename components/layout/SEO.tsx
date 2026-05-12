@@ -1,4 +1,5 @@
 import Head from "next/head";
+import { DEFAULT_SETTINGS } from "@/lib/adminSettings.model";
 
 interface SEOProps {
   title?: string;
@@ -15,7 +16,8 @@ export default function SEO({
   image = "/images/logo.png",
   url = "https://momovallejo.com",
 }: SEOProps) {
-  const siteName = "Momo’s Café Vallejo";
+  const biz = DEFAULT_SETTINGS.businessLocation;
+  const siteName = biz.displayName;
 
   return (
     <Head>
@@ -46,18 +48,18 @@ export default function SEO({
           __html: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "Restaurant",
-            name: "Momo’s Café Vallejo",
+            name: biz.displayName,
             image: "https://momovallejo.com/images/logo.png",
             "@id": "https://momovallejo.com",
             url: "https://momovallejo.com",
-            telephone: "+1 707-654-7180",
+            telephone: biz.phoneE164 ?? biz.phoneDisplay,
             address: {
               "@type": "PostalAddress",
-              streetAddress: "1922 Broadway St",
-              addressLocality: "Vallejo",
-              addressRegion: "CA",
-              postalCode: "94589",
-              addressCountry: "US",
+              streetAddress: biz.street1,
+              addressLocality: biz.city,
+              addressRegion: biz.state,
+              postalCode: biz.postalCode,
+              addressCountry: biz.country,
             },
             servesCuisine: "Brunch, Breakfast, Lunch, Coffee",
             priceRange: "$$",

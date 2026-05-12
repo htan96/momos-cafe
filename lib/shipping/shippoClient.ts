@@ -6,29 +6,6 @@ import {
   type TransactionCreateRequest,
 } from "shippo";
 
-/** Warehouse / ship-from address from env — required for carrier quotes. */
-export function readShippoWarehouseAddress(): AddressCreateRequest | null {
-  const street1 = process.env.SHIPPO_FROM_STREET?.trim();
-  const city = process.env.SHIPPO_FROM_CITY?.trim();
-  const state = process.env.SHIPPO_FROM_STATE?.trim();
-  const zip = process.env.SHIPPO_FROM_ZIP?.trim();
-  const country = (process.env.SHIPPO_FROM_COUNTRY ?? "US").trim() || "US";
-  const name = process.env.SHIPPO_FROM_NAME?.trim();
-  const phone = process.env.SHIPPO_FROM_PHONE?.trim();
-
-  if (!street1 || !city || !state || !zip) return null;
-
-  return {
-    ...(name ? { name } : {}),
-    ...(phone ? { phone } : {}),
-    street1,
-    city,
-    state,
-    zip,
-    country,
-  };
-}
-
 export type NormalizedShippingQuoteOption = {
   uid: string;
   name: string;
@@ -37,9 +14,32 @@ export type NormalizedShippingQuoteOption = {
   provider?: string;
 };
 
+/** Live Shippo only — sandbox tokens are rejected */
+function isShippoProductionEnv(): boolean {
+  const m = (process.env.SHIPPO_ENV ?? "").trim().toLowerCase();
+  return m === "production" || m === "live";
+}
+
+function isDisallowedTestApiKey(key: string): boolean {
+  const k = key.trim().toLowerCase();
+  return k.startsWith("shippo_test_") || k.includes("shippo_test");
+}
+
 export function createShippoClient(): Shippo | null {
   const key = process.env.SHIPPO_API_KEY?.trim();
   if (!key) return null;
+  if (!isShippoProductionEnv()) {
+    console.error(
+      "[shippo] SHIPPO_ENV must be production or live — sandbox mode is disabled for Momo's shipping."
+    );
+    return null;
+  }
+  if (isDisallowedTestApiKey(key)) {
+    console.error(
+      "[shippo] Test/sandbox API keys are not allowed — use SHIPPO_API_KEY=shippo_live_* with SHIPPO_ENV=production."
+    );
+    return null;
+  }
   return new Shippo({ apiKeyHeader: key });
 }
 
@@ -67,7 +67,7 @@ export async function getShippoRates(params: {
 > {
   const client = createShippoClient();
   if (!client) {
-    return { ok: false, logDetail: "missing_api_key" };
+    return { ok: false, logDetail: "shippo_client_unavailable_or_misconfigured" };
   }
 
   try {
@@ -127,7 +127,7 @@ export type PurchaseLabelResult =
 export async function purchaseShippoLabel(rateObjectId: string): Promise<PurchaseLabelResult> {
   const client = createShippoClient();
   if (!client) {
-    return { ok: false, logDetail: "missing_api_key" };
+    return { ok: false, logDetail: "shippo_client_unavailable_or_misconfigured" };
   }
 
   try {

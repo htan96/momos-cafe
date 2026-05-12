@@ -3,12 +3,17 @@
 import { motion } from "framer-motion";
 import { useAdminSettings, DEFAULT_SETTINGS } from "@/lib/useAdminSettings";
 import { useMapsUrl } from "@/lib/mapsUrl";
+import {
+  businessPhoneDisplay,
+  businessPhoneTelHref,
+} from "@/lib/businessLocation";
 
 export default function LocationDetails() {
   const { settings } = useAdminSettings();
   const mapsUrl = useMapsUrl();
   const locationNote =
     settings?.locationNote ?? DEFAULT_SETTINGS.locationNote;
+  const loc = settings?.businessLocation ?? DEFAULT_SETTINGS.businessLocation;
 
   return (
     <motion.div
@@ -43,9 +48,15 @@ export default function LocationDetails() {
                 rel="noopener noreferrer"
                 className="text-[15px] font-medium text-charcoal hover:text-red transition-colors leading-snug"
               >
-                1922 Broadway St
+                {loc.street1}
+                {loc.street2 ? (
+                  <>
+                    <br />
+                    {loc.street2}
+                  </>
+                ) : null}
                 <br />
-                Vallejo, CA 94589
+                {loc.city}, {loc.state} {loc.postalCode}
               </a>
               <span className="text-xs text-charcoal/50 block mt-1 font-medium tracking-wide">
                 Same site as Morgen&apos;s Kitchen — outdoor order windows
@@ -62,10 +73,10 @@ export default function LocationDetails() {
                 Phone
               </span>
               <a
-                href="tel:+17076547180"
+                href={businessPhoneTelHref(loc)}
                 className="text-[15px] font-medium text-charcoal hover:text-red transition-colors"
               >
-                (707) 654-7180
+                {businessPhoneDisplay(loc)}
               </a>
               <span className="text-xs text-charcoal/50 block mt-1 font-medium tracking-wide">
                 Call ahead for large orders

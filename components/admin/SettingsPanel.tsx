@@ -22,6 +22,18 @@ export default function SettingsPanel() {
     updateSettings({ [key]: value });
   };
 
+  const handleBizLocChange = <K extends keyof AdminSettings["businessLocation"]>(
+    field: K,
+    value: AdminSettings["businessLocation"][K]
+  ) => {
+    updateSettings({
+      businessLocation: {
+        ...settings.businessLocation,
+        [field]: value,
+      },
+    });
+  };
+
   const handleDayChange = (day: DayKey, field: keyof AdminSettings["weeklyHours"][DayKey], value: string | boolean) => {
     updateSettings({
       weeklyHours: {
@@ -62,6 +74,103 @@ export default function SettingsPanel() {
       </div>
 
       <div className="space-y-6">
+        {/* Business location — storefront, maps, pickup copy, Shippo ship-from */}
+        <div>
+          <h3 className="font-semibold text-[11px] tracking-wider uppercase text-teal-dark mb-4">
+            Business location
+          </h3>
+          <p className="text-sm text-gray-mid mb-4">
+            Single source of truth for address on the site, Google/Apple Maps links, and carrier shipping
+            origin (Shippo). Use E.164 phone so labels and APIs validate cleanly.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <label className="flex flex-col gap-1 text-sm font-medium text-charcoal">
+              Display name
+              <input
+                type="text"
+                value={settings.businessLocation.displayName}
+                onChange={(e) => handleBizLocChange("displayName", e.target.value)}
+                className={inputClass}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm font-medium text-charcoal">
+              Country (ISO, e.g. US)
+              <input
+                type="text"
+                value={settings.businessLocation.country}
+                onChange={(e) => handleBizLocChange("country", e.target.value.toUpperCase().slice(0, 2))}
+                className={inputClass}
+                maxLength={2}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm font-medium text-charcoal sm:col-span-2">
+              Street line 1
+              <input
+                type="text"
+                value={settings.businessLocation.street1}
+                onChange={(e) => handleBizLocChange("street1", e.target.value)}
+                className={inputClass}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm font-medium text-charcoal sm:col-span-2">
+              Street line 2 (optional)
+              <input
+                type="text"
+                value={settings.businessLocation.street2 ?? ""}
+                onChange={(e) => handleBizLocChange("street2", e.target.value || undefined)}
+                className={inputClass}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm font-medium text-charcoal">
+              City
+              <input
+                type="text"
+                value={settings.businessLocation.city}
+                onChange={(e) => handleBizLocChange("city", e.target.value)}
+                className={inputClass}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm font-medium text-charcoal">
+              State / Province
+              <input
+                type="text"
+                value={settings.businessLocation.state}
+                onChange={(e) => handleBizLocChange("state", e.target.value)}
+                className={inputClass}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm font-medium text-charcoal">
+              Postal code
+              <input
+                type="text"
+                value={settings.businessLocation.postalCode}
+                onChange={(e) => handleBizLocChange("postalCode", e.target.value)}
+                className={inputClass}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm font-medium text-charcoal">
+              Phone (display)
+              <input
+                type="text"
+                value={settings.businessLocation.phoneDisplay ?? ""}
+                onChange={(e) => handleBizLocChange("phoneDisplay", e.target.value || undefined)}
+                className={inputClass}
+                placeholder="(707) 654-7180"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm font-medium text-charcoal sm:col-span-2">
+              Phone (E.164 for carriers)
+              <input
+                type="text"
+                value={settings.businessLocation.phoneE164 ?? ""}
+                onChange={(e) => handleBizLocChange("phoneE164", e.target.value || undefined)}
+                className={inputClass}
+                placeholder="+17076547180"
+              />
+            </label>
+          </div>
+        </div>
+
         {/* Business Hours */}
         <div>
           <h3 className="font-semibold text-[11px] tracking-wider uppercase text-teal-dark mb-4">

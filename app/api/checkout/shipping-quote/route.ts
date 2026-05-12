@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { parseUnifiedCartLines } from "@/lib/commerce/parseUnifiedCartLines";
 import { isUnifiedMerchLine } from "@/lib/commerce/parseUnifiedCartLines";
 import { buildParcelEstimate } from "@/lib/shipping/buildParcelEstimate";
-import { getShippoRates, readShippoWarehouseAddress } from "@/lib/shipping/shippoClient";
+import { getShippoRates } from "@/lib/shipping/shippoClient";
+import { getShippoOriginAddressFromSettings } from "@/lib/server/shippoOriginAddress";
 import type { UnifiedMerchLine } from "@/types/commerce";
 import type { AddressCreateRequest } from "shippo";
 
@@ -60,9 +61,11 @@ export async function POST(req: Request) {
     const phone =
       phoneDigits.length >= 10 ? body.contact!.phone!.trim().slice(0, 32) : "+15555555555";
 
-    const from = readShippoWarehouseAddress();
+    const from = await getShippoOriginAddressFromSettings();
     if (!from) {
-      console.error("[checkout/shipping-quote] Missing SHIPPO_FROM_* warehouse address env");
+      console.error(
+        "[checkout/shipping-quote] Missing or incomplete Ops business location — configure Admin Settings → Business location"
+      );
       return NextResponse.json(
         {
           options: [],

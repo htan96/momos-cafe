@@ -10,6 +10,11 @@ import {
   formatDayHours,
 } from "@/lib/useAdminSettings";
 import { useMapsUrl } from "@/lib/mapsUrl";
+import {
+  businessPhoneDisplay,
+  businessPhoneTelHref,
+  formatBusinessAddressShort,
+} from "@/lib/businessLocation";
 
 const FOOTER_NAV = [
   { href: "/", label: "Home" },
@@ -23,6 +28,7 @@ const FOOTER_NAV = [
 export default function Footer() {
   const { settings } = useAdminSettings();
   const mapsUrl = useMapsUrl();
+  const loc = settings?.businessLocation ?? DEFAULT_SETTINGS.businessLocation;
   const weeklyHours = settings?.weeklyHours ?? DEFAULT_SETTINGS.weeklyHours;
   const todayKey = getTodayKey(settings);
   const todayHours = weeklyHours[todayKey];
@@ -75,10 +81,10 @@ export default function Footer() {
             <ul className="space-y-2.5">
               <li>
                 <a
-                  href="tel:+17076547180"
+                  href={businessPhoneTelHref(loc)}
                   className="text-[14px] text-charcoal/75 hover:text-teal-dark hover:underline underline-offset-2 transition-colors duration-200"
                 >
-                  (707) 654-7180
+                  {businessPhoneDisplay(loc)}
                 </a>
               </li>
               <li>
@@ -88,7 +94,7 @@ export default function Footer() {
                   rel="noopener noreferrer"
                   className="text-[14px] text-charcoal/75 hover:text-teal-dark hover:underline underline-offset-2 transition-colors duration-200"
                 >
-                  1922 Broadway St, Vallejo, CA
+                  {formatBusinessAddressShort(loc)}
                 </a>
               </li>
             </ul>

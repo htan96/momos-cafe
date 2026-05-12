@@ -80,6 +80,34 @@ export const DEFAULT_ORDERING_RULES: OrderingRules = {
   restaurantTimeZone: "America/Los_Angeles",
 };
 
+/** Canonical business / pickup / shipping-origin identity — Ops-editable via Admin Settings JSON */
+export type BusinessLocation = {
+  /** Ship-from & public-facing location name (Shippo `name`, maps listing). */
+  displayName: string;
+  street1: string;
+  street2?: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  /** ISO 3166-1 alpha-2 */
+  country: string;
+  /** E.164 recommended for carrier APIs (e.g. +17076547180) */
+  phoneE164?: string;
+  /** Display-only phone for storefront / Ops UI */
+  phoneDisplay?: string;
+};
+
+export const DEFAULT_BUSINESS_LOCATION: BusinessLocation = {
+  displayName: "Momo's Café Vallejo",
+  street1: "1922 Broadway St",
+  city: "Vallejo",
+  state: "CA",
+  postalCode: "94589",
+  country: "US",
+  phoneE164: "+17076547180",
+  phoneDisplay: "(707) 654-7180",
+};
+
 export type AdminSettings = {
   weeklyHours: WeeklyHours;
   locationNote: string;
@@ -88,6 +116,8 @@ export type AdminSettings = {
   isOrderingOpen: boolean;
   isCateringOpen: boolean;
   orderingRules?: Partial<OrderingRules>;
+  /** Single source of truth for storefront address, pickup copy, maps, and Shippo ship-from */
+  businessLocation: BusinessLocation;
 };
 
 export const DEFAULT_SETTINGS: AdminSettings = {
@@ -99,6 +129,7 @@ export const DEFAULT_SETTINGS: AdminSettings = {
   isOrderingOpen: true,
   isCateringOpen: true,
   orderingRules: { ...DEFAULT_ORDERING_RULES },
+  businessLocation: { ...DEFAULT_BUSINESS_LOCATION },
 };
 
 export function resolveOrderingRules(
@@ -145,6 +176,14 @@ export function normalizeAdminSettingsJson(
       base.orderingRules as Partial<OrderingRules>
     );
   }
+  if (!base.businessLocation || typeof base.businessLocation !== "object") {
+    base.businessLocation = { ...DEFAULT_BUSINESS_LOCATION };
+  } else {
+    base.businessLocation = {
+      ...DEFAULT_BUSINESS_LOCATION,
+      ...(base.businessLocation as BusinessLocation),
+    };
+  }
   if (base.weeklyHours && typeof base.weeklyHours === "object") {
     return base;
   }
@@ -168,6 +207,13 @@ export function patchAdminSettings(
   });
   if (partial.weeklyHours && typeof partial.weeklyHours === "object") {
     next.weeklyHours = partial.weeklyHours;
+  }
+  if (partial.businessLocation && typeof partial.businessLocation === "object") {
+    const prevLoc = prev.businessLocation ?? DEFAULT_BUSINESS_LOCATION;
+    next.businessLocation = {
+      ...prevLoc,
+      ...partial.businessLocation,
+    };
   }
   return next;
 }

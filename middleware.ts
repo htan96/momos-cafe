@@ -32,7 +32,7 @@ async function opsGate(request: NextRequest): Promise<NextResponse> {
     if (pathname.startsWith("/api/ops")) {
       return NextResponse.json({ error: "ops_unauthorized", code: "OPS_AUTH_REQUIRED" }, { status: 401 });
     }
-    const login = new URL("/ops/login", request.url);
+    const login = new URL("/login", request.url);
     login.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
     return NextResponse.redirect(login);
   }

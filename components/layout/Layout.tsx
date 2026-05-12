@@ -18,6 +18,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
+  if (pathname === "/login" || pathname.startsWith("/login/")) {
+    return (
+      <div className="flex flex-col min-h-screen bg-cream text-charcoal">
+        <main className="flex-1 flex items-center justify-center px-6 py-16">{children}</main>
+      </div>
+    );
+  }
+
   const isFullWidth =
     pathname === "/" ||
     pathname === "/index" ||

@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useHeaderSubNav } from "@/context/HeaderSubNavContext";
+import HeaderAuthLink from "./HeaderAuthLink";
 
 const NAV_LINKS = [
   { href: "/", label: "Home" },
@@ -51,6 +52,7 @@ export default function Header() {
               {link.label}
             </Link>
           ))}
+          <HeaderAuthLink />
           <Link
             href="/order"
             className="font-semibold text-[13px] tracking-[0.15em] uppercase py-2.5 px-4 rounded-md bg-red text-white hover:bg-red-dark hover:shadow-[0_2px_8px_rgba(128,0,0,0.35)] transition-all duration-200 ml-2"

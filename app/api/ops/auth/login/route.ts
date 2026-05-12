@@ -8,6 +8,10 @@ import {
 } from "@/lib/ops/sessionCrypto";
 import type { OpsRole } from "@/lib/ops/types";
 
+/** Ensures bcrypt work on unknown emails without leaking validity via timing. */
+const DUMMY_BCRYPT_HASH =
+  "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
+
 function normalizeEmail(raw: string): string {
   return raw.trim().toLowerCase();
 }
@@ -42,7 +46,7 @@ export async function POST(req: Request) {
   }
 
   if (email !== adminEmail) {
-    await bcrypt.compare(password, adminHash);
+    await bcrypt.compare(password, DUMMY_BCRYPT_HASH);
     return NextResponse.json({ error: "invalid_credentials" }, { status: 401 });
   }
 

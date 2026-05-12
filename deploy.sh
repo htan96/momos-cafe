@@ -16,8 +16,18 @@ cd "$ROOT"
 
 PM2_NAME="${PM2_NAME:-momos-web}"
 LOG_PREFIX="${LOG_PREFIX:-[momos-deploy]}"
+DEPLOY_LOCK="${DEPLOY_LOCK:-/tmp/momos-deploy.lock}"
+HEALTHCHECK_AFTER_DEPLOY="${HEALTHCHECK_AFTER_DEPLOY:-1}"
+APP_PORT="${APP_PORT:-3000}"
 
 export PATH="/usr/local/bin:/usr/bin:/bin:${PATH:-}"
+
+# Prevent overlapping deploys (cron + manual + Actions SSH all invoke this script)
+exec 200>"$DEPLOY_LOCK"
+if ! flock -n 200; then
+  echo "$LOG_PREFIX SKIP: another deploy holds $DEPLOY_LOCK" >&2
+  exit 0
+fi
 
 NODE_BIN="${NODE_BIN:-/usr/bin/node}"
 NPM_BIN="${NPM_BIN:-/usr/bin/npm}"
@@ -90,5 +100,17 @@ fi
 
 echo "$LOG_PREFIX PM2 logs ($PM2_NAME, last 40 lines)"
 pm2 logs "$PM2_NAME" --lines 40 --nostream || true
+
+if [[ "$HEALTHCHECK_AFTER_DEPLOY" == "1" ]] && command -v curl >/dev/null 2>&1; then
+  echo "$LOG_PREFIX Health: GET http://127.0.0.1:${APP_PORT}/api/health"
+  sleep 2
+  if curl -fsS "http://127.0.0.1:${APP_PORT}/api/health" >/dev/null; then
+    echo "$LOG_PREFIX Health check OK"
+  else
+    echo "$LOG_PREFIX WARN: /api/health failed — inspect PM2 logs and nginx upstream" >&2
+  fi
+elif [[ "$HEALTHCHECK_AFTER_DEPLOY" == "1" ]]; then
+  echo "$LOG_PREFIX WARN: curl missing — skipping /api/health check" >&2
+fi
 
 echo "$LOG_PREFIX deploy finished OK."

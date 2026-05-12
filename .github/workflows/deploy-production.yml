@@ -1,0 +1,40 @@
+# Optional: deploy when `main` updates via SSH from GitHub Actions (no cron needed).
+#
+# Configure GitHub repository secrets (Settings → Secrets and variables → Actions):
+#   DEPLOY_HOST       EC2 hostname or IP
+#   DEPLOY_USER       SSH user (ubuntu / ec2-user / …)
+#   DEPLOY_SSH_KEY    Private key PEM that may ONLY run deploy (see hardening below)
+#
+# Edit APP_ROOT below if your clone path differs from /var/www/htworks/momos.
+#
+# Hardening (recommended): restrict key in ~/.ssh/authorized_keys:
+#   command="/var/www/htworks/momos/deploy.sh",no-port-forwarding,no-X11-forwarding ssh-ed25519 AAAA...
+# Then replace script below with: deploy-only forced command runs automatically — still pass explicit cd + bash deploy.sh only if command wraps deploy.sh path.
+
+name: Deploy production
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH deploy
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            APP_ROOT='/var/www/htworks/momos'
+            cd "$APP_ROOT"
+            bash deploy.sh

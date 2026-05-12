@@ -1,20 +1,23 @@
 "use client";
 
-import type { StoreCollectionId } from "@/types/merch";
-import { STORE_COLLECTIONS } from "@/lib/merch/collections";
+import type { MerchStoreCollection } from "@/types/merchCatalog";
+import type { MerchFilterId } from "@/lib/merch/merchProductCollectionMatch";
 
 interface CollectionFilterBarProps {
-  activeId: StoreCollectionId | "all";
-  onSelect: (id: StoreCollectionId | "all") => void;
+  /** Top-level Strip categories (typically Store-root children). */
+  filterCollections: MerchStoreCollection[];
+  activeId: MerchFilterId;
+  onSelect: (id: MerchFilterId) => void;
 }
 
 export default function CollectionFilterBar({
+  filterCollections,
   activeId,
   onSelect,
 }: CollectionFilterBarProps) {
-  const chips: { id: StoreCollectionId | "all"; label: string }[] = [
+  const chips: { id: MerchFilterId; label: string }[] = [
     { id: "all", label: "All" },
-    ...STORE_COLLECTIONS.map((c) => ({ id: c.id, label: c.title })),
+    ...filterCollections.map((c) => ({ id: c.slug as MerchFilterId, label: c.title })),
   ];
 
   return (

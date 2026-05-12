@@ -106,8 +106,8 @@ export default function MenuPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-cream-mid text-teal">
-        <p className="font-semibold">Loading menu...</p>
+      <div className="min-h-screen flex items-center justify-center bg-cream text-teal-dark">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.28em]">Loading</p>
       </div>
     );
   }
@@ -116,11 +116,11 @@ export default function MenuPage() {
   const canAcceptOrders = orderingStatus.canAccept;
 
   return (
-    <div className="min-h-screen bg-cream-mid text-charcoal overflow-x-clip">
+    <div className="min-h-screen bg-cream text-charcoal overflow-x-clip">
       {!canAcceptOrders && orderingStatus.closedMessage && (
         <OrderingClosedBanner message={orderingStatus.closedMessage} />
       )}
-      <div className="max-w-[1200px] mx-auto px-5 py-8 pb-32 lg:pb-8 grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-8 items-start">
+      <div className="max-w-[1200px] mx-auto px-4 md:px-5 py-8 pb-32 lg:pb-8 grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-8 lg:gap-10 items-start">
         <main className="min-w-0">
           {categories.length === 0 ? (
             <div className="text-center py-16">

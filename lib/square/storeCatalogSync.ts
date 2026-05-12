@@ -8,6 +8,14 @@ import type { Prisma } from "@prisma/client";
 import type { SquareClient } from "square";
 import { prisma } from "@/lib/prisma";
 import { requireProductionSquareClient } from "@/lib/square/squareProductionClient";
+import type { CategoryNodeMeta } from "@/lib/merch/squareCategoryMerch";
+import {
+  ancestrySquareIdsLeafFirst,
+  buildMerchStoreCategoryRows,
+  pickLeafSquareCategoryForStoreItem,
+} from "@/lib/merch/squareCategoryMerch";
+import { wrapStoreProductCachePayload } from "@/lib/merch/productCacheEnvelope";
+
 
 export const STORE_CATEGORY_NAME = "Store";
 
@@ -38,15 +46,26 @@ function readParentCategoryId(obj: Record<string, unknown>): string | null {
   return typeof id === "string" && id.length > 0 ? id : null;
 }
 
-async function loadCategoryParentMap(client: SquareClient): Promise<Map<string, string | null>> {
-  const map = new Map<string, string | null>();
+async function loadCategoryGraph(client: SquareClient): Promise<{
+  parentByCategoryId: Map<string, string | null>;
+  metaById: Map<string, CategoryNodeMeta>;
+}> {
+  const parentByCategoryId = new Map<string, string | null>();
+  const metaById = new Map<string, CategoryNodeMeta>();
   const pager = await client.catalog.list({ types: "CATEGORY" });
   for await (const obj of pager) {
-    const o = obj as { type?: string; id?: string };
+    const o = obj as { type?: string; id?: string; ordinal?: unknown };
     if (o.type !== "CATEGORY" || !o.id) continue;
-    map.set(o.id, readParentCategoryId(obj as unknown as Record<string, unknown>));
+    const parentId = readParentCategoryId(obj as unknown as Record<string, unknown>);
+    parentByCategoryId.set(o.id, parentId);
+    const ordRaw = Number((obj as unknown as { ordinal?: unknown }).ordinal ?? 0);
+    metaById.set(o.id, {
+      name: catName(obj as never) || o.id,
+      ordinal: Number.isFinite(ordRaw) ? ordRaw : 0,
+      parentId,
+    });
   }
-  return map;
+  return { parentByCategoryId, metaById };
 }
 
 /** Any category on the item is the Store root or a descendant of it (matches discovery graph). */
@@ -100,6 +119,25 @@ function itemVariations(item: {
 }): unknown[] {
   const d = item.itemData ?? item.item_data;
   return d?.variations ?? [];
+}
+
+function variationImageIds(variation: Record<string, unknown>): string[] {
+  const v = variation.itemVariationData ?? variation.item_variation_data;
+  if (!v || typeof v !== "object") return [];
+  const vp = v as { imageIds?: string[]; image_ids?: string[] };
+  const ids = vp.imageIds ?? vp.image_ids ?? [];
+  return ids.filter(Boolean);
+}
+
+/** Prefer ITEM image_ids; if absent use first variation that declares image ids (Square often attaches at variation). */
+function primaryImageIdListForStoreItem(payload: Record<string, unknown>): string[] {
+  const fromItem = itemImages(payload as never);
+  if (fromItem.length) return fromItem;
+  for (const vRaw of itemVariations(payload as never)) {
+    const ids = variationImageIds(vRaw as Record<string, unknown>);
+    if (ids.length) return ids;
+  }
+  return [];
 }
 
 function variationMoney(variation: Record<string, unknown>): number | null {
@@ -255,15 +293,18 @@ export async function runProductionStoreCatalogSync(): Promise<StoreCatalogSyncR
     throw new Error(`Square catalog has no CATEGORY named "${STORE_CATEGORY_NAME}".`);
   }
 
-  const categoryParentById = await loadCategoryParentMap(client);
+  const categoryGraph = await loadCategoryGraph(client);
+  const { parentByCategoryId, metaById } = categoryGraph;
   const storeItemIds = await collectStoreItemIds(
     client,
     storeCategorySquareId,
-    categoryParentById
+    parentByCategoryId
   );
   if (storeItemIds.length === 0) {
     warnings.push("no_items_found_in_store_category_tree");
   }
+
+  const merchRows = buildMerchStoreCategoryRows(storeCategorySquareId, parentByCategoryId, metaById);
 
   const batchObjects = await batchGetCatalogObjects(client, storeItemIds);
   const itemById = new Map<string, Record<string, unknown>>();
@@ -277,7 +318,7 @@ export async function runProductionStoreCatalogSync(): Promise<StoreCatalogSyncR
     .map((id) => itemById.get(id))
     .filter((obj): obj is Record<string, unknown> => !!obj)
     .filter((obj) =>
-      itemIsInStoreCategoryTree(obj, storeCategorySquareId, categoryParentById)
+      itemIsInStoreCategoryTree(obj, storeCategorySquareId, parentByCategoryId)
     );
 
   const imageIds: string[] = [];
@@ -286,6 +327,7 @@ export async function runProductionStoreCatalogSync(): Promise<StoreCatalogSyncR
   for (const payload of storeItems) {
     imageIds.push(...itemImages(payload as never));
     for (const vRaw of itemVariations(payload as never)) {
+      imageIds.push(...variationImageIds(vRaw as Record<string, unknown>));
       const v = vRaw as { id?: string; type?: string };
       if (v.id && v.type === "ITEM_VARIATION") variationIds.push(v.id);
     }
@@ -317,17 +359,30 @@ export async function runProductionStoreCatalogSync(): Promise<StoreCatalogSyncR
       (payload as { item_data?: { name?: string } }).item_data?.name ??
       "Untitled";
     const description = itemDesc(payload as never);
-    const imgList = itemImages(payload as never);
+    const imgList = primaryImageIdListForStoreItem(payload);
     const primaryImageUrl = imgList.length ? imageUrls.get(imgList[0]!) ?? null : null;
 
     const variations = itemVariations(payload as never);
-    const itemJson = payload as Prisma.InputJsonValue;
+    const itemCats = itemCategories(payload);
+    const leafCategoryId = pickLeafSquareCategoryForStoreItem(
+      itemCats,
+      storeCategorySquareId,
+      parentByCategoryId
+    );
+    const ancestry = ancestrySquareIdsLeafFirst(leafCategoryId, storeCategorySquareId, parentByCategoryId);
+    const envelope = wrapStoreProductCachePayload(payload, {
+      leafCategorySquareId: leafCategoryId,
+      ancestrySquareIdsLeafFirst: ancestry,
+      storeRootSquareId: storeCategorySquareId,
+    });
+
+    const itemJson = envelope as unknown as Prisma.InputJsonValue;
 
     const product = await prisma.productCache.upsert({
       where: { squareCatalogItemId: itemId },
       create: {
         squareCatalogItemId: itemId,
-        squareCategoryId: storeCategorySquareId,
+        squareCategoryId: leafCategoryId,
         slug: slugify(title, itemId),
         title,
         description,
@@ -336,7 +391,7 @@ export async function runProductionStoreCatalogSync(): Promise<StoreCatalogSyncR
         data: itemJson,
       },
       update: {
-        squareCategoryId: storeCategorySquareId,
+        squareCategoryId: leafCategoryId,
         slug: slugify(title, itemId),
         title,
         description,
@@ -398,6 +453,17 @@ export async function runProductionStoreCatalogSync(): Promise<StoreCatalogSyncR
     });
   }
 
+  const persistedMerchCategories = merchRows.map((r) => ({
+    squareId: r.squareId,
+    slug: r.slug,
+    name: r.name,
+    parentSquareId: r.parentSquareId,
+    ancestryLeafFirst: r.ancestryLeafFirst ?? [],
+    ordinal: r.ordinal,
+    depth: r.depth,
+    accent: r.accent,
+  }));
+
   await prisma.catalogSyncState.upsert({
     where: { id: "singleton" },
     create: {
@@ -409,6 +475,7 @@ export async function runProductionStoreCatalogSync(): Promise<StoreCatalogSyncR
         variantsUpserted,
         inventoryVariantsChecked: inventoryRowsChecked,
         warningsCount: warnings.length,
+        merchStoreCategories: persistedMerchCategories,
       } as Prisma.InputJsonValue,
     },
     update: {
@@ -419,6 +486,7 @@ export async function runProductionStoreCatalogSync(): Promise<StoreCatalogSyncR
         variantsUpserted,
         inventoryVariantsChecked: inventoryRowsChecked,
         warningsCount: warnings.length,
+        merchStoreCategories: persistedMerchCategories,
       } as Prisma.InputJsonValue,
     },
   });

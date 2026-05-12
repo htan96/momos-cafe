@@ -41,7 +41,7 @@ export default function ModifierModal({
       setSelections(s);
       setQty(1);
     }
-  }, [isOpen, item]);
+  }, [isOpen, item, modifierGroups]);
 
   const swipe = useSwipeToClose({
     onClose,
@@ -52,12 +52,6 @@ export default function ModifierModal({
   if (!item) return null;
 
   const basePrice = item.price ?? 0;
-
-  const handleOverlayClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  };
 
   const selectOption = (groupId: string, optionId: string, type: string) => {
     setSelections((prev) => {
@@ -130,165 +124,164 @@ export default function ModifierModal({
 
   return (
     <div
-      className={`fixed inset-0 z-[2000] bg-black/55 backdrop-blur-sm flex items-end justify-center transition-opacity duration-250 ${
+      className={`fixed inset-0 z-[2000] flex items-end md:items-center justify-center md:p-6 transition-opacity duration-250 ${
         isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
       }`}
-      onClick={handleOverlayClick}
     >
+      <button
+        type="button"
+        aria-label="Close"
+        className="absolute inset-0 bg-charcoal/55 backdrop-blur-[2px]"
+        onClick={onClose}
+      />
       <div
-        className={`bg-white rounded-t-[20px] w-full max-w-[600px] max-h-[92vh] flex flex-col transition-transform duration-300 ease-out ${
-          isOpen ? "translate-y-0" : "translate-y-full"
+        role="dialog"
+        aria-modal="true"
+        className={`relative z-[2001] bg-cream w-full max-w-[600px] md:max-w-lg max-h-[min(92vh,760px)] rounded-t-2xl md:rounded-2xl shadow-[0_-8px_40px_rgba(0,0,0,0.18)] md:shadow-2xl overflow-hidden flex flex-col transition-transform duration-300 ease-out ${
+          isOpen ? "translate-y-0" : "translate-y-full md:translate-y-4"
         }`}
         style={isOpen ? swipe.style : undefined}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Drag handle — touch target for swipe-to-close */}
         <div
-          className="w-full py-3 flex justify-center flex-shrink-0 -mt-1"
+          className="flex-shrink-0 h-1 w-12 rounded-full bg-cream-dark mx-auto mt-2 md:hidden"
           style={{ touchAction: "none" }}
           onTouchStart={swipe.onTouchStart}
           onTouchMove={swipe.onTouchMove}
           onTouchEnd={swipe.onTouchEnd}
-        >
-          <div className="w-11 h-1 bg-cream-dark rounded-full" />
-        </div>
+        />
 
-        {/* Image */}
-        <div className="w-full h-[180px] bg-cream-dark flex items-center justify-center text-7xl overflow-hidden">
-          {item.image_url ? (
-            <Image
-              src={item.image_url}
-              alt={item.name}
-              width={600}
-              height={180}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <span className="opacity-70">🍽️</span>
-          )}
-        </div>
-
-        <div className="px-5 pt-5 flex-shrink-0">
-          <h3 className="font-display text-[32px] text-charcoal leading-none mb-1.5">
-            {item.name}
-          </h3>
-          <p className="text-sm text-gray-mid leading-relaxed">
-            {item.description || "Description coming soon."}
-          </p>
-          <div className="flex items-center justify-between mt-2.5">
-            <span className="font-display text-[28px] text-red">
-              ${basePrice.toFixed(2)}
+        <div className="flex flex-1 flex-col md:flex-row md:min-h-[280px] overflow-hidden">
+          <div className="relative aspect-[5/4] md:aspect-auto md:w-[42%] md:min-h-[240px] bg-charcoal shrink-0">
+            {item.image_url ? (
+              <Image src={item.image_url} alt="" fill className="object-cover" sizes="(max-width:768px) 100vw, 280px" />
+            ) : (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-teal-dark to-charcoal text-white/30">
+                <span className="font-display text-5xl">M</span>
+              </div>
+            )}
+            <span className="absolute left-3 top-3 rounded-full bg-white/95 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-teal-dark shadow">
+              Build your plate
             </span>
           </div>
-        </div>
 
-        <div className="flex-1 overflow-y-auto px-5 pb-5">
-          {modifierGroups.map((group) => (
-            <div key={group.id} className="mt-6">
-              <div className="flex items-center justify-between mb-3">
-                <span className="font-display text-xl text-charcoal">
-                  {group.name}
-                </span>
-                <span
-                  className={`font-bold text-[10px] tracking-[0.15em] uppercase px-2 py-0.5 rounded ${
-                    group.required
-                      ? "bg-red text-white"
-                      : "bg-teal-light text-teal-dark"
-                  }`}
-                >
-                  {group.required ? "Required" : "Optional"}
-                </span>
+          <div className="flex flex-col flex-1 min-h-0 overflow-y-auto">
+            <div className="p-5 pb-0 md:p-6 shrink-0 flex justify-between gap-3 items-start border-b border-cream-dark/60">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-teal-dark mb-1">
+                  Your order
+                </p>
+                <h3 className="font-display text-2xl text-charcoal leading-tight pr-2">{item.name}</h3>
+                <p className="font-display text-lg text-red mt-1">${basePrice.toFixed(2)}</p>
+                <p className="text-[13px] text-charcoal/60 leading-relaxed mt-2 max-h-20 overflow-y-auto">
+                  {item.description || "Fine-tune toppings and add-ons below."}
+                </p>
               </div>
-              <div className="h-[1.5px] bg-cream-dark mb-3" />
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-full border border-cream-dark w-9 h-9 text-charcoal/60 hover:bg-white hover:text-charcoal text-lg leading-none shrink-0"
+              >
+                ×
+              </button>
+            </div>
 
-              {group.options.map((opt) => {
-                const isSelected =
-                  group.type === "radio"
-                    ? selections[group.id] === opt.id
-                    : (selections[group.id] as string[] ?? []).includes(opt.id);
-
-                return (
-                  <div
-                    key={opt.id}
-                    onClick={() =>
-                      selectOption(group.id, opt.id, group.type)
-                    }
-                    className={`flex items-center gap-3 py-3 px-3.5 rounded-lg border-2 cursor-pointer transition-all mb-2 select-none ${
-                      isSelected
-                        ? "border-teal bg-teal/5"
-                        : "border-cream-dark hover:border-teal-light hover:bg-teal/5"
-                    }`}
-                  >
-                    <div
-                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                        isSelected
-                          ? "border-teal bg-teal"
-                          : "border-cream-dark bg-white"
+            <div className="flex-1 overflow-y-auto px-5 md:px-6 py-4 pb-2">
+              {modifierGroups.map((group) => (
+                <div key={group.id} className="mt-2 first:mt-0">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-semibold text-[11px] uppercase tracking-[0.12em] text-charcoal/65">
+                      {group.name}
+                    </span>
+                    <span
+                      className={`font-bold text-[9px] tracking-[0.12em] uppercase px-2 py-0.5 rounded-full ${
+                        group.required ? "bg-charcoal text-cream" : "bg-white text-teal-dark ring-1 ring-cream-dark"
                       }`}
                     >
-                      {group.type === "checkbox" && isSelected && (
-                        <span className="text-white text-xs font-bold">✓</span>
-                      )}
-                      {group.type === "radio" && isSelected && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-white" />
-                      )}
-                    </div>
-                    <span className="flex-1 font-medium text-sm text-charcoal">
-                      {opt.name}
+                      {group.required ? "Required" : "Optional"}
                     </span>
-                    {opt.price > 0 ? (
-                      <span className="font-semibold text-sm text-teal-dark">
-                        +${opt.price.toFixed(2)}
-                      </span>
-                    ) : (
-                      <span className="text-gray-mid text-sm">Free</span>
-                    )}
                   </div>
-                );
-              })}
-            </div>
-          ))}
-        </div>
 
-        <div className="p-4 border-t border-cream-dark bg-cream-mid flex-shrink-0">
-          <div className="flex items-center gap-3 mb-3.5">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setQty(Math.max(1, qty - 1))}
-                className="w-9 h-9 rounded-full bg-cream-dark flex items-center justify-center text-lg font-bold hover:bg-teal-light transition-colors"
-              >
-                −
-              </button>
-              <span className="font-display text-2xl text-charcoal min-w-[32px] text-center">
-                {qty}
-              </span>
-              <button
-                onClick={() => setQty(qty + 1)}
-                className="w-9 h-9 rounded-full bg-cream-dark flex items-center justify-center text-lg font-bold hover:bg-teal-light transition-colors"
-              >
-                +
-              </button>
+                  {group.options.map((opt) => {
+                    const isSelected =
+                      group.type === "radio"
+                        ? selections[group.id] === opt.id
+                        : ((selections[group.id] as string[]) ?? []).includes(opt.id);
+
+                    return (
+                      <button
+                        type="button"
+                        key={opt.id}
+                        onClick={() => selectOption(group.id, opt.id, group.type)}
+                        className={`w-full flex items-center gap-3 py-2.5 px-3 rounded-xl border text-left transition-all mb-1.5 select-none ${
+                          isSelected
+                            ? "border-teal bg-white shadow-sm ring-1 ring-teal/20"
+                            : "border-cream-dark hover:border-teal/50 bg-white/80"
+                        }`}
+                      >
+                        <span
+                          className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                            isSelected ? "border-teal bg-teal" : "border-cream-dark bg-white"
+                          }`}
+                        >
+                          {group.type === "checkbox" && isSelected && (
+                            <span className="text-white text-[10px] font-bold">✓</span>
+                          )}
+                          {group.type === "radio" && isSelected && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                          )}
+                        </span>
+                        <span className="flex-1 font-medium text-[13px] text-charcoal">{opt.name}</span>
+                        {opt.price > 0 ? (
+                          <span className="font-semibold text-xs text-teal-dark">+${opt.price.toFixed(2)}</span>
+                        ) : (
+                          <span className="text-[11px] text-charcoal/40">Free</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
-            <div className="flex-1 text-right">
-              <span className="font-semibold text-sm text-gray-mid">
-                Total:{" "}
-              </span>
-              <strong className="font-display text-[22px] text-charcoal ml-1.5">
-                ${getTotalPrice().toFixed(2)}
-              </strong>
+
+            <div className="p-4 md:p-5 border-t border-cream-dark bg-white/60 flex-shrink-0">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setQty(Math.max(1, qty - 1))}
+                    className="w-9 h-9 rounded-lg border border-cream-dark bg-white flex items-center justify-center text-lg font-bold text-charcoal hover:border-teal transition-colors"
+                  >
+                    −
+                  </button>
+                  <span className="font-display text-xl text-charcoal min-w-[28px] text-center">{qty}</span>
+                  <button
+                    type="button"
+                    onClick={() => setQty(qty + 1)}
+                    className="w-9 h-9 rounded-lg border border-cream-dark bg-white flex items-center justify-center text-lg font-bold text-charcoal hover:border-teal transition-colors"
+                  >
+                    +
+                  </button>
+                </div>
+                <div className="flex-1 text-right">
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-charcoal/45">Total</span>
+                  <strong className="font-display text-xl text-charcoal ml-2">${getTotalPrice().toFixed(2)}</strong>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleConfirm}
+                disabled={orderingDisabled}
+                className={`w-full py-3.5 px-4 rounded-xl font-semibold text-sm uppercase tracking-wide transition-all ${
+                  orderingDisabled
+                    ? "bg-gray-mid text-white/80 cursor-not-allowed shadow-none"
+                    : "bg-charcoal text-cream shadow-[0_3px_0_#111] hover:bg-teal-dark active:translate-y-px"
+                }`}
+              >
+                {orderingDisabled ? "Ordering Closed" : `Add to order · $${getTotalPrice().toFixed(2)}`}
+              </button>
             </div>
           </div>
-          <button
-            onClick={handleConfirm}
-            disabled={orderingDisabled}
-            className={`w-full py-3.5 px-4 rounded-lg font-semibold text-base transition-all ${
-              orderingDisabled
-                ? "bg-gray-mid text-white/80 cursor-not-allowed shadow-none"
-                : "bg-red text-white shadow-[0_3px_0_#800] hover:-translate-y-0.5"
-            }`}
-          >
-            {orderingDisabled ? "Ordering Closed" : `Add to Order — $${getTotalPrice().toFixed(2)}`}
-          </button>
         </div>
       </div>
     </div>

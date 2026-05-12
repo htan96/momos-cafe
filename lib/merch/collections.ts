@@ -1,63 +1,75 @@
-import type { StoreCollectionId } from "@/types/merch";
+import type { MerchStoreCollection } from "@/types/merchCatalog";
 
-export interface StoreCollection {
-  id: StoreCollectionId;
-  /** Square CATEGORY id — populate when Catalog sync is live */
-  squareCategoryId?: string;
-  title: string;
-  tagline: string;
-  /** Tailwind accent for featured cards */
-  accent: "teal" | "gold" | "red" | "charcoal";
-}
-
-/** Canonical tabs / filters — order matches suggested UX */
-export const STORE_COLLECTIONS: StoreCollection[] = [
+/**
+ * Fallback collections when `/api/products/store` serves mock catalog offline — slugs MUST match `mockCatalog[].collectionId`.
+ */
+export const MERCH_FALLBACK_COLLECTIONS: MerchStoreCollection[] = [
   {
-    id: "apparel",
+    slug: "apparel",
+    squareId: "mock-apparel",
     title: "Apparel",
     tagline: "Tees & everyday layers",
+    parentSquareId: null,
+    depth: 1,
     accent: "teal",
+    sortOrder: 0,
   },
   {
-    id: "hoodies",
+    slug: "hoodies",
+    squareId: "mock-hoodies",
     title: "Hoodies",
     tagline: "Midweight & cozy",
+    parentSquareId: null,
+    depth: 1,
     accent: "charcoal",
+    sortOrder: 1,
   },
   {
-    id: "hats",
+    slug: "hats",
+    squareId: "mock-hats",
     title: "Hats",
     tagline: "Caps & beanies",
+    parentSquareId: null,
+    depth: 1,
     accent: "gold",
+    sortOrder: 2,
   },
   {
-    id: "drinkware",
+    slug: "drinkware",
+    squareId: "mock-drinkware",
     title: "Drinkware",
     tagline: "Mugs & cups",
+    parentSquareId: null,
+    depth: 1,
     accent: "red",
+    sortOrder: 3,
   },
   {
-    id: "accessories",
+    slug: "accessories",
+    squareId: "mock-accessories",
     title: "Accessories",
     tagline: "Totes & extras",
+    parentSquareId: null,
+    depth: 1,
     accent: "teal",
+    sortOrder: 4,
   },
   {
-    id: "gift_cards",
+    slug: "gift_cards",
+    squareId: "mock-gift-cards",
     title: "Gift Cards",
     tagline: "Load any amount",
+    parentSquareId: null,
+    depth: 1,
     accent: "gold",
+    sortOrder: 5,
   },
 ];
 
-/** Hero “featured shop” ribbons — subset for horizontal scroll */
-export const FEATURED_COLLECTION_IDS: StoreCollectionId[] = [
-  "apparel",
-  "hoodies",
-  "drinkware",
-  "gift_cards",
-];
-
-export function collectionById(id: StoreCollectionId): StoreCollection | undefined {
-  return STORE_COLLECTIONS.find((c) => c.id === id);
+export function merchCollectionSlugToCollection(
+  slug: string | undefined | null,
+  fallback: MerchStoreCollection[]
+): MerchStoreCollection | undefined {
+  if (!slug) return undefined;
+  return fallback.find((c) => c.slug === slug);
 }

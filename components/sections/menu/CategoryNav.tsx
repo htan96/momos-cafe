@@ -9,7 +9,7 @@ interface CategoryNavProps {
   categories: MenuCategory[];
   headerOffset?: number;
   onScrollTo?: (slug: string) => void;
-  /** When true, nav is inside header — no sticky, no negative margin */
+  /** When true, nav is inside header — match shop filter chip strip (cream / charcoal). */
   embeddedInHeader?: boolean;
 }
 
@@ -27,19 +27,16 @@ export default function CategoryNav({
 
     const updateActive = () => {
       let best: string | null = null;
-      let bestTop = -Infinity; // section we've scrolled past most (closest to top from above)
+      let bestTop = -Infinity;
       for (const cat of categories) {
         const el = document.getElementById(cat.slug);
         if (!el) continue;
         const top = el.getBoundingClientRect().top;
-        // Active = section whose top is just above/below the header zone (<= offset)
-        // Pick the one with largest top that's still <= offset (most recently entered)
         if (top <= STICKY_OFFSET + 80 && top > bestTop) {
           bestTop = top;
           best = cat.slug;
         }
       }
-      // Fallback: if none in zone, pick the one closest to top
       if (!best && categories.length > 0) {
         let closest = categories[0].slug;
         let closestDist = Infinity;
@@ -58,7 +55,7 @@ export default function CategoryNav({
       if (best) setActiveId(best);
     };
 
-    updateActive(); // initial
+    updateActive();
     let raf = 0;
     const onScroll = () => {
       if (raf) return;
@@ -74,7 +71,6 @@ export default function CategoryNav({
     };
   }, [categories]);
 
-  // When activeId changes, scroll the nav so the active pill is centered
   useEffect(() => {
     if (!activeId) return;
     const btn = scrollRef.current?.querySelector(`[data-slug="${activeId}"]`) as HTMLElement | null;
@@ -89,8 +85,6 @@ export default function CategoryNav({
     (slug: string) => {
       onScrollTo?.(slug);
       setActiveId(slug);
-      // Scroll the category bar horizontally only — do NOT use scrollIntoView on the button,
-      // as it can scroll the document and override our page scroll.
       const btn = scrollRef.current?.querySelector(`[data-slug="${slug}"]`) as HTMLElement | null;
       const container = scrollRef.current;
       if (btn && container) {
@@ -109,17 +103,17 @@ export default function CategoryNav({
 
   if (categories.length === 0) return null;
 
+  const shellClass = embeddedInHeader
+    ? "bg-cream/95 backdrop-blur-md border-b border-cream-dark/70 shadow-[0_8px_20px_-12px_rgba(44,44,44,0.12)]"
+    : "sticky top-[64px] z-[700] bg-cream/95 backdrop-blur-md border-b border-cream-dark/70 shadow-[0_8px_20px_-12px_rgba(44,44,44,0.12)] -mt-2";
+
   return (
-    <nav
-      id="cat-nav"
-      className={`h-[52px] ${embeddedInHeader ? "" : "sticky top-[64px] z-[700] bg-teal-dark border-b-2 border-white/[0.08] -mt-2"}`}
-      aria-label="Menu categories"
-    >
+    <nav id="cat-nav" className={`h-[52px] ${shellClass}`} aria-label="Menu categories">
       <div className="max-w-[1200px] mx-auto h-full flex items-center min-w-0 overflow-hidden">
         <button
           type="button"
           onClick={() => scrollNav("left")}
-          className="hidden lg:flex flex-shrink-0 w-10 h-10 items-center justify-center text-white/80 hover:text-white hover:bg-white/10 rounded-md transition-colors"
+          className="hidden lg:flex flex-shrink-0 w-10 h-10 items-center justify-center text-charcoal/50 hover:text-teal-dark hover:bg-white/80 rounded-md transition-colors"
           aria-label="Scroll categories left"
         >
           ‹
@@ -127,7 +121,7 @@ export default function CategoryNav({
 
         <div
           ref={scrollRef}
-          className="flex-1 min-w-0 h-full overflow-x-auto overflow-y-hidden scrollbar-hide flex items-center gap-1 px-3 touch-pan-x"
+          className="flex-1 min-w-0 h-full overflow-x-auto overflow-y-hidden scrollbar-hide flex items-center gap-2 px-3 touch-pan-x py-2"
         >
           {categories.map((cat) => (
             <button
@@ -135,10 +129,10 @@ export default function CategoryNav({
               data-slug={cat.slug}
               type="button"
               onClick={() => scrollTo(cat.slug)}
-              className={`font-semibold text-xs tracking-[0.12em] uppercase py-2 px-3.5 rounded-md whitespace-nowrap flex-shrink-0 transition-all duration-150 ${
+              className={`font-semibold text-[11px] md:text-xs tracking-wide uppercase rounded-full px-3.5 py-1.5 whitespace-nowrap flex-shrink-0 transition-all duration-150 border snap-start ${
                 activeId === cat.slug
-                  ? "text-charcoal bg-gold shadow-[0_2px_8px_rgba(193,154,53,0.4)]"
-                  : "text-white/65 bg-transparent hover:text-white hover:bg-white/10"
+                  ? "bg-charcoal text-cream border-charcoal shadow-sm"
+                  : "bg-white text-charcoal/70 border-cream-dark hover:border-teal hover:text-teal-dark"
               }`}
             >
               {cat.name}
@@ -149,7 +143,7 @@ export default function CategoryNav({
         <button
           type="button"
           onClick={() => scrollNav("right")}
-          className="hidden lg:flex flex-shrink-0 w-10 h-10 items-center justify-center text-white/80 hover:text-white hover:bg-white/10 rounded-md transition-colors"
+          className="hidden lg:flex flex-shrink-0 w-10 h-10 items-center justify-center text-charcoal/50 hover:text-teal-dark hover:bg-white/80 rounded-md transition-colors"
           aria-label="Scroll categories right"
         >
           ›

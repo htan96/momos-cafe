@@ -3,14 +3,12 @@
  * Food ordering remains on `types/ordering` until unified checkout merges both.
  */
 
-/** Keys aligned with Square Store category tree (sync later via catalog API). */
-export type StoreCollectionId =
-  | "apparel"
-  | "hoodies"
-  | "hats"
-  | "drinkware"
-  | "accessories"
-  | "gift_cards";
+export type { MerchStoreCollection } from "@/types/merchCatalog";
+/**
+ * Primary collection key for product cards + filters — slug from Square category name + id tail
+ * (see `/api/products/store` `collections[].slug`).
+ */
+export type MerchCollectionId = string;
 
 export type MerchInventoryState = "in_stock" | "low_stock" | "out_of_stock";
 
@@ -58,10 +56,14 @@ export interface MerchProduct {
   name: string;
   subtitle?: string;
   description: string;
-  /** Primary collection tab/filter */
-  collectionId: StoreCollectionId;
-  /** Featured collection ribbons may reference multiple */
-  featuredCollectionIds?: StoreCollectionId[];
+  /** Primary Square Store category (leaf or deepest under Store) — DTO only. */
+  squareLeafCategoryId?: string;
+  /** Leaf → … → Store root — used to match parent collection filters. */
+  squareCategoryAncestryLeafFirst?: string[];
+  /** Primary filter tab / collection slug */
+  collectionId: MerchCollectionId;
+  /** Additional slugs for ribbons (optional) */
+  featuredCollectionIds?: MerchCollectionId[];
   price: number;
   compareAtPrice?: number;
   priceLabel?: string;

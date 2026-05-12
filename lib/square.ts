@@ -2,12 +2,82 @@ import { SquareClient, SquareEnvironment } from "square";
 import type { MenuCategory, MenuItem as MenuItemType } from "@/types/menu";
 import type { ModifierGroup } from "@/types/ordering";
 import { inferCategoryType, sortCategories } from "@/lib/categoryUtils";
+import { STORE_CATEGORY_NAME } from "@/lib/square/storeCatalogSync";
 
 function slugify(text: string): string {
   return text
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
+}
+
+/** Match Square category name to the retail `Store` root (same identifier as store catalog sync). */
+function categoryNameMatchesStoreMenu(name: string): boolean {
+  const t = name.trim();
+  return t === STORE_CATEGORY_NAME || t.toLowerCase() === STORE_CATEGORY_NAME.toLowerCase();
+}
+
+function readParentCategoryIdMenu(catObj: Record<string, unknown>): string | null {
+  const cd = (catObj.categoryData ?? catObj.category_data) as Record<string, unknown> | undefined;
+  if (!cd) return null;
+  const p = (cd.parentCategory ?? cd.parent_category) as Record<string, unknown> | undefined;
+  if (!p) return null;
+  const id = (p.id ?? p.catalog_object_id) as string | undefined;
+  return typeof id === "string" && id.length > 0 ? id : null;
+}
+
+/** Walk ancestors — true if this category id is the Store root or nested under it. */
+function categoryIsUnderStoreBranch(
+  categoryId: string,
+  storeNamedCategoryIds: Set<string>,
+  parentByCategoryId: Map<string, string | null>
+): boolean {
+  let cur: string | null | undefined = categoryId;
+  const seen = new Set<string>();
+  while (cur && !seen.has(cur)) {
+    seen.add(cur);
+    if (storeNamedCategoryIds.has(cur)) return true;
+    cur = parentByCategoryId.get(cur) ?? null;
+  }
+  return false;
+}
+
+function itemCategoryIdsFromMenuItemData(itemData: Record<string, unknown>): string[] {
+  const cats = itemData.categories as Array<{ id?: string }> | undefined;
+  const fromObjs = (cats ?? []).map((c) => c.id).filter((x): x is string => !!x);
+  if (fromObjs.length) return [...new Set(fromObjs)];
+  const single = itemData.categoryId ?? itemData.category_id;
+  const extra = (itemData.categoryIds ?? itemData.category_ids) as string[] | undefined;
+  const combo = [
+    ...(typeof single === "string" && single.length > 0 ? [single] : []),
+    ...((extra ?? []).filter((x) => typeof x === "string" && x.length > 0)),
+  ];
+  return [...new Set(combo)];
+}
+
+/**
+ * Pick a menu bucket from Square categories on the item, excluding the Store branch.
+ * If every linked category is under Store (merch), the item is omitted from the food menu.
+ */
+function pickMenuCategoryId(
+  itemData: Record<string, unknown>,
+  storeNamedCategoryIds: Set<string>,
+  parentByCategoryId: Map<string, string | null>
+): string | null {
+  const ids = itemCategoryIdsFromMenuItemData(itemData);
+  if (ids.length === 0) return "uncategorized";
+  for (const id of ids) {
+    if (!categoryIsUnderStoreBranch(id, storeNamedCategoryIds, parentByCategoryId)) {
+      return id;
+    }
+  }
+  return null;
+}
+
+function catalogImageObjectUrl(obj: Record<string, unknown>): string | undefined {
+  const d = (obj.imageData ?? obj.image_data) as Record<string, unknown> | undefined;
+  const url = d?.url;
+  return typeof url === "string" && url.length > 0 ? url : undefined;
 }
 
 /** Set `DEBUG_MENU_MODIFIERS=1` to log modifier list IDs through Square → menu mapping. */
@@ -203,6 +273,10 @@ export async function getMenuFromSquare(options?: {
     string,
     { id: string; name: string; slug: string; ordinal: number }
   >();
+  /** Parent links for CATEGORY objects (Square `parentCategory` / `parent_category`). */
+  const categoryParentById = new Map<string, string | null>();
+  /** CATEGORY ids whose name is the retail `Store` root (case-insensitive). */
+  const storeNamedCategoryIds = new Set<string>();
   const itemsByCategory = new Map<string, MenuItemType[]>();
   const modifierMap = new Map<string, { name: string; price: number; modifierListId: string }>();
   const modifierListMap = new Map<
@@ -221,11 +295,11 @@ export async function getMenuFromSquare(options?: {
     allObjects.push(obj as { type: string; id: string; [key: string]: unknown });
   }
 
-  // Build modifier maps from MODIFIER and MODIFIER_LIST
+  // Build modifier maps, category metadata, Store-branch index, and image URLs
   for (const obj of allObjects) {
     if (obj.type === "IMAGE") {
-      const imgUrl = (obj as unknown as { imageData?: { url?: string } }).imageData?.url;
-      if (imgUrl) imageMap.set(obj.id, imgUrl);
+      const url = catalogImageObjectUrl(obj as Record<string, unknown>);
+      if (url) imageMap.set(obj.id, url);
     }
 
     if (obj.type === "MODIFIER") {
@@ -255,20 +329,31 @@ export async function getMenuFromSquare(options?: {
     }
 
     if (obj.type === "CATEGORY") {
-      const catData = (obj as unknown as { categoryData?: { name?: string }; ordinal?: number }).categoryData;
-      if (!catData) continue;
+      const raw = obj as Record<string, unknown>;
+      categoryParentById.set(obj.id, readParentCategoryIdMenu(raw));
+      const catBlock = (raw.categoryData ?? raw.category_data) as
+        | { name?: string }
+        | undefined;
+      const nm = catBlock?.name;
+      if (typeof nm === "string" && categoryNameMatchesStoreMenu(nm)) {
+        storeNamedCategoryIds.add(obj.id);
+      }
+      if (!catBlock || typeof catBlock.name !== "string") continue;
       categoriesMap.set(obj.id, {
         id: obj.id,
-        name: catData.name ?? "Uncategorized",
-        slug: slugify(catData.name ?? ""),
-        ordinal: Number((obj as unknown as { ordinal?: number }).ordinal ?? 999),
+        name: catBlock.name || "Uncategorized",
+        slug: slugify(catBlock.name || ""),
+        ordinal: Number((raw.ordinal as number | undefined) ?? 999),
       });
     }
   }
 
   // Batch retrieve items with include_related_objects to get modifier_list_info
   const itemIds = allObjects.filter((o) => o.type === "ITEM").map((o) => o.id);
-  const itemDataMap = new Map<string, { itemData: Record<string, unknown>; categoryId: string }>();
+  const itemDataMap = new Map<
+    string,
+    { itemData: Record<string, unknown>; menuCategoryId: string | null }
+  >();
 
   let debugItemComparison: MenuModifierItemDebug | undefined;
 
@@ -282,8 +367,13 @@ export async function getMenuFromSquare(options?: {
       const objects = (batch as { objects?: Array<{ id: string; type: string; itemData?: Record<string, unknown> }> }).objects ?? [];
       const related = (batch as { relatedObjects?: Array<{ id: string; type: string; modifierListData?: Record<string, unknown>; modifierData?: Record<string, unknown> }> }).relatedObjects ?? [];
 
-      // Merge related MODIFIER_LIST and MODIFIER into our maps (in case list didn't return them)
+      // Merge related MODIFIER_LIST, MODIFIER, and IMAGE into our maps (URLs may only appear here).
       for (const ro of related) {
+        if (ro.type === "IMAGE") {
+          const rraw = ro as Record<string, unknown>;
+          const url = catalogImageObjectUrl(rraw);
+          if (url && ro.id) imageMap.set(ro.id, url);
+        }
         if (ro.type === "MODIFIER" && ro.modifierData) {
           const md = ro.modifierData as { name?: string; priceMoney?: { amount?: string }; modifierListId?: string };
           const priceCents = md.priceMoney?.amount ? Number(md.priceMoney.amount) : 0;
@@ -323,9 +413,13 @@ export async function getMenuFromSquare(options?: {
 
       for (const o of objects) {
         if (o.type !== "ITEM" || !o.itemData) continue;
-        const itemData = o.itemData as { categoryId?: string; categories?: Array<{ id: string }> };
-        const categoryId = itemData.categoryId ?? itemData.categories?.[0]?.id ?? "uncategorized";
-        itemDataMap.set(o.id, { itemData: o.itemData, categoryId });
+        const idata = o.itemData as Record<string, unknown>;
+        const menuCategoryId = pickMenuCategoryId(
+          idata,
+          storeNamedCategoryIds,
+          categoryParentById
+        );
+        itemDataMap.set(o.id, { itemData: idata, menuCategoryId });
       }
     } catch (e) {
       console.warn("Square batchGet failed, falling back to list data:", e);
@@ -372,11 +466,23 @@ export async function getMenuFromSquare(options?: {
     const itemData = batchEntry
       ? batchEntry.itemData
       : listCatalogItemData;
-    const categoryId = batchEntry
-      ? batchEntry.categoryId
-      : (listCatalogItemData?.categoryId as string | undefined) ??
-        (listCatalogItemData?.categories as Array<{ id: string }> | undefined)?.[0]?.id ??
-        "uncategorized";
+    if (!itemData) continue;
+
+    const menuCategoryIdResolved =
+      batchEntry?.menuCategoryId ??
+      (listCatalogItemData
+        ? pickMenuCategoryId(
+            listCatalogItemData as Record<string, unknown>,
+            storeNamedCategoryIds,
+            categoryParentById
+          )
+        : null);
+
+    /** Omit merch-only items: every Square category link sits under the `Store` branch. */
+    if (menuCategoryIdResolved === null) {
+      continue;
+    }
+    const categoryId = menuCategoryIdResolved;
 
     if (MENU_MODIFIER_VALIDATION && batchEntry) {
       const batchMl =
@@ -396,7 +502,6 @@ export async function getMenuFromSquare(options?: {
       }
     }
 
-    if (!itemData) continue;
     if ((itemData as { isArchived?: boolean }).isArchived) {
       if (options?.debugItemId === obj.id) {
         const batchMl =
@@ -446,6 +551,7 @@ export async function getMenuFromSquare(options?: {
       description?: string;
       descriptionPlaintext?: string;
       imageIds?: string[];
+      image_ids?: string[];
       variations?: unknown[];
     };
     const { variationId, variationData } = resolveMenuItemVariation(
@@ -460,7 +566,10 @@ export async function getMenuFromSquare(options?: {
       : 0;
 
     const imageIds =
-      itemDataTyped.imageIds ?? variationData?.imageIds ?? [];
+      itemDataTyped.imageIds ??
+      itemDataTyped.image_ids ??
+      variationData?.imageIds ??
+      [];
     const imageUrl = imageIds[0]
       ? imageMap.get(imageIds[0])
       : undefined;

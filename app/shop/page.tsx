@@ -13,28 +13,48 @@ import MerchProductSheet from "@/components/sections/shop/MerchProductSheet";
 import MerchFulfillmentSection from "@/components/sections/shop/MerchFulfillmentSection";
 import ShopCTA from "@/components/sections/shop/ShopCTA";
 import { merchCatalog } from "@/lib/merch/mockCatalog";
-import { STORE_COLLECTIONS } from "@/lib/merch/collections";
-import type { MerchProduct, StoreCollectionId } from "@/types/merch";
+import { MERCH_FALLBACK_COLLECTIONS } from "@/lib/merch/collections";
+import type { MerchProduct } from "@/types/merch";
+import type { MerchStoreCollection } from "@/types/merchCatalog";
+import type { MerchFilterId } from "@/lib/merch/merchProductCollectionMatch";
+import {
+  merchProductMatchesCollection,
+} from "@/lib/merch/merchProductCollectionMatch";
 import { useMerchCart } from "@/context/MerchCartContext";
 import { useToast } from "@/context/ToastContext";
 
 type SortKey = "featured" | "price_asc" | "price_desc" | "name";
 
+type StoreCatalogApi = {
+  source?: string;
+  products?: MerchProduct[];
+  collections?: MerchStoreCollection[];
+  filterCollections?: MerchStoreCollection[];
+  featuredCollections?: MerchStoreCollection[];
+};
+
 function filterByCollection(
   products: MerchProduct[],
-  activeId: StoreCollectionId | "all"
+  activeId: MerchFilterId,
+  filterCollections: MerchStoreCollection[],
+  slugForSquareId: Map<string, string>
 ): MerchProduct[] {
   if (activeId === "all") return products;
-  return products.filter(
-    (p) =>
-      p.collectionId === activeId ||
-      p.featuredCollectionIds?.includes(activeId)
-  );
+
+  const c = filterCollections.find((x) => x.slug === activeId);
+  if (!c) {
+    return products.filter((p) => p.collectionId === activeId);
+  }
+
+  return products.filter((p) => merchProductMatchesCollection(p, c, slugForSquareId));
 }
 
-function sortProducts(products: MerchProduct[], sort: SortKey): MerchProduct[] {
+function sortProducts(
+  products: MerchProduct[],
+  sort: SortKey,
+  slugOrder: string[]
+): MerchProduct[] {
   const copy = [...products];
-  const collectionOrder = STORE_COLLECTIONS.map((c) => c.id);
 
   switch (sort) {
     case "price_asc":
@@ -48,9 +68,11 @@ function sortProducts(products: MerchProduct[], sort: SortKey): MerchProduct[] {
       break;
     default: {
       copy.sort((a, b) => {
-        const ai = collectionOrder.indexOf(a.collectionId);
-        const bi = collectionOrder.indexOf(b.collectionId);
-        if (ai !== bi) return ai - bi;
+        const ai = slugOrder.indexOf(a.collectionId);
+        const bi = slugOrder.indexOf(b.collectionId);
+        const ae = ai === -1 ? 999 : ai;
+        const be = bi === -1 ? 999 : bi;
+        if (ae !== be) return ae - be;
         const ab = a.badges?.includes("New") ? 1 : 0;
         const bb = b.badges?.includes("New") ? 1 : 0;
         return bb - ab;
@@ -67,20 +89,52 @@ export default function ShopPage() {
 
   const [products, setProducts] = useState<MerchProduct[]>(merchCatalog);
   const [catalogSource, setCatalogSource] = useState<string>("mock_seed");
+  const [filterCollections, setFilterCollections] =
+    useState<MerchStoreCollection[]>(MERCH_FALLBACK_COLLECTIONS);
+  const [featuredCollections, setFeaturedCollections] = useState<MerchStoreCollection[]>(() =>
+    MERCH_FALLBACK_COLLECTIONS.slice(0, 6)
+  );
+  const [slugForSquareId, setSlugForSquareId] = useState<Map<string, string>>(() =>
+    new Map(MERCH_FALLBACK_COLLECTIONS.map((c) => [c.squareId, c.slug]))
+  );
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       try {
         const res = await fetch("/api/products/store", { cache: "no-store" });
-        const data = (await res.json()) as { source?: string; products?: MerchProduct[] };
+        const data = (await res.json()) as StoreCatalogApi;
         if (cancelled || !Array.isArray(data.products)) return;
         setProducts(data.products);
         setCatalogSource(data.source ?? "unknown");
+
+        const fc =
+          Array.isArray(data.filterCollections) && data.filterCollections.length > 0
+            ? data.filterCollections
+            : Array.isArray(data.collections) && data.collections.length > 0
+              ? data.collections
+              : MERCH_FALLBACK_COLLECTIONS;
+
+        const feat =
+          Array.isArray(data.featuredCollections) && data.featuredCollections.length > 0
+            ? data.featuredCollections
+            : fc.slice(0, 6);
+
+        setFilterCollections(fc);
+        setFeaturedCollections(feat);
+
+        const allRows = [...(data.collections ?? []), ...(data.filterCollections ?? [])];
+        const map = new Map<string, string>();
+        for (const c of data.collections ?? []) map.set(c.squareId, c.slug);
+        for (const c of allRows) map.set(c.squareId, c.slug);
+        if (map.size > 0) setSlugForSquareId(map);
       } catch {
         if (!cancelled) {
           setProducts(merchCatalog);
           setCatalogSource("client_fallback_error");
+          setFilterCollections(MERCH_FALLBACK_COLLECTIONS);
+          setFeaturedCollections(MERCH_FALLBACK_COLLECTIONS.slice(0, 6));
+          setSlugForSquareId(new Map(MERCH_FALLBACK_COLLECTIONS.map((c) => [c.squareId, c.slug])));
         }
       }
     })();
@@ -89,20 +143,25 @@ export default function ShopPage() {
     };
   }, []);
 
-  const [activeCollection, setActiveCollection] = useState<
-    StoreCollectionId | "all"
-  >("all");
+  const [activeCollection, setActiveCollection] = useState<MerchFilterId>("all");
   const [sort, setSort] = useState<SortKey>("featured");
   const [sheetProduct, setSheetProduct] = useState<MerchProduct | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  const { addMerchLine } = useMerchCart();
-  const showToast = useToast();
+  const slugOrderForSort = useMemo(
+    () => filterCollections.map((c) => c.slug),
+    [filterCollections]
+  );
 
   const visibleProducts = useMemo(() => {
-    const filtered = filterByCollection(products, activeCollection);
-    return sortProducts(filtered, sort);
-  }, [products, activeCollection, sort]);
+    const filtered = filterByCollection(
+      products,
+      activeCollection,
+      filterCollections,
+      slugForSquareId
+    );
+    return sortProducts(filtered, sort, slugOrderForSort);
+  }, [products, activeCollection, filterCollections, slugForSquareId, sort, slugOrderForSort]);
 
   const openSheet = useCallback((product: MerchProduct) => {
     setSheetProduct(product);
@@ -113,6 +172,9 @@ export default function ShopPage() {
     setSheetOpen(false);
     setTimeout(() => setSheetProduct(null), 200);
   }, []);
+
+  const { addMerchLine } = useMerchCart();
+  const showToast = useToast();
 
   const handleQuickAdd = useCallback(
     (product: MerchProduct) => {
@@ -150,6 +212,7 @@ export default function ShopPage() {
       <ShopFlowRibbon />
 
       <FeaturedCollections
+        featuredCollections={featuredCollections}
         activeId={activeCollection}
         onSelect={(id) => {
           setActiveCollection(id);
@@ -176,7 +239,7 @@ export default function ShopPage() {
               </h2>
               <p className="text-[13px] text-charcoal/55 mt-2 max-w-xl">
                 {catalogSource === "product_cache"
-                  ? "Synced from Square’s retail “Store” category through Momo’s catalog cache."
+                  ? "Grouped by nested Square categories under your retail Store root via catalog sync."
                   : catalogSource === "mock_catalog_fallback"
                     ? "Showing mock assortment until production catalog sync hydrates the cache."
                     : catalogSource === "mock_seed"
@@ -205,6 +268,7 @@ export default function ShopPage() {
           <ShopFulfillmentStrip />
 
           <CollectionFilterBar
+            filterCollections={filterCollections}
             activeId={activeCollection}
             onSelect={setActiveCollection}
           />

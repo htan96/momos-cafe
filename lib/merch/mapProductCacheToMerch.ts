@@ -5,9 +5,9 @@ import type {
   MerchProduct,
   MerchProductColor,
   MerchVariantOption,
-  StoreCollectionId,
 } from "@/types/merch";
 import { fulfillmentForSlug } from "@/lib/merch/fulfillment";
+import { unwrapProductCachePayload } from "@/lib/merch/productCacheEnvelope";
 
 const FALLBACK_KEYS = ["teal", "cream", "gold", "charcoal", "red"] as const;
 
@@ -17,20 +17,18 @@ function hashPickStable(str: string): (typeof FALLBACK_KEYS)[number] {
   return FALLBACK_KEYS[h % FALLBACK_KEYS.length]!;
 }
 
-function inferCollection(title: string, description: string): StoreCollectionId {
-  const blob = `${title} ${description}`.toLowerCase();
-  if (/gift\s*card|e-?gift/.test(blob)) return "gift_cards";
-  if (/hoodie|pullover|crewneck|sweatshirt|fleece/.test(blob)) return "hoodies";
-  if (/hat|cap|beanie|snapback|dad\s*hat/.test(blob)) return "hats";
-  if (/mug|cup|drinkware|tumbler|bottle/.test(blob)) return "drinkware";
-  if (/tote|pin|keychain|sticker|socks|wallet|belt|accessories/.test(blob)) return "accessories";
-  if (/tee|t-?shirt|shirt|top|apparel|crew|tank|polo/.test(blob)) return "apparel";
-  return "apparel";
+/** Gift cards from Square Catalog `productType`; never title keywords. */
+function fulfillmentSlugFromSquareItem(squareItem: Record<string, unknown>): MerchFulfillmentSlug {
+  const id = (squareItem.itemData ?? squareItem.item_data) as Record<string, unknown> | undefined;
+  const ptRaw = id?.productType ?? id?.product_type;
+  const pt = typeof ptRaw === "string" ? ptRaw.toUpperCase() : "";
+  if (pt === "GIFT_CARD") return "gift_card";
+  return "standard_pickup";
 }
 
-function inferFulfillmentSlug(title: string, description: string): MerchFulfillmentSlug {
-  const blob = `${title} ${description}`.toLowerCase();
-  return /gift\s*card|e-?gift/.test(blob) ? "gift_card" : "standard_pickup";
+export interface MapMerchProductsContext {
+  /** Maps leaf / interior Square category id → collection slug persisted at sync (`merchStoreCategories`). */
+  collectionSlugForCategorySquareId: (squareCategoryId: string) => string | undefined;
 }
 
 function splitVariantLabel(label: string): { size?: string; color?: string } {
@@ -66,10 +64,27 @@ function aggregateInventory(variants: ProductVariantCache[]): MerchInventoryStat
   return "in_stock";
 }
 
-export function mapProductCacheToMerchProduct(row: ProductCache & { variants: ProductVariantCache[] }): MerchProduct {
-  const collectionId = inferCollection(row.title, row.description ?? "");
-  const fulfillmentSlug = inferFulfillmentSlug(row.title, row.description ?? "");
+function fallbackSlugForSquareId(id: string): string {
+  const tail = id.replace(/#/g, "").slice(-8).toLowerCase();
+  return `category-${slugPart(tail) || tail || "misc"}`;
+}
+
+export function mapProductCacheToMerchProduct(
+  row: ProductCache & { variants: ProductVariantCache[] },
+  ctx?: MapMerchProductsContext
+): MerchProduct {
+  const { squareItem, merch } = unwrapProductCachePayload(row.data);
+  const fulfillmentSlug = fulfillmentSlugFromSquareItem(squareItem);
   const fulfillment = fulfillmentForSlug(fulfillmentSlug);
+
+  const leafFromMeta = merch?.leafCategorySquareId;
+  const ancestry = merch?.ancestrySquareIdsLeafFirst;
+  const columnLeaf = row.squareCategoryId ?? undefined;
+  const leafSquareId = leafFromMeta ?? columnLeaf ?? "";
+
+  const collectionId =
+    (leafSquareId && ctx?.collectionSlugForCategorySquareId(leafSquareId)) ||
+    (leafSquareId ? fallbackSlugForSquareId(leafSquareId) : "uncategorized");
 
   const variantOptions: MerchVariantOption[] = [...row.variants]
     .sort((a, b) => {
@@ -130,6 +145,14 @@ export function mapProductCacheToMerchProduct(row: ProductCache & { variants: Pr
     variantOptions: variantOptions.length ? variantOptions : undefined,
     name: row.title,
     description: row.description ?? "",
+    squareLeafCategoryId: leafSquareId || undefined,
+    squareCategoryAncestryLeafFirst:
+      ancestry ??
+      (columnLeaf
+        ? [columnLeaf]
+        : leafSquareId
+          ? [leafSquareId]
+          : undefined),
     collectionId,
     featuredCollectionIds: [collectionId],
     price: priceFloor,
@@ -145,7 +168,8 @@ export function mapProductCacheToMerchProduct(row: ProductCache & { variants: Pr
 }
 
 export function mapProductCacheRows(
-  rows: Array<ProductCache & { variants: ProductVariantCache[] }>
+  rows: Array<ProductCache & { variants: ProductVariantCache[] }>,
+  ctx?: MapMerchProductsContext
 ): MerchProduct[] {
-  return rows.filter((r) => r.isAvailable).map(mapProductCacheToMerchProduct);
+  return rows.filter((r) => r.isAvailable).map((r) => mapProductCacheToMerchProduct(r, ctx));
 }

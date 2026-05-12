@@ -30,7 +30,7 @@ function getCategoryAncestry(
   return { ids, names };
 }
 
-function buildCategoryTree(byId: CatalogSnapshot["byId"]): CategoryTreeNode[] {
+export function buildCategoryTree(byId: CatalogSnapshot["byId"]): CategoryTreeNode[] {
   const cats = [...byId.values()].filter((s) => s.type === "CATEGORY");
   const byCatId = new Map<string, CategoryTreeNode>();
 

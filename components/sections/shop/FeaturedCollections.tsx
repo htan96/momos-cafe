@@ -1,7 +1,7 @@
 "use client";
 
-import type { StoreCollectionId } from "@/types/merch";
-import { STORE_COLLECTIONS, FEATURED_COLLECTION_IDS } from "@/lib/merch/collections";
+import type { MerchStoreCollection } from "@/types/merchCatalog";
+import type { MerchFilterId } from "@/lib/merch/merchProductCollectionMatch";
 
 const ACCENTS: Record<string, string> = {
   teal: "from-teal/90 to-teal-dark ring-teal/20",
@@ -11,14 +11,17 @@ const ACCENTS: Record<string, string> = {
 };
 
 interface FeaturedCollectionsProps {
-  activeId: StoreCollectionId | "all";
-  onSelect: (id: StoreCollectionId | "all") => void;
+  featuredCollections: MerchStoreCollection[];
+  activeId: MerchFilterId;
+  onSelect: (id: MerchFilterId) => void;
 }
 
-export default function FeaturedCollections({ activeId, onSelect }: FeaturedCollectionsProps) {
-  const featured = FEATURED_COLLECTION_IDS.map((id) =>
-    STORE_COLLECTIONS.find((c) => c.id === id)!
-  ).filter(Boolean);
+export default function FeaturedCollections({
+  featuredCollections,
+  activeId,
+  onSelect,
+}: FeaturedCollectionsProps) {
+  if (featuredCollections.length === 0) return null;
 
   return (
     <section
@@ -48,17 +51,17 @@ export default function FeaturedCollections({ activeId, onSelect }: FeaturedColl
         </div>
 
         <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-thin -mx-1 px-1 md:grid md:grid-cols-2 lg:grid-cols-4 md:gap-4 md:overflow-visible md:pb-0">
-          {featured.map((c) => {
-            const selected = activeId === c.id;
+          {featuredCollections.map((c) => {
+            const selected = activeId === c.slug;
             const grad = ACCENTS[c.accent] ?? ACCENTS.teal;
             const goldish = c.accent === "gold";
             const titleCls = goldish ? "text-charcoal" : "text-white";
             const subCls = goldish ? "text-charcoal/70" : "text-white/85";
             return (
               <button
-                key={c.id}
+                key={c.slug}
                 type="button"
-                onClick={() => onSelect(c.id)}
+                onClick={() => onSelect(c.slug)}
                 className={`snap-start shrink-0 w-[min(78vw,280px)] md:w-auto text-left rounded-2xl p-[1px] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-teal focus-visible:ring-offset-2 ${
                   selected ? "ring-2 ring-red ring-offset-2 ring-offset-cream" : "hover:opacity-95"
                 }`}

@@ -55,9 +55,19 @@ export type OrderingRules = {
   /** Last instant customers can choose same-day fulfillment = close − this many minutes. */
   lastOrderCutoffMinutes: number;
   pickupIntervalMinutes: number;
+  /**
+   * Ignored for food — kitchen pickup stays same-calendar-day only.
+   * Retained for legacy JSON and non-food tooling.
+   */
   enableFutureOrdering: boolean;
   maxFutureOrderDays: number;
   restaurantTimeZone: string;
+  /**
+   * Optional `HH:mm` pair — when both are non-empty, replaces `open` / `close` on every
+   * **non-closed** day in `weeklyHours` for kitchen scheduling (cutoff, prep, slots).
+   */
+  openingTime?: string;
+  closingTime?: string;
 };
 
 export const DEFAULT_ORDERING_RULES: OrderingRules = {
@@ -95,6 +105,32 @@ export function resolveOrderingRules(
   partial?: Partial<OrderingRules>
 ): OrderingRules {
   return { ...DEFAULT_ORDERING_RULES, ...partial };
+}
+
+/** Applies optional `orderingRules.openingTime` / `closingTime` overrides for a single day row. */
+export function resolveDayHoursForOrdering(
+  day: DayHours,
+  rules: OrderingRules
+): DayHours {
+  if (day.closed) return day;
+  const o = rules.openingTime?.trim();
+  const c = rules.closingTime?.trim();
+  if (o && c) {
+    return { ...day, open: o, close: c };
+  }
+  return day;
+}
+
+export function resolveWeeklyHoursForOrdering(
+  weeklyHours: WeeklyHours,
+  orderingRulesPartial?: Partial<OrderingRules>
+): WeeklyHours {
+  const rules = resolveOrderingRules(orderingRulesPartial);
+  const next = {} as WeeklyHours;
+  for (const k of DAY_ORDER) {
+    next[k] = resolveDayHoursForOrdering(weeklyHours[k]!, rules);
+  }
+  return next;
 }
 
 export function normalizeAdminSettingsJson(

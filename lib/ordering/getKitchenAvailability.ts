@@ -9,8 +9,9 @@ export type KitchenAvailability = {
 };
 
 /**
- * Kitchen food ordering is live only when Ops accepts online orders and a same-day pickup slot
- * exists (hours, cutoff, prep lead). Merch / gift cards ignore this gate.
+ * Kitchen food ordering is live only when Ops accepts online orders and a same-calendar-day pickup
+ * instant exists under posted hours, last-order cutoff, and minimum prep lead (plus item-based prep).
+ * Merch and gift-card lines ignore this gate.
  */
 export function getKitchenAvailability(
   nowUtc: Date,

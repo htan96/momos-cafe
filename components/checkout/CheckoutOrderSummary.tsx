@@ -19,9 +19,12 @@ function lineTitle(l: UnifiedCartLine): string {
 
 export default function CheckoutOrderSummary({
   lines,
+  heldAsideFoodLines,
   variant = "both",
 }: {
   lines: UnifiedCartLine[];
+  /** Food lines present in the bag but not payable in this checkout window (informational). */
+  heldAsideFoodLines?: UnifiedFoodLine[];
   variant?: "mobile" | "desktop" | "both";
 }) {
   const groups = useMemo(() => buildCheckoutDisplayGroups(lines), [lines]);
@@ -50,7 +53,8 @@ export default function CheckoutOrderSummary({
         <p className="font-display text-lg mt-0.5">Your bag</p>
       </div>
       <div className="p-4 space-y-5 max-h-[min(62vh,520px)] overflow-y-auto">
-        {groups.length === 0 ? (
+        {groups.length === 0 &&
+        (!heldAsideFoodLines || heldAsideFoodLines.length === 0) ? (
           <p className="text-sm text-charcoal/55">Nothing here yet.</p>
         ) : (
           groups.map((g) => (
@@ -81,6 +85,32 @@ export default function CheckoutOrderSummary({
             </div>
           ))
         )}
+        {heldAsideFoodLines && heldAsideFoodLines.length > 0 ? (
+          <div className="border-t border-dashed border-cream-dark pt-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-charcoal/45 mb-2">
+              Kitchen picks (saved in your bag)
+            </p>
+            <p className="text-xs text-charcoal/55 leading-relaxed mb-3">
+              These aren&apos;t included in this checkout while the kitchen is outside its ordering window.
+            </p>
+            <ul className="space-y-2">
+              {heldAsideFoodLines.map((f) => (
+                <li
+                  key={f.lineId}
+                  className="flex justify-between gap-3 text-sm text-charcoal/50 line-through decoration-charcoal/25 leading-snug"
+                >
+                  <span className="min-w-0">{lineTitle(f)}</span>
+                  <span className="shrink-0 font-medium">
+                    {formatMoney(
+                      (f.price + (f.modifiers?.reduce((s, m) => s + (Number(m.price) || 0), 0) ?? 0)) *
+                        f.quantity
+                    )}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </div>
       <div className="px-4 py-3 border-t border-cream-dark bg-cream/80 text-sm space-y-1">
         {subtotals.food > 0 && (

@@ -2,6 +2,7 @@ import type { AdminSettings } from "@/lib/adminSettings.model";
 import {
   resolveOrderingRules,
   formatTimeForDisplay,
+  resolveDayHoursForOrdering,
 } from "@/lib/adminSettings.model";
 import { getStoreAvailabilityState } from "@/lib/ordering/getStoreAvailabilityState";
 import { getZonedWallFields } from "@/lib/ordering/tzWallClock";
@@ -55,8 +56,10 @@ export function getOrderingStatus(settings: AdminSettings): OrderingStatus {
   }
 
   if (!st.isWithinOperatingHours) {
-    const openHm = settings.weeklyHours[st.calendarDayKey]?.open;
-    if (openHm && !settings.weeklyHours[st.calendarDayKey]?.closed) {
+    const rawDay = settings.weeklyHours[st.calendarDayKey];
+    const dh = rawDay ? resolveDayHoursForOrdering(rawDay, rules) : null;
+    const openHm = dh && !dh.closed ? dh.open : undefined;
+    if (openHm) {
       return {
         canAccept: true,
         scheduleNote: `We open at ${formatTimeForDisplay(openHm)} — your bag stays ready.`,
@@ -83,8 +86,9 @@ export function buildScheduleBanner(settings: AdminSettings): { note?: string } 
   return { note: scheduleNote };
 }
 
-export function kitchenCheckoutBlocked(settings: AdminSettings): boolean {
-  return !settings.isOrderingOpen;
+/** @deprecated Merch checkout is never blocked; kitchen food is gated in `validateCartEligibility` / APIs. */
+export function kitchenCheckoutBlocked(_settings: AdminSettings): boolean {
+  return false;
 }
 
 /**

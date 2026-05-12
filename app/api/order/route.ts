@@ -312,7 +312,7 @@ export async function POST(request: Request) {
       commerceOrderId?: string;
     };
 
-    const cart = Array.isArray(rawCart) ? rawCart : [];
+    let cart: CartItem[] = Array.isArray(rawCart) ? rawCart : [];
     const merchParsed = parseMerchLinesOnly(rawMerchLines);
     if ("error" in merchParsed) return merchParsed.error;
     const merchLines = merchParsed.lines;
@@ -369,13 +369,8 @@ export async function POST(request: Request) {
       console.log("VARIATION: items WITHOUT variationId:", withoutVariationId.length, withoutVariationId);
     }
 
-    const foodItemCount = cart.reduce((sum, i) => sum + i.quantity, 0);
+    let foodItemCount = cart.reduce((sum, i) => sum + i.quantity, 0);
     const adminSettings = await loadAdminSettingsFromDb();
-
-    let estimatedPickupAt = getEstimatedPickupTime(foodItemCount > 0 ? foodItemCount : 1);
-
-    /** Kitchen pickup instant — anchored to Ops windows + validated client `scheduledFor` */
-    let kitchenPickupAtUtc: Date | null = null;
 
     if (foodItemCount > 0) {
       const kitchenGate = getKitchenAvailability(
@@ -386,17 +381,29 @@ export async function POST(request: Request) {
         { isOrderingOpen: adminSettings.isOrderingOpen }
       );
       if (!kitchenGate.foodOrderingLive) {
-        console.warn("[Order] 422: Kitchen food ordering unavailable (window or Ops gate)");
-        return NextResponse.json(
-          {
-            error:
-              "The kitchen isn’t accepting online food orders in this window. Refresh checkout, remove kitchen items, or finish shop-only checkout.",
-            code: "kitchen_food_unavailable",
-          },
-          { status: 422 }
-        );
+        if (merchLines.length === 0) {
+          console.warn("[Order] 422: Kitchen food ordering unavailable (window or Ops gate)");
+          return NextResponse.json(
+            {
+              error:
+                "The kitchen isn’t accepting online food orders in this window. Refresh checkout, remove kitchen items, or finish shop-only checkout.",
+              code: "kitchen_food_unavailable",
+            },
+            { status: 422 }
+          );
+        }
+        console.warn("[Order] Stripping kitchen cart — food window closed; continuing with shop lines only.");
+        cart = [];
+        foodItemCount = 0;
       }
+    }
 
+    let estimatedPickupAt = getEstimatedPickupTime(foodItemCount > 0 ? foodItemCount : 1);
+
+    /** Kitchen pickup instant — anchored to Ops windows + validated client `scheduledFor` */
+    let kitchenPickupAtUtc: Date | null = null;
+
+    if (foodItemCount > 0) {
       const canon = getCanonicalEarliestKitchenPickupUtc(
         new Date(),
         adminSettings.weeklyHours,

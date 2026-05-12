@@ -1,7 +1,10 @@
 import { DateTime } from "luxon";
 
 import type { OrderingRules, WeeklyHours } from "@/lib/adminSettings.model";
-import { resolveOrderingRules } from "@/lib/adminSettings.model";
+import {
+  resolveOrderingRules,
+  resolveWeeklyHoursForOrdering,
+} from "@/lib/adminSettings.model";
 import { getEstimatedPrepMinutes } from "@/lib/pickupTime";
 import { dtInZone, luxonWeekdayNumberToDayKey, parseHm } from "@/lib/ordering/tzWallClock";
 
@@ -14,6 +17,7 @@ export function getNextAvailablePickupTime(
   caps?: { maxFutureDaysOverride?: number }
 ): Date | null {
   const rules = resolveOrderingRules(orderingRulesPartial);
+  const hours = resolveWeeklyHoursForOrdering(weeklyHours, orderingRulesPartial);
   const tz = rules.restaurantTimeZone;
   const prepMin =
     foodItemCount > 0 ? getEstimatedPrepMinutes(foodItemCount) : 0;
@@ -32,7 +36,7 @@ export function getNextAvailablePickupTime(
 
   for (let i = 0; i <= horizon; i++) {
     const dayAnchor = startDay.plus({ days: i });
-    const dh = weeklyHours[luxonWeekdayNumberToDayKey(dayAnchor.weekday)];
+    const dh = hours[luxonWeekdayNumberToDayKey(dayAnchor.weekday)];
     if (!dh || dh.closed) continue;
 
     const oh = parseHm(dh.open);

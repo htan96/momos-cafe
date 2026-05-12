@@ -213,7 +213,6 @@ export default function CheckoutPanel({
       const merchPay = elig.eligibleLines.filter((l): l is UnifiedMerchLine => l.kind === "merch");
 
       if (cartPayload.length === 0 && merchPay.length === 0) {
-        showToast("Nothing in your bag is available to pay in this window.");
         return;
       }
 

@@ -1,5 +1,8 @@
 import type { DayKey, OrderingRules, WeeklyHours } from "@/lib/adminSettings.model";
-import { resolveOrderingRules } from "@/lib/adminSettings.model";
+import {
+  resolveOrderingRules,
+  resolveWeeklyHoursForOrdering,
+} from "@/lib/adminSettings.model";
 import {
   getZonedWallFields,
   wallClockOnSameZonedDay,
@@ -33,7 +36,8 @@ export function getStoreAvailabilityState(
   const z = getZonedWallFields(instantUtc, tz);
   const dayKey = z.dayKey;
 
-  const dayHours = weeklyHours[dayKey];
+  const effectiveHours = resolveWeeklyHoursForOrdering(weeklyHours, orderingRulesPartial);
+  const dayHours = effectiveHours[dayKey];
   const closed = !dayHours || dayHours.closed;
   if (closed) {
     return {

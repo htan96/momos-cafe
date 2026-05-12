@@ -21,16 +21,28 @@ function collectFoodLines(lines: UnifiedCartLine[]): UnifiedFoodLine[] {
   return out;
 }
 
+/** Premium shopper-facing copy when shop lines remain but kitchen food was dropped. */
+function noticeWhenFoodRemovedShopRemains(keptMerchLineCount: number, keptGiftCardLineCount: number): string {
+  if (keptMerchLineCount > 0 && keptGiftCardLineCount > 0) {
+    return "Our kitchen is currently closed for food ordering. Merchandise and gift cards in your bag are still available — this checkout is for those shop items only.";
+  }
+  if (keptGiftCardLineCount > 0) {
+    return "Our kitchen is currently closed for food ordering. Gift cards in your bag are still available — this checkout is for shop purchases only.";
+  }
+  return "Our kitchen is currently closed for food ordering. Merchandise in your bag is still available — this checkout is for shop items only.";
+}
+
 /**
  * Determines which unified lines may be paid for in this checkout attempt.
- * Food/kitchen lines require an active same-day ordering window; merch and gift cards do not.
+ * Food lines (`kind === "food"`, kitchen / pickup) require an active same-day ordering window;
+ * merch lines (`kind === "merch"`) and gift cards (`fulfillmentSlug === "gift_card"`) do not.
  */
 export function validateCartEligibility(params: {
   nowUtc: Date;
   lines: UnifiedCartLine[];
   weeklyHours: WeeklyHours;
   orderingRulesPartial?: Partial<OrderingRules>;
-  /** Admin kill-switch for kitchen; does not block merch-only checkout. */
+  /** Ops pause for kitchen; does not block merch-only checkout. */
   isOrderingOpen: boolean;
 }): CartEligibilityResult {
   const foodQty = totalFoodQty(params.lines);
@@ -64,10 +76,7 @@ export function validateCartEligibility(params: {
     };
   }
 
-  const { kept, removedFood } = filterUnavailableFoodItems(
-    params.lines,
-    false
-  );
+  const filtered = filterUnavailableFoodItems(params.lines, false);
 
   const nextWin = getNextFoodOrderingWindow(
     params.nowUtc,
@@ -75,24 +84,27 @@ export function validateCartEligibility(params: {
     params.orderingRulesPartial
   );
 
-  const notices: string[] = [];
+  const notices: string[] = [...filtered.notices];
   const nextSummary = nextWin?.headline ?? null;
 
-  if (foodLines.length > 0 && kept.length > 0) {
+  if (foodLines.length > 0 && filtered.eligibleLines.length > 0) {
     notices.push(
-      "Our kitchen is currently closed for food ordering. Merchandise and gifts in your bag are still available to purchase — we’ve set this checkout to shop items only."
+      noticeWhenFoodRemovedShopRemains(
+        filtered.keptMerchLineCount,
+        filtered.keptGiftCardLineCount
+      )
     );
-  } else if (foodLines.length > 0 && kept.length === 0) {
+  } else if (foodLines.length > 0 && filtered.eligibleLines.length === 0) {
     notices.push(
       nextSummary
-        ? `${nextSummary} You can leave items in your bag for when the kitchen opens.`
+        ? `${nextSummary} Your selections will stay in your bag for when the kitchen opens.`
         : "Food ordering isn’t available in this window. You can browse anytime and return when the kitchen is open."
     );
   }
 
   return {
-    eligibleLines: kept,
-    removedFoodLines: removedFood,
+    eligibleLines: filtered.eligibleLines,
+    removedFoodLines: filtered.removedFoodLines,
     notices,
     kitchenAcceptsFoodNow: false,
     nextFoodOrderingSummary: nextSummary,

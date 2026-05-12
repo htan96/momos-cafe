@@ -1,7 +1,10 @@
 import { DateTime } from "luxon";
 
 import type { OrderingRules, WeeklyHours } from "@/lib/adminSettings.model";
-import { resolveOrderingRules } from "@/lib/adminSettings.model";
+import {
+  resolveOrderingRules,
+  resolveWeeklyHoursForOrdering,
+} from "@/lib/adminSettings.model";
 import { dtInZone, luxonWeekdayNumberToDayKey, parseHm, compareDateAsc } from "@/lib/ordering/tzWallClock";
 
 export type GeneratedPickupSlot = {
@@ -27,7 +30,10 @@ export function generatePickupWindows(params: {
   limit?: number;
 }): GeneratedPickupSlot[] {
   const rules = resolveOrderingRules(params.orderingRulesPartial);
-  const weeklyHours = params.weeklyHours;
+  const weeklyHours = resolveWeeklyHoursForOrdering(
+    params.weeklyHours,
+    params.orderingRulesPartial
+  );
   const tz = rules.restaurantTimeZone;
   const limit = params.limit ?? 80;
   const interval = rules.pickupIntervalMinutes;

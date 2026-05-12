@@ -125,6 +125,41 @@ export default function SettingsPanel() {
           </p>
           <div className="grid sm:grid-cols-2 gap-4 mb-4">
             <label className="block text-[10px] font-semibold uppercase tracking-wider text-charcoal/55">
+              Kitchen open (optional override)
+              <input
+                type="time"
+                value={ordering.openingTime ?? ""}
+                onChange={(e) =>
+                  orderingRulePatch({
+                    openingTime: e.target.value.trim() || undefined,
+                  })
+                }
+                className={`${inputClass} w-full mt-1`}
+              />
+              <span className="block mt-1 text-[10px] text-charcoal/45 font-normal normal-case leading-snug">
+                When set with closing time, replaces posted open time on each non-closed day for kitchen scheduling
+                only.
+              </span>
+            </label>
+            <label className="block text-[10px] font-semibold uppercase tracking-wider text-charcoal/55">
+              Kitchen close (optional override)
+              <input
+                type="time"
+                value={ordering.closingTime ?? ""}
+                onChange={(e) =>
+                  orderingRulePatch({
+                    closingTime: e.target.value.trim() || undefined,
+                  })
+                }
+                className={`${inputClass} w-full mt-1`}
+              />
+              <span className="block mt-1 text-[10px] text-charcoal/45 font-normal normal-case leading-snug">
+                Pair with open override; leave blank to use each day&apos;s hours above.
+              </span>
+            </label>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-4 mb-4">
+            <label className="block text-[10px] font-semibold uppercase tracking-wider text-charcoal/55">
               Min prep lead (minutes)
               <input
                 type="number"
@@ -172,23 +207,6 @@ export default function SettingsPanel() {
                 className={`${inputClass} w-full mt-1`}
               />
             </label>
-            <label className="block text-[10px] font-semibold uppercase tracking-wider text-charcoal/55">
-              Max days ahead customers can reserve
-              <input
-                type="number"
-                min={0}
-                max={30}
-                value={ordering.maxFutureOrderDays}
-                onChange={(e) =>
-                  orderingRulePatch({
-                    maxFutureOrderDays:
-                      Number(e.target.value) ||
-                      DEFAULT_ORDERING_RULES.maxFutureOrderDays,
-                  })
-                }
-                className={`${inputClass} w-full mt-1`}
-              />
-            </label>
             <label className="flex flex-col sm:col-span-2 text-[10px] font-semibold uppercase tracking-wider text-charcoal/55">
               Restaurant IANA timezone
               <input
@@ -196,9 +214,10 @@ export default function SettingsPanel() {
                 value={ordering.restaurantTimeZone}
                 onChange={(e) =>
                   orderingRulePatch({
-                    restaurantTimeZone: e.target.value.trim().length > 2
-                      ? e.target.value.trim()
-                      : DEFAULT_ORDERING_RULES.restaurantTimeZone,
+                    restaurantTimeZone:
+                      e.target.value.trim().length > 2
+                        ? e.target.value.trim()
+                        : DEFAULT_ORDERING_RULES.restaurantTimeZone,
                   })
                 }
                 placeholder="America/Los_Angeles"
@@ -206,22 +225,9 @@ export default function SettingsPanel() {
               />
             </label>
           </div>
-          <div className="flex items-center gap-3 mb-2 opacity-60">
-            <input
-              id="future-ordering"
-              type="checkbox"
-              checked={ordering.enableFutureOrdering}
-              disabled
-              readOnly
-              className="w-5 h-5 rounded border-2 border-cream-dark text-teal focus:ring-teal cursor-not-allowed"
-            />
-            <label htmlFor="future-ordering" className="font-medium text-charcoal text-sm">
-              Future-dated food pickup (disabled — same-day kitchen windows only)
-            </label>
-          </div>
-          <p className="text-xs text-charcoal/55 leading-relaxed">
-            The storefront schedules food pickup only inside active Ops hours for the current day. Ops still uses lead
-            time, cutoff, and slot spacing below.
+          <p className="text-xs text-charcoal/55 leading-relaxed mb-0">
+            Food pickup stays <strong className="text-charcoal font-semibold">same-day</strong> only — last-order
+            cutoff and prep lead apply until close. Guests can always browse; kitchen items reconcile at checkout.
           </p>
         </div>
 

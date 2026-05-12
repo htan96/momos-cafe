@@ -32,6 +32,24 @@ export default function CheckoutPage() {
     [lines, settings, eligibilityTick]
   );
 
+  const checkoutLines = eligibility.eligibleLines;
+  const heldAsideFood = eligibility.removedFoodLines;
+
+  const foodOnlyKitchenClosed =
+    totalCount > 0 && foodCount > 0 && merchCount === 0 && !eligibility.kitchenAcceptsFoodNow;
+
+  useEffect(() => {
+    if (eligibility.removedFoodLines.length === 0) return;
+    try {
+      localStorage.setItem(
+        "momos_stashed_food_lines",
+        JSON.stringify(eligibility.removedFoodLines)
+      );
+    } catch {
+      /* ignore */
+    }
+  }, [eligibility.removedFoodLines]);
+
   const [commerceOrderId, setCommerceOrderId] = useState<string | null>(null);
   const [shipStreet, setShipStreet] = useState("");
   const [shipCity, setShipCity] = useState("");
@@ -59,8 +77,8 @@ export default function CheckoutPage() {
   }, [router, totalCount]);
 
   const hasShippableMerch = useMemo(
-    () => lines.some((l) => l.kind === "merch" && l.shippingEligible),
-    [lines]
+    () => checkoutLines.some((l) => l.kind === "merch" && l.shippingEligible),
+    [checkoutLines]
   );
 
   const requiresShippingChoice = hasShippableMerch && shippingOptions.length > 0;
@@ -78,7 +96,7 @@ export default function CheckoutPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          lines,
+          lines: checkoutLines,
           address: {
             street: shipStreet.trim(),
             city: shipCity.trim(),
@@ -118,7 +136,7 @@ export default function CheckoutPage() {
     } finally {
       setQuoteLoading(false);
     }
-  }, [lines, shipStreet, shipCity, shipState, shipZip]);
+  }, [checkoutLines, shipStreet, shipCity, shipState, shipZip]);
 
   if (totalCount === 0) {
     return (
@@ -146,6 +164,48 @@ export default function CheckoutPage() {
     );
   }
 
+  if (foodOnlyKitchenClosed) {
+    return (
+      <div className={`${commerceCheckoutShell.page} min-h-[70vh] flex items-center justify-center pb-24 pt-12 px-4`}>
+        <div className={`max-w-md w-full ${commerceCheckoutShell.card} p-8 md:p-10 text-center space-y-5`}>
+          <p className={commerceCheckoutShell.sectionLabel}>Kitchen · Momo&apos;s</p>
+          <h1 className="font-display text-2xl md:text-[28px] text-charcoal leading-snug">
+            We&apos;re not taking food orders online right now
+          </h1>
+          {eligibility.notices.length > 0 ? (
+            <div className="text-sm text-charcoal/75 leading-relaxed space-y-3 text-left border border-cream-dark rounded-xl p-4 bg-cream/40">
+              {eligibility.notices.map((n) => (
+                <p key={n}>{n}</p>
+              ))}
+            </div>
+          ) : eligibility.nextFoodOrderingSummary ? (
+            <p className="text-sm text-charcoal/75 leading-relaxed">{eligibility.nextFoodOrderingSummary}</p>
+          ) : (
+            <p className="text-sm text-charcoal/75 leading-relaxed">
+              Your picks stay in your bag — take your time browsing the rest of the site.
+            </p>
+          )}
+          <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+            <button
+              type="button"
+              onClick={() => router.push("/shop")}
+              className="rounded-xl bg-teal-dark text-cream font-semibold py-3 px-6 text-sm hover:opacity-95"
+            >
+              Continue shopping
+            </button>
+            <button
+              type="button"
+              onClick={() => setDrawerOpen(true)}
+              className="rounded-xl border-2 border-cream-dark bg-white text-charcoal font-semibold py-3 px-6 text-sm hover:bg-cream/50"
+            >
+              Review your bag
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`${commerceCheckoutShell.page} pb-28 lg:pb-16 pt-6 px-4`}>
       <div className={`max-w-6xl mx-auto ${commerceSectionSpacing.gap} flex flex-col`}>
@@ -165,7 +225,11 @@ export default function CheckoutPage() {
           </p>
         </header>
 
-        <CheckoutOrderSummary lines={lines} variant="mobile" />
+        <CheckoutOrderSummary
+          lines={checkoutLines}
+          heldAsideFoodLines={heldAsideFood}
+          variant="mobile"
+        />
 
         {eligibility.notices.length > 0 ? (
           <div
@@ -277,7 +341,7 @@ export default function CheckoutPage() {
             ) : null}
 
             <div className={`${commerceCheckoutShell.card} overflow-hidden`}>
-              {foodCount > 0 || merchCount > 0 ? (
+              {checkoutLines.length > 0 ? (
                 <CheckoutPanel
                   embedInPage
                   kitchenFoodPaymentAllowed={eligibility.kitchenAcceptsFoodNow}
@@ -297,7 +361,11 @@ export default function CheckoutPage() {
           </div>
 
           <div className="hidden lg:block min-w-0">
-            <CheckoutOrderSummary lines={lines} variant="desktop" />
+            <CheckoutOrderSummary
+              lines={checkoutLines}
+              heldAsideFoodLines={heldAsideFood}
+              variant="desktop"
+            />
           </div>
         </div>
       </div>

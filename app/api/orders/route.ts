@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { parseUnifiedCartLines } from "@/lib/commerce/parseUnifiedCartLines";
 import { cartHasBlockingIssues, validateUnifiedCart } from "@/lib/commerce/cartValidation";
 import { createCommerceOrderWithGroups } from "@/lib/server/commerceOrderCreate";
+import { loadAdminSettingsFromDb } from "@/lib/server/loadAdminSettings";
+import { validateCartEligibilityFromAdminSettings } from "@/lib/ordering/validateCartEligibility";
 
 /** Draft commerce order + fulfillment groups — validates payload strictly */
 export async function POST(req: Request) {
@@ -17,7 +19,31 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "lines required" }, { status: 400 });
     }
 
-    const validationIssues = validateUnifiedCart(lines);
+    const adminSettings = await loadAdminSettingsFromDb();
+    const kitchenElig = validateCartEligibilityFromAdminSettings(
+      new Date(),
+      lines,
+      adminSettings
+    );
+    const linesForOrder = kitchenElig.eligibleLines;
+    if (linesForOrder.length === 0) {
+      return NextResponse.json(
+        {
+          error: "no_eligible_checkout_lines",
+          message:
+            "Nothing in this bag can be paid for in the current kitchen window. Add shop items or return when food ordering opens.",
+        },
+        { status: 422 }
+      );
+    }
+    if (linesForOrder.length !== lines.length) {
+      console.warn(
+        "[orders POST] Dropped ineligible kitchen lines from draft order payload",
+        { before: lines.length, after: linesForOrder.length }
+      );
+    }
+
+    const validationIssues = validateUnifiedCart(linesForOrder);
     if (cartHasBlockingIssues(validationIssues)) {
       return NextResponse.json(
         { error: "cart_validation_failed", validationIssues },
@@ -27,7 +53,7 @@ export async function POST(req: Request) {
 
     const warnings = validationIssues.filter((i) => i.severity === "warning");
     const result = await createCommerceOrderWithGroups({
-      lines,
+      lines: linesForOrder,
       guestCartToken: body.guestToken?.trim() ?? null,
       metadata:
         warnings.length > 0

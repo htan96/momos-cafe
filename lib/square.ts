@@ -143,6 +143,44 @@ function modifierListIdsFromListInfo(
     .filter((x): x is string => typeof x === "string" && x.length > 0);
 }
 
+/** Raw rows from `itemData.modifierListInfo` / `modifier_list_info` (no filtering). */
+type ItemModifierListInfoRow = {
+  modifierListId?: string;
+  modifier_list_id?: string;
+  minSelectedModifiers?: number;
+  min_selected_modifiers?: number;
+  maxSelectedModifiers?: number;
+  max_selected_modifiers?: number;
+  /** Square `CatalogItemModifierListInfo.enabled` — when false, omit from menu (dashboard often hides disabled lists). */
+  enabled?: boolean;
+};
+
+function rawModifierListInfoFromItemData(
+  itemData: Record<string, unknown>
+): ItemModifierListInfoRow[] {
+  const raw =
+    itemData.modifierListInfo ??
+    itemData.modifier_list_info ??
+    ([] as unknown);
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((r): r is ItemModifierListInfoRow => !!r && typeof r === "object");
+}
+
+/** Drop disabled refs and duplicate `modifierListId`s (stable: first wins). See Square CatalogItemModifierListInfo.enabled. */
+function usableModifierListInfoRows(rows: ItemModifierListInfoRow[]): ItemModifierListInfoRow[] {
+  const out: ItemModifierListInfoRow[] = [];
+  const seenIds = new Set<string>();
+  for (const row of rows) {
+    const listId = row.modifierListId ?? row.modifier_list_id;
+    if (!listId || typeof listId !== "string") continue;
+    if (row.enabled === false) continue;
+    if (seenIds.has(listId)) continue;
+    seenIds.add(listId);
+    out.push(row);
+  }
+  return out;
+}
+
 type VariationLike = {
   type?: string;
   id?: string;
@@ -513,11 +551,8 @@ export async function getMenuFromSquare(options?: {
           listCatalogItemData?.["modifier_list_info"] ??
           null;
         const rawArchived = itemData as Record<string, unknown>;
-        const archivedListInfo = (rawArchived.modifierListInfo ??
-          rawArchived.modifier_list_info ??
-          []) as Array<{ modifierListId?: string; modifier_list_id?: string }>;
         const attachedArchived = modifierListIdsFromListInfo(
-          Array.isArray(archivedListInfo) ? archivedListInfo : []
+          usableModifierListInfoRows(rawModifierListInfoFromItemData(rawArchived))
         );
         debugItemComparison = {
           itemId: obj.id,
@@ -580,17 +615,11 @@ export async function getMenuFromSquare(options?: {
      * Modifier groups MUST come only from this array (Square `modifier_list_info` / `modifierListInfo`).
      * `modifierListMap` / `relatedObjects` are lookup tables only — never iterated to attach lists to items.
      */
-    const listInfo = (rawItemData.modifierListInfo ?? rawItemData.modifier_list_info ?? []) as Array<{
-        modifierListId?: string;
-        modifier_list_id?: string;
-        minSelectedModifiers?: number;
-        min_selected_modifiers?: number;
-        maxSelectedModifiers?: number;
-        max_selected_modifiers?: number;
-      }>;
+    const listInfoRaw = rawModifierListInfoFromItemData(rawItemData);
+    const listInfo = usableModifierListInfoRows(listInfoRaw);
     const listInfoCount = listInfo.length;
-    if (MENU_MODIFIER_VALIDATION && listInfo.length > 0) {
-      const ids = listInfo
+    if (MENU_MODIFIER_VALIDATION && listInfoRaw.length > 0) {
+      const ids = listInfoRaw
         .map((i) => i.modifierListId ?? i.modifier_list_id)
         .filter((x): x is string => typeof x === "string" && x.length > 0);
       const seen = new Set<string>();
@@ -601,8 +630,10 @@ export async function getMenuFromSquare(options?: {
         seen.add(id);
       }
     }
-    if (DEBUG_MENU_MODIFIERS && listInfo.length > 0) {
-      const listIdsFromSquare = listInfo.map((i) => i.modifierListId ?? i.modifier_list_id ?? null);
+    if (DEBUG_MENU_MODIFIERS && listInfoRaw.length > 0) {
+      const listIdsFromSquare = listInfoRaw.map(
+        (i) => i.modifierListId ?? i.modifier_list_id ?? null
+      );
       const seen = new Set<string>();
       const duplicateListRefs = listIdsFromSquare.filter((id) => {
         if (!id || typeof id !== "string") return false;
@@ -610,12 +641,17 @@ export async function getMenuFromSquare(options?: {
         seen.add(id);
         return false;
       });
+      const disabledRefs = listInfoRaw.filter((r) => r.enabled === false).length;
       console.log(
         "[menu-modifiers] ITEM",
         obj.id,
         itemDataTyped.name ?? "",
-        "modifierListInfo.length:",
+        "modifierListInfo.length(raw):",
+        listInfoRaw.length,
+        "modifierListInfo.length(after enabled+dedupe):",
         listInfo.length,
+        "disabledRefRows:",
+        disabledRefs,
         "listIds:",
         listIdsFromSquare,
         "duplicateListIdRefs:",

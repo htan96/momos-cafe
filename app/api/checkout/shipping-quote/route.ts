@@ -4,6 +4,13 @@ import { isUnifiedMerchLine } from "@/lib/commerce/parseUnifiedCartLines";
 import { fetchSquareShippingQuotes } from "@/lib/shipping/squareShippingQuote";
 import type { UnifiedMerchLine } from "@/types/commerce";
 
+function exposeShippingQuoteDetailToClient(): boolean {
+  return (
+    process.env.NODE_ENV !== "production" ||
+    process.env.NEXT_PUBLIC_DEBUG_SHIPPING === "1"
+  );
+}
+
 /**
  * POST /api/checkout/shipping-quote
  * Square **Orders.calculateOrder** — see `lib/shipping/squareShippingQuote.ts`.
@@ -68,11 +75,11 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       options,
-      ...(detail ? { detail } : {}),
+      ...(exposeShippingQuoteDetailToClient() && detail ? { detail } : {}),
       ...(options.length === 0
         ? {
             message:
-              "We could not load live rates yet. Double-check your address, or choose contactless shop pickup.",
+              "We couldn’t load delivery prices yet. Check your address, choose contactless shop pickup, or ask the restaurant to finish turning on shipping in their checkout settings.",
           }
         : {}),
     });

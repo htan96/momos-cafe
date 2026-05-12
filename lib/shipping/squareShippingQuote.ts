@@ -1,4 +1,9 @@
-import { SquareClient, SquareEnvironment } from "square";
+import {
+  FulfillmentFulfillmentLineItemApplication,
+  SquareClient,
+  SquareEnvironment,
+  SquareError,
+} from "square";
 import type Square from "square";
 import type { UnifiedMerchLine } from "@/types/commerce";
 import {
@@ -41,6 +46,35 @@ function unwrapCalculatedOrder(result: unknown): Square.Order | undefined {
   return nested;
 }
 
+function stringifySquareCalculateErrors(errors: unknown): string {
+  if (!Array.isArray(errors) || errors.length === 0) return "";
+  try {
+    return JSON.stringify(errors);
+  } catch {
+    return String(errors.length);
+  }
+}
+
+function logSquareCaughtError(context: string, e: unknown): void {
+  if (e instanceof SquareError) {
+    const errs = stringifySquareCalculateErrors(e.errors);
+    const bodyPreview =
+      e.body !== undefined ? safeJsonSnippet(e.body) : "";
+    console.error(context, `status=${e.statusCode}`, errs || bodyPreview || e.message || e);
+    return;
+  }
+  console.error(context, e);
+}
+
+function safeJsonSnippet(value: unknown, maxLen = 2000): string {
+  try {
+    const s = JSON.stringify(value);
+    return s.length > maxLen ? `${s.slice(0, maxLen)}…` : s;
+  } catch {
+    return "[unserializable]";
+  }
+}
+
 /**
  * Preview ship-to-home pricing via **OrdersApi.calculateOrder** (`POST /v2/orders/calculate`)
  * with a `SHIPMENT` fulfillment and catalog or ad hoc line items for ship-eligible merch.
@@ -54,7 +88,11 @@ export async function fetchSquareShippingQuotes(params: {
   merchShippableLines: UnifiedMerchLine[];
   address: ShippingQuoteAddress;
   contact: { name: string; phone: string; email?: string };
-}): Promise<{ options: ShippingQuoteOption[]; detail?: string }> {
+}): Promise<{
+  options: ShippingQuoteOption[];
+  /** Stable machine-readable diagnostics (never include PII) */
+  detail?: string;
+}> {
   const client = createSquareClient();
   if (!client) {
     return { options: [], detail: "unavailable" };
@@ -64,7 +102,20 @@ export async function fetchSquareShippingQuotes(params: {
     return { options: [] };
   }
 
-  const lineItems = merchLinesToSquareLineItems(params.merchShippableLines);
+  const merchWithoutVariation = params.merchShippableLines.filter((l) => !l.squareVariationId?.trim());
+  if (merchWithoutVariation.length > 0) {
+    console.warn(
+      "[squareShippingQuote] Merch lines without catalog variation ids (Square uses ad hoc line items). Shipping rules tied to catalog items may not apply.",
+      { missingCount: merchWithoutVariation.length, totalMerchLines: params.merchShippableLines.length },
+    );
+  }
+
+  /** Explicit uids tie SHIPMENT fulfillments to line items per Orders API Fulfillment semantics. */
+  const lineItems = merchLinesToSquareLineItems(params.merchShippableLines).map((li, i) => ({
+    ...li,
+    uid: `ship-li-${i}`,
+  })) as Square.OrderLineItem[];
+
   const order = {
     locationId: params.locationId,
     lineItems,
@@ -78,8 +129,10 @@ export async function fetchSquareShippingQuotes(params: {
     ],
     fulfillments: [
       {
+        uid: "ship-fulfillment-preview",
         type: "SHIPMENT" as const,
         state: "PROPOSED" as const,
+        lineItemApplication: FulfillmentFulfillmentLineItemApplication.All,
         shipmentDetails: {
           recipient: {
             displayName: params.contact.name.trim().slice(0, 255),
@@ -104,9 +157,19 @@ export async function fetchSquareShippingQuotes(params: {
     const resp = await client.orders.calculate({
       order: order as Square.Order,
     });
-    const calculated = unwrapCalculatedOrder(resp);
+    const calc = resp as Square.CalculateOrderResponse;
+    /** SDK returns `{ order?, errors? }`; keep legacy unwrap for mocked tests and older shapes. */
+    const calculated = calc.order ?? unwrapCalculatedOrder(resp);
+
+    /** CalculateOrder can still return HTTP 200 with warnings in `errors`. */
+    const softErrors = calc.errors ?? undefined;
+    const errSnippet = stringifySquareCalculateErrors(softErrors);
+    if (softErrors?.length) {
+      console.error("[squareShippingQuote] CalculateOrder reported errors:", errSnippet);
+    }
+
     if (!calculated) {
-      return { options: [], detail: "no_order" };
+      return { options: [], detail: softErrors?.length ? "no_order_calc_errors" : "no_order" };
     }
 
     const charges = calculated.serviceCharges ?? [];
@@ -123,9 +186,41 @@ export async function fetchSquareShippingQuotes(params: {
       options.push({ uid, name, amountCents: cents });
     }
 
-    return { options };
+    if (options.length === 0 && charges.length > 0) {
+      console.error(
+        "[squareShippingQuote] Square returned serviceCharges but none have positive amounts (sample):",
+        safeJsonSnippet(
+          charges.map((sc) => ({
+            uid: sc.uid,
+            name: sc.name,
+            appliedMoney: sc.appliedMoney,
+            totalMoney: sc.totalMoney,
+          })),
+          2500,
+        ),
+      );
+    } else if (options.length === 0) {
+      console.error(
+        "[squareShippingQuote] Empty calculated serviceCharges;",
+        softErrors?.length ? `square_errors=${errSnippet.slice(0, 500)}` : "square_errors=[]",
+      );
+    }
+
+    let detailOut: string | undefined;
+    if (options.length === 0) {
+      detailOut =
+        merchWithoutVariation.length > 0 ? "no_rates_some_ad_hoc_lines" : "no_rates_square_config_or_address";
+      if (softErrors?.length) {
+        detailOut = `${detailOut};calc_warnings`;
+      }
+    }
+
+    return { options, ...(detailOut ? { detail: detailOut } : {}) };
   } catch (e) {
-    console.error("[squareShippingQuote]", e);
-    return { options: [], detail: "square_error" };
+    logSquareCaughtError("[squareShippingQuote] calculate threw", e);
+    return {
+      options: [],
+      detail: e instanceof SquareError ? `square_http_${e.statusCode ?? "err"}` : "square_error",
+    };
   }
 }

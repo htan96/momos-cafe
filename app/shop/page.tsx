@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import { useAdminSettings, DEFAULT_SETTINGS } from "@/lib/useAdminSettings";
 import ShopComingSoon from "@/components/shop/ShopComingSoon";
 import ShopHero from "@/components/sections/shop/ShopHero";
@@ -65,6 +65,30 @@ export default function ShopPage() {
   const isShopUnlocked =
     settings?.isShopUnlocked ?? DEFAULT_SETTINGS.isShopUnlocked;
 
+  const [products, setProducts] = useState<MerchProduct[]>(merchCatalog);
+  const [catalogSource, setCatalogSource] = useState<string>("mock_seed");
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/products/store", { cache: "no-store" });
+        const data = (await res.json()) as { source?: string; products?: MerchProduct[] };
+        if (cancelled || !Array.isArray(data.products)) return;
+        setProducts(data.products);
+        setCatalogSource(data.source ?? "unknown");
+      } catch {
+        if (!cancelled) {
+          setProducts(merchCatalog);
+          setCatalogSource("client_fallback_error");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const [activeCollection, setActiveCollection] = useState<
     StoreCollectionId | "all"
   >("all");
@@ -76,9 +100,9 @@ export default function ShopPage() {
   const showToast = useToast();
 
   const visibleProducts = useMemo(() => {
-    const filtered = filterByCollection(merchCatalog, activeCollection);
+    const filtered = filterByCollection(products, activeCollection);
     return sortProducts(filtered, sort);
-  }, [activeCollection, sort]);
+  }, [products, activeCollection, sort]);
 
   const openSheet = useCallback((product: MerchProduct) => {
     setSheetProduct(product);
@@ -93,16 +117,21 @@ export default function ShopPage() {
   const handleQuickAdd = useCallback(
     (product: MerchProduct) => {
       if (product.inventory === "out_of_stock") return;
+      const vo = product.variantOptions;
+      const sole = vo?.length === 1 ? vo[0] : undefined;
       addMerchLine({
         productId: product.id,
         name: product.name,
         quantity: 1,
-        unitPrice: product.amountOptions?.length
-          ? product.amountOptions[0]
-          : product.price,
-        variantSummary: product.amountOptions?.length
-          ? `${product.amountOptions[0]} gift card`
-          : "One size",
+        unitPrice:
+          sole?.priceUsd ??
+          (product.amountOptions?.length ? product.amountOptions[0]! : product.price),
+        variantSummary: sole
+          ? sole.label
+          : product.amountOptions?.length
+            ? `${product.amountOptions[0]} gift card`
+            : "One size",
+        squareVariationId: sole?.squareVariationId,
         image: product.image,
         fulfillmentSlug: product.fulfillment.slug,
       });
@@ -146,7 +175,15 @@ export default function ShopPage() {
                 Momo&apos;s retail picks
               </h2>
               <p className="text-[13px] text-charcoal/55 mt-2 max-w-xl">
-                Pulled from our Store assortment — Square inventory sync will replace mock data next.
+                {catalogSource === "product_cache"
+                  ? "Synced from Square’s retail “Store” category through Momo’s catalog cache."
+                  : catalogSource === "mock_catalog_fallback"
+                    ? "Showing mock assortment until production catalog sync hydrates the cache."
+                    : catalogSource === "mock_seed"
+                      ? "Loading catalog…"
+                      : catalogSource === "client_fallback_error"
+                        ? "Could not reach the catalog API — showing offline assortment."
+                        : "Catalog preview"}
               </p>
             </div>
 

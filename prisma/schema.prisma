@@ -59,10 +59,14 @@ model Customer {
   phone                String?
   externalAuthSubject  String?  @unique @map("external_auth_subject")
   squareCustomerId     String?  @map("square_customer_id")
+  /// Clerk / future auth hints, guest-merge markers — never store passwords here.
+  authMetadata         Json?    @map("auth_metadata")
 
-  cartSessions CartSession[]
-  orders       CommerceOrder[]
-  addresses    ShippingAddress[]
+  cartSessions      CartSession[]
+  orders            CommerceOrder[]
+  addresses         ShippingAddress[]
+  emailThreads      EmailThread[]
+  conversationLinks ConversationParticipant[]
 
   @@map("customers")
 }
@@ -118,6 +122,7 @@ model CommerceOrder {
   items               CommerceOrderItem[]
   fulfillmentGroups   FulfillmentGroup[]
   payments            PaymentRecord[]
+  emailThreads        EmailThread[]
 
   @@index([status])
   @@index([createdAt(sort: Desc)])
@@ -176,6 +181,9 @@ model ProductCache {
   squareCategoryId    String?  @map("square_category_id")
   slug                String?  @map("slug")
   title               String   @map("title")
+  description         String?  @map("description") @db.Text
+  primaryImageUrl     String?  @map("primary_image_url")
+  isAvailable         Boolean  @default(true) @map("is_available")
   data                Json
   syncedAt            DateTime @default(now()) @map("synced_at") @db.Timestamptz(6)
 
@@ -191,11 +199,24 @@ model ProductVariantCache {
   squareVariationId String       @unique @map("square_variation_id")
   sku               String?      @map("sku")
   priceCents        Int?         @map("price_cents")
+  quantityOnHand    Int?         @map("quantity_on_hand")
+  inventoryUpdatedAt DateTime?   @map("inventory_updated_at") @db.Timestamptz(6)
   data              Json?
   syncedAt          DateTime     @default(now()) @map("synced_at") @db.Timestamptz(6)
 
   @@index([productCacheId])
   @@map("product_variant_cache")
+}
+
+/// Single-row Square Store sync bookkeeping (production catalog — category “Store”).
+model CatalogSyncState {
+  id                    String    @id @default("singleton")
+  storeCategorySquareId String?   @map("store_category_square_id")
+  lastFullSyncAt        DateTime? @map("last_full_sync_at") @db.Timestamptz(6)
+  lastSyncStats         Json?     @map("last_sync_stats")
+  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("catalog_sync_state")
 }
 
 model PickupWindow {
@@ -232,14 +253,110 @@ model ShippingAddress {
 model PaymentRecord {
   id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
   orderId         String?        @map("order_id") @db.Uuid
   order           CommerceOrder? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  provider        String         @default("square") @map("provider")
   squarePaymentId String?        @map("square_payment_id")
+  squarePaymentStatus String?    @map("square_payment_status")
   amountCents     Int            @map("amount_cents")
   currency        String         @default("USD") @map("currency")
   status          String         @default("pending") @map("status")
+  idempotencyKey  String?        @unique @map("idempotency_key")
+  capturedAt      DateTime?      @map("captured_at") @db.Timestamptz(6)
+  failureReason   String?        @map("failure_reason") @db.Text
   metadata        Json?
 
   @@index([orderId])
+  @@index([squarePaymentId])
   @@map("payment_records")
+}
+
+/// Fulfillment-aware outbound/inbound communication threads (Resend + platform-owned).
+model EmailThread {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  customerId         String?   @map("customer_id") @db.Uuid
+  customer           Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  commerceOrderId    String?   @map("commerce_order_id") @db.Uuid
+  commerceOrder      CommerceOrder? @relation(fields: [commerceOrderId], references: [id], onDelete: SetNull)
+  cafeOrderId        String?   @map("cafe_order_id") @db.Uuid
+  subjectSnapshot    String?   @map("subject_snapshot") @db.Text
+  providerThreadKey  String?   @unique @map("provider_thread_key")
+
+  messages EmailMessage[]
+  links    OrderMessageLink[]
+  participants ConversationParticipant[]
+
+  @@index([customerId])
+  @@index([commerceOrderId])
+  @@map("email_threads")
+}
+
+model EmailMessage {
+  id                   String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt            DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  threadId             String      @map("thread_id") @db.Uuid
+  thread               EmailThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  direction            String      @map("direction")
+  fromEmail            String      @map("from_email")
+  toEmails             Json        @map("to_emails")
+  subject              String?     @map("subject") @db.Text
+  textBody             String?     @map("text_body") @db.Text
+  htmlBody             String?     @map("html_body") @db.Text
+  providerMessageId    String?     @unique @map("provider_message_id")
+  rfcMessageId         String?     @map("rfc_message_id")
+  inReplyTo           String?     @map("in_reply_to") @db.Text
+  referencesHeader     String?     @map("references_header") @db.Text
+  fulfillmentGroupId   String?     @map("fulfillment_group_id") @db.Uuid
+  deliveryStatus       String      @default("queued") @map("delivery_status")
+  rawPayload           Json?       @map("raw_payload")
+
+  links OrderMessageLink[]
+
+  @@index([threadId])
+  @@map("email_messages")
+}
+
+/// Links messages to orders / fulfillment groups for operational UI later.
+model OrderMessageLink {
+  id                  String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  messageId           String        @map("message_id") @db.Uuid
+  message             EmailMessage  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  threadId            String        @map("thread_id") @db.Uuid
+  thread              EmailThread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  orderKind           String        @map("order_kind")
+  orderId             String        @map("order_id") @db.Uuid
+  fulfillmentGroupId  String?       @map("fulfillment_group_id") @db.Uuid
+
+  @@index([orderKind, orderId])
+  @@map("order_message_links")
+}
+
+/// Maps customers ↔ threads for multi-thread customer service views.
+model ConversationParticipant {
+  id           String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  customerId   String      @map("customer_id") @db.Uuid
+  customer     Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  threadId     String      @map("thread_id") @db.Uuid
+  thread       EmailThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  role         String      @default("customer") @map("role")
+
+  @@unique([customerId, threadId])
+  @@index([threadId])
+  @@map("conversation_participants")
+}
+
+/// Append-only audit trail for orchestration / notification triggers.
+model NotificationEvent {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  type        String    @map("type")
+  payload     Json      @map("payload")
+  processedAt DateTime? @map("processed_at") @db.Timestamptz(6)
+
+  @@index([createdAt(sort: Desc)])
+  @@index([type])
+  @@map("notification_events")
 }

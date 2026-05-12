@@ -1,8 +1,7 @@
 /**
- * Square Catalog sync foundation — wire sandbox credentials later.
- * Keeps Square SDK / HTTP calls out of UI routes.
+ * @deprecated Use `runProductionStoreCatalogSync` from `@/lib/square/storeCatalogSync`
+ * and call `POST /api/square/catalog/sync` (internal-auth protected).
  */
-
 export interface CatalogSyncResult {
   itemsUpserted: number;
   variantsUpserted: number;
@@ -11,14 +10,11 @@ export interface CatalogSyncResult {
 }
 
 export async function syncSquareCatalogSandbox(): Promise<CatalogSyncResult> {
-  const envReady =
-    !!process.env.SQUARE_ACCESS_TOKEN && !!process.env.SQUARE_ENVIRONMENT;
   return {
     itemsUpserted: 0,
     variantsUpserted: 0,
     categoriesUpserted: 0,
-    message: envReady
-      ? "Square credentials detected — batch upsert not implemented in this phase."
-      : "Set SQUARE_ACCESS_TOKEN + SQUARE_ENVIRONMENT (sandbox) to enable catalog sync.",
+    message:
+      "Deprecated stub — production sync lives in storeCatalogSync + POST /api/square/catalog/sync.",
   };
 }

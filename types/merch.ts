@@ -37,6 +37,15 @@ export interface MerchProductColor {
   hex?: string;
 }
 
+/** Square-backed variation row for cart + unified checkout (PCI stays on Square). */
+export interface MerchVariantOption {
+  squareVariationId: string;
+  /** Human label shown in sheet / cart summary */
+  label: string;
+  /** Display unit price in USD (major units) */
+  priceUsd: number;
+}
+
 /**
  * Full merchandising product — maps cleanly to Square ITEM + ITEM_VARIATION later.
  */
@@ -44,6 +53,8 @@ export interface MerchProduct {
   id: string;
   /** Square Catalog ITEM id when synced */
   squareCatalogItemId?: string;
+  /** Populated from ProductVariantCache — drives `squareVariationId` on cart lines */
+  variantOptions?: MerchVariantOption[];
   name: string;
   subtitle?: string;
   description: string;

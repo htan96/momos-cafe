@@ -29,6 +29,7 @@ export default function MerchProductSheet({ product, open, onClose }: MerchProdu
   const [colorId, setColorId] = useState<string>("");
   const [amount, setAmount] = useState<number>(10);
   const [qty, setQty] = useState(1);
+  const [variantPickIdx, setVariantPickIdx] = useState(0);
 
   useEffect(() => {
     if (!product) return;
@@ -36,6 +37,7 @@ export default function MerchProductSheet({ product, open, onClose }: MerchProdu
     setColorId(product.colors?.[0]?.id ?? "");
     setAmount(product.amountOptions?.[0] ?? product.price);
     setQty(1);
+    setVariantPickIdx(0);
   }, [product]);
 
   useEffect(() => {
@@ -51,33 +53,47 @@ export default function MerchProductSheet({ product, open, onClose }: MerchProdu
     if (!product) return "";
     const parts: string[] = [];
     if (product.amountOptions?.length) parts.push(`${formatMoney(amount)} card`);
-    else {
+    else if (product.variantOptions?.length) {
+      const v = product.variantOptions[variantPickIdx];
+      if (v) parts.push(v.label);
+    } else {
       if (size) parts.push(size);
       const c = product.colors?.find((x) => x.id === colorId);
       if (c) parts.push(c.label);
     }
     return parts.join(" · ") || "Standard";
-  }, [product, size, colorId, amount]);
+  }, [product, size, colorId, amount, variantPickIdx]);
 
   const unitPrice = useMemo(() => {
     if (!product) return 0;
     if (product.amountOptions?.length) return amount;
+    const vo = product.variantOptions;
+    if (vo?.length) return vo[variantPickIdx]?.priceUsd ?? product.price;
     return product.price;
-  }, [product, amount]);
+  }, [product, amount, variantPickIdx]);
 
   const handleAdd = () => {
     if (!product || product.inventory === "out_of_stock") return;
-    if (product.sizes?.length && !size) {
+    const usesLegacyMatrix = !product.amountOptions?.length && !product.variantOptions?.length;
+    if (usesLegacyMatrix && product.sizes?.length && !size) {
       showToast("Pick a size first.");
       return;
     }
-    if (product.colors?.length && !colorId) {
+    if (usesLegacyMatrix && product.colors?.length && !colorId) {
       showToast("Pick a color.");
       return;
     }
+
+    let squareVariationId: string | undefined;
+    if (product.amountOptions?.length && product.variantOptions?.length) {
+      squareVariationId = product.variantOptions.find((v) => Math.abs(v.priceUsd - amount) < 0.01)?.squareVariationId;
+    } else if (product.variantOptions?.length) {
+      squareVariationId = product.variantOptions[variantPickIdx]?.squareVariationId;
+    }
+
     addMerchLine({
       productId: product.id,
-      squareVariationId: undefined,
+      squareVariationId,
       name: product.name,
       quantity: qty,
       unitPrice,
@@ -169,6 +185,25 @@ export default function MerchProductSheet({ product, open, onClose }: MerchProdu
               </div>
             </div>
 
+            {!product.amountOptions?.length && product.variantOptions && product.variantOptions.length > 1 ? (
+              <div className="mt-5">
+                <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-charcoal/55">
+                  Option
+                  <select
+                    value={variantPickIdx}
+                    onChange={(e) => setVariantPickIdx(Number(e.target.value))}
+                    className="rounded-lg border border-cream-dark bg-white px-3 py-2.5 text-sm font-medium text-charcoal normal-case tracking-normal"
+                  >
+                    {product.variantOptions.map((v, i) => (
+                      <option key={v.squareVariationId} value={i}>
+                        {v.label} · {formatMoney(v.priceUsd)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            ) : null}
+
             {product.amountOptions?.length ? (
               <div className="mt-5">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-charcoal/55 mb-2">
@@ -193,7 +228,7 @@ export default function MerchProductSheet({ product, open, onClose }: MerchProdu
               </div>
             ) : null}
 
-            {product.sizes?.length ? (
+            {!product.variantOptions?.length && product.sizes?.length ? (
               <div className="mt-5">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-charcoal/55 mb-2">
                   Size
@@ -217,7 +252,7 @@ export default function MerchProductSheet({ product, open, onClose }: MerchProdu
               </div>
             ) : null}
 
-            {product.colors?.length ? (
+            {!product.variantOptions?.length && product.colors?.length ? (
               <div className="mt-5">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-charcoal/55 mb-2">
                   Color

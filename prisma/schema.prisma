@@ -158,10 +158,29 @@ model FulfillmentGroup {
   pickupWindowId    String?           @map("pickup_window_id") @db.Uuid
   pickupWindow      PickupWindow?     @relation(fields: [pickupWindowId], references: [id], onDelete: SetNull)
 
-  items FulfillmentItem[]
+  items     FulfillmentItem[]
+  /// Manual carrier tracking until Shippo / Pirate Ship — one active row typical per retail ship group.
+  shipments Shipment[]
 
   @@index([orderId])
   @@map("fulfillment_groups")
+}
+
+/// Operational outbound shipment — tied to `FulfillmentGroup` (retail / ship flows).
+model Shipment {
+  id                 String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  fulfillmentGroupId String             @map("fulfillment_group_id") @db.Uuid
+  fulfillmentGroup   FulfillmentGroup   @relation(fields: [fulfillmentGroupId], references: [id], onDelete: Cascade)
+  carrier            String?            @map("carrier")
+  trackingNumber     String?            @map("tracking_number")
+  status             String             @default("pending") @map("status")
+  shippedAt          DateTime?          @map("shipped_at") @db.Timestamptz(6)
+  notes              String?            @map("notes") @db.Text
+
+  @@index([fulfillmentGroupId])
+  @@map("shipments")
 }
 
 model FulfillmentItem {

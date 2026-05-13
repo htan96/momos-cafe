@@ -7,6 +7,7 @@ export type SafeCognitoSdkFields = {
   cognitoErrorCode?: string;
 };
 
+
 export function extractSafeCognitoSdkFields(err: unknown): SafeCognitoSdkFields {
   if (!err || typeof err !== "object") return {};
   const o = err as Record<string, unknown>;

@@ -44,6 +44,9 @@
  *
  * ### Groups
  * - Model roles with Cognito groups `super_admin`, `admin`, and `customer` only, and include them in the ID token.
+ * - **Customers**: API routes **`POST /api/auth/cognito/signup`** and **`POST /api/auth/cognito/confirm-signup`** call
+ *   **`AdminAddUserToGroup`** for group **`customer`** after a successful Cognito response (duplicate add is normally a
+ *   no-op; failures log a warning — needs IAM **`cognito-idp:AdminAddUserToGroup`**).
  *
  * ### Internal admins / super_admin (preferred — avoid `NEW_PASSWORD_REQUIRED`)
  * - Do **not** rely on **`AdminCreateUser` + temporary password** alone for **`admin` / `super_admin`**; that puts the user in **`FORCE_CHANGE_PASSWORD`**, so the first **`USER_PASSWORD_AUTH`** returns **`NEW_PASSWORD_REQUIRED`** until they complete **`RespondToAuthChallenge`** or you fix it with the API below.

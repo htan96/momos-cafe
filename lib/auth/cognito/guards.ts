@@ -43,6 +43,7 @@ function redirectToRoleHome(request: NextRequest, groups: readonly string[]): Ne
 
 type DecodedCognito = { user: NonNullable<ReturnType<typeof sessionUserFromIdTokenPayload>> };
 
+/** Parses ID JWT from cookie; roles from **`cognito:groups`** (`tokens.sessionUserFromIdTokenPayload`). */
 function decodeRequestCognitoSession(
   request: NextRequest,
   cfg: NonNullable<ReturnType<typeof getCognitoConfig>>

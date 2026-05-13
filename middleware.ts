@@ -58,7 +58,8 @@ export async function middleware(request: NextRequest) {
   }
 
   /**
-   * Cognito JWT cookie gate for `/account`, `/admin`, `/super-admin`, optional `/portal`, `/ops`, `/api/ops`, etc.
+   * Cognito-gated routes: validates **ID token** JWT from httpOnly cookie only (issuer + exp). Membership uses
+   * `sessionUserFromIdTokenPayload` → JWTPayload `cognito:groups` (same path as login `extractUserFromIdToken`).
    */
   if (isCognitoProtectedPath(pathname)) {
     if (process.env.COGNITO_GATE_DEBUG === "1") {

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { confirmSignUp } from "@/lib/auth/cognito/cognitoClient";
+import { confirmSignUp, provisionCustomerGroupBestEffort } from "@/lib/auth/cognito/cognitoClient";
 import { getCognitoConfig } from "@/lib/auth/cognito/config";
 
 export const runtime = "nodejs";
@@ -28,6 +28,7 @@ export async function POST(request: Request) {
 
   try {
     await confirmSignUp(cfg, { username, code });
+    await provisionCustomerGroupBestEffort(cfg, username, "confirm_signup");
     return NextResponse.json({ ok: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

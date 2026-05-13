@@ -1,4 +1,5 @@
 import {
+  AdminAddUserToGroupCommand,
   AdminSetUserMFAPreferenceCommand,
   CognitoIdentityProviderClient,
   ConfirmForgotPasswordCommand,
@@ -17,10 +18,12 @@ import {
   unexpectedAuthResponseFailure,
   type CognitoLoginFailureClassification,
 } from "@/lib/auth/cognito/cognitoSdkError";
-
 import { cognitoSecretHash } from "@/lib/auth/cognito/secretHash";
 import { decodeCognitoIdTokenUnsafe } from "@/lib/auth/cognito/tokens";
 import { isMfaRelatedChallenge } from "@/lib/auth/cognito/mfa";
+
+/** Self-service sign-ups are assigned pool group `customer` via `provisionCustomerGroupBestEffort`. */
+export const CUSTOMER_POOL_GROUP_NAME = "customer" as const;
 
 const clients = new Map<string, CognitoIdentityProviderClient>();
 
@@ -245,6 +248,89 @@ export async function confirmSignUp(
       ConfirmationCode: params.code.trim(),
       ...commandSecretHash(cfg, username),
     })
+  );
+}
+
+/**
+ * IAM: `cognito-idp:AdminAddUserToGroup` on the pool. Duplicate membership is typically a successful no-op in Cognito.
+ */
+export async function adminAddUserToGroup(
+  cfg: CognitoEnvConfig,
+  params: { username: string; groupName: string }
+): Promise<void> {
+  const username = params.username.trim();
+  await client(cfg).send(
+    new AdminAddUserToGroupCommand({
+      UserPoolId: cfg.userPoolId,
+      Username: username,
+      GroupName: params.groupName.trim(),
+    })
+  );
+}
+
+/** After successful signup/confirm: ensure `customer` group. Retry once; never throws — logs structured JSON warnings. */
+export async function provisionCustomerGroupBestEffort(
+  cfg: CognitoEnvConfig,
+  usernameRaw: string,
+  source: "signup" | "confirm_signup"
+): Promise<void> {
+  const username = usernameRaw.trim();
+  if (!username) {
+    console.warn(
+      "[cognito] customer_group",
+      JSON.stringify({ ok: false, source, stage: "skip", reason: "blank_username" } satisfies Record<string, unknown>)
+    );
+    return;
+  }
+
+  const swallowUserNotFound = (err: unknown): boolean => {
+    const { cognitoErrorName } = extractSafeCognitoSdkFields(err);
+    if (cognitoErrorName !== "UserNotFoundException") return false;
+    console.warn(
+      "[cognito] customer_group",
+      JSON.stringify({
+        ok: false,
+        source,
+        handled: true,
+        reason: "user_not_found",
+        username,
+        cognitoErrorName,
+      } satisfies Record<string, unknown>)
+    );
+    return true;
+  };
+
+  let lastErr: unknown;
+  const attempt = async (): Promise<boolean> => {
+    try {
+      await adminAddUserToGroup(cfg, { username, groupName: CUSTOMER_POOL_GROUP_NAME });
+      return true;
+    } catch (e) {
+      lastErr = e;
+      if (swallowUserNotFound(e)) return true;
+      return false;
+    }
+  };
+
+  if (await attempt()) return;
+
+  await new Promise((r) => setTimeout(r, 275));
+  if (await attempt()) return;
+
+  console.warn(
+    "[cognito] customer_group_failed",
+    JSON.stringify({
+      ok: false,
+      source,
+      username,
+      ...extractSafeCognitoSdkFields(lastErr),
+      message:
+        typeof lastErr === "object" && lastErr && "message" in lastErr && typeof lastErr.message === "string"
+          ? lastErr.message
+          : String(lastErr ?? ""),
+      code: "CUSTOMER_GROUP_PROVISION_WARNING",
+      note: "signup_or_confirm_already_succeeded; retry_ops_or_post_confirm_lambda",
+    } satisfies Record<string, unknown>)
   );
 }
 

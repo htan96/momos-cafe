@@ -199,10 +199,16 @@ export async function POST(request: Request) {
         async () => {
           if (!result.user) throw new Error("missing_user_after_signin");
         },
-        () => ({
-          hasUser: true,
-          hasGroups: (result.user?.groups?.length ?? 0) > 0,
-        })
+        () => {
+          const groups = result.user?.groups ?? [];
+          return {
+            hasUser: true,
+            hasGroups: groups.length > 0,
+            groupCountFromIdToken: groups.length,
+            /** Same claim as middleware gate: ID JWT `cognito:groups` via `extractUserFromIdToken`. */
+            cognitoGroupsClaimPath: "cognito:groups",
+          };
+        }
       );
 
       const bundle = await runStage(

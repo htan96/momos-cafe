@@ -1,4 +1,5 @@
 import "./globals.css";
+import { AppProviders } from "@/app/providers";
 import Layout from "@/components/layout/Layout";
 import {
   Inter,
@@ -75,7 +76,9 @@ export default function RootLayout({
       className={`${inter.variable} ${playfair.variable} ${spartan.variable} ${sourceSans.variable} ${poppins.variable}`}
     >
       <body className="font-sans">
-        <Layout>{children}</Layout>
+        <AppProviders>
+          <Layout>{children}</Layout>
+        </AppProviders>
       </body>
     </html>
   );

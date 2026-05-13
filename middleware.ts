@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { cognitoGate, isCognitoProtectedPath } from "@/lib/auth/cognito/guards";
 import { INTERNAL_SECRET_HEADER } from "@/lib/server/orchestrationConstants";
 import {
   OPS_SESSION_COOKIE,
@@ -82,6 +83,14 @@ function internalGate(request: NextRequest): NextResponse {
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
+  /**
+   * Cognito-protected route subtree (additive layer). Does not replace `OPS_SESSION` or magic-link customer cookies.
+   * UI entry: `/auth/cognito/login` to avoid colliding with storefront `/login`.
+   */
+  if (isCognitoProtectedPath(pathname)) {
+    return cognitoGate(request);
+  }
+
   if (pathname === "/ops/login" || pathname.startsWith("/ops/login/")) {
     return NextResponse.next();
   }
@@ -98,11 +107,20 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  if (!pathname.startsWith("/api")) {
+    return NextResponse.next();
+  }
+
   return internalGate(request);
 }
 
 export const config = {
   matcher: [
+    /**
+     * Cognito demo subtree — when changing `COGNITO_PROTECTED_PREFIXES`, add matching prefixes here so middleware runs
+     * before the internal orchestration secret gate (non-`/api` matcher paths return `NextResponse.next()`).
+     */
+    "/portal/:path*",
     "/ops/:path*",
     "/api/ops/:path*",
     "/api/orders/:path*",

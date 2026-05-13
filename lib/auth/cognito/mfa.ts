@@ -50,3 +50,16 @@ export async function respondToTotpChallenge(_params: {
 export function mfaConfiguredAsOptional(cfg: CognitoEnvConfig): boolean {
   return cfg.mfaOptional;
 }
+
+/** Challenges that block password-only login until `RespondToAuthChallenge` (or AWS-side MFA policy change). */
+export function isMfaRelatedChallenge(challengeName: string): boolean {
+  switch (challengeName) {
+    case "SMS_MFA":
+    case "SOFTWARE_TOKEN_MFA":
+    case "MFA_SETUP":
+    case "SELECT_MFA_TYPE":
+      return true;
+    default:
+      return false;
+  }
+}

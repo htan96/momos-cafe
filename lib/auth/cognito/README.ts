@@ -21,6 +21,10 @@
  * ### MFA (TOTP)
  * - Pool policy must allow software token MFA. Enrollment + challenge completion are stubbed under `mfa.ts`.
  * - Flip `COGNITO_MFA_OPTIONAL=false` when you want builds to treat MFA challenges as blocking until implemented.
+ * - **Until MFA UX ships**: Prefer Cognito → Sign-in experience → **MFA = Optional** (or Off) so `USER_PASSWORD_AUTH` returns tokens.
+ * - Optional escape hatch: `COGNITO_TEMP_DISABLE_USER_MFA_BEFORE_LOGIN=true` runs `AdminSetUserMFAPPreference` + one retry
+ *   (needs IAM `cognito-idp:AdminSetUserMFAPPreference`). Remove when `RespondToAuthChallenge` is implemented.
+ * - **TODO**: Enforce `SOFTWARE_TOKEN_MFA` for `super_admin` only via `RespondToAuthChallenge` — see `cognitoClient.ts` / `mfa.ts`.
  *
  * ### Route protection
  * - `COGNITO_PROTECTED_PREFIXES` lists extra path prefixes gated in `middleware.ts` (default `/account,/admin,/super-admin`).

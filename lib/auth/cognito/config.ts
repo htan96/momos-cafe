@@ -15,6 +15,16 @@ export type CognitoEnvConfig = {
    * Stub hooks remain for TOTP enrollment + challenge response.
    */
   mfaOptional: boolean;
+  /**
+   * When true, after an MFA-style `InitiateAuth` challenge the server calls `AdminSetUserMFAPPreference` to turn off
+   * SMS/TOTP MFA for that username and retries `USER_PASSWORD_AUTH` once — **no MFA UX**.
+   *
+   * Requires IAM **`cognito-idp:AdminSetUserMFAPPreference`** on the user pool. Intended only while MFA UX is deferred;
+   * prefer setting User Pool MFA to **Optional** in Cognito instead for production.
+   *
+   * TODO(super_admin): Replace with enforced SOFTWARE_TOKEN_MFA + `RespondToAuthChallenge` for `super_admin` only.
+   */
+  tempDisableUserMfaBeforeLogin: boolean;
 };
 
 /**
@@ -37,6 +47,8 @@ export function getCognitoConfig(): CognitoEnvConfig | null {
     oauthRedirectUri: process.env.COGNITO_OAUTH_REDIRECT_URI?.trim() || undefined,
     oauthLogoutUri: process.env.COGNITO_OAUTH_LOGOUT_URI?.trim() || undefined,
     mfaOptional: process.env.COGNITO_MFA_OPTIONAL?.trim() !== "false",
+    tempDisableUserMfaBeforeLogin:
+      process.env.COGNITO_TEMP_DISABLE_USER_MFA_BEFORE_LOGIN?.trim() === "true",
   };
 }
 

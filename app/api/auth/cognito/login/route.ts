@@ -36,6 +36,7 @@ export async function POST(request: Request) {
     const result = await provider.signInWithPassword({ username, password });
     if (!result.ok) {
       if (result.challenge) {
+        // TODO(MFA): Surface RespondToAuthChallenge UX here when COGNITO_TEMP_DISABLE_USER_MFA_BEFORE_LOGIN is off.
         return NextResponse.json(
           {
             error: "auth_challenge",

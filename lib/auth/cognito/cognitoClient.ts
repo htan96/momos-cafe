@@ -1,4 +1,5 @@
 import {
+  AdminSetUserMFAPreferenceCommand,
   CognitoIdentityProviderClient,
   ConfirmForgotPasswordCommand,
   ConfirmSignUpCommand,
@@ -11,6 +12,7 @@ import {
 import type { CognitoEnvConfig } from "@/lib/auth/cognito/config";
 import { cognitoSecretHash } from "@/lib/auth/cognito/secretHash";
 import { decodeCognitoIdTokenUnsafe } from "@/lib/auth/cognito/tokens";
+import { isMfaRelatedChallenge } from "@/lib/auth/cognito/mfa";
 
 const clients = new Map<string, CognitoIdentityProviderClient>();
 
@@ -51,25 +53,65 @@ export async function signInWithPassword(
   params: { username: string; password: string }
 ): Promise<PasswordAuthResult> {
   const username = params.username.trim();
-  const resp = await client(cfg).send(
-    new InitiateAuthCommand({
-      AuthFlow: "USER_PASSWORD_AUTH",
-      ClientId: cfg.clientId,
-      AuthParameters: {
-        USERNAME: username,
-        PASSWORD: params.password,
-        ...authParamSecretHash(cfg, username),
-      },
-    })
-  );
+  const initiate = () =>
+    client(cfg).send(
+      new InitiateAuthCommand({
+        AuthFlow: "USER_PASSWORD_AUTH",
+        ClientId: cfg.clientId,
+        AuthParameters: {
+          USERNAME: username,
+          PASSWORD: params.password,
+          ...authParamSecretHash(cfg, username),
+        },
+      })
+    );
 
-  if (resp.AuthenticationResult?.IdToken && resp.AuthenticationResult?.AccessToken) {
-    return {
-      kind: "tokens",
-      idToken: resp.AuthenticationResult.IdToken,
-      accessToken: resp.AuthenticationResult.AccessToken,
-      refreshToken: resp.AuthenticationResult.RefreshToken ?? undefined,
-    };
+  let resp = await initiate();
+
+  function tokensFrom(
+    r: Awaited<ReturnType<typeof initiate>>
+  ): PasswordAuthResult | undefined {
+    if (r.AuthenticationResult?.IdToken && r.AuthenticationResult?.AccessToken) {
+      return {
+        kind: "tokens",
+        idToken: r.AuthenticationResult.IdToken,
+        accessToken: r.AuthenticationResult.AccessToken,
+        refreshToken: r.AuthenticationResult.RefreshToken ?? undefined,
+      };
+    }
+    return undefined;
+  }
+
+  const first = tokensFrom(resp);
+  if (first) return first;
+
+  if (
+    resp.ChallengeName &&
+    isMfaRelatedChallenge(resp.ChallengeName) &&
+    cfg.tempDisableUserMfaBeforeLogin
+  ) {
+    // TODO(MFA): Implement RespondToAuthChallenge for SOFTWARE_TOKEN_MFA / SMS_MFA / MFA_SETUP.
+    // TODO(super_admin): Require TOTP for super_admin only once challenge UX exists — remove this bypass path for staff tiers.
+    try {
+      await client(cfg).send(
+        new AdminSetUserMFAPreferenceCommand({
+          UserPoolId: cfg.userPoolId,
+          Username: username,
+          SMSMfaSettings: { Enabled: false, PreferredMfa: false },
+          SoftwareTokenMfaSettings: { Enabled: false, PreferredMfa: false },
+        })
+      );
+      resp = await initiate();
+      const second = tokensFrom(resp);
+      if (second) {
+        console.warn(
+          "[cognito] MFA challenge bypassed (AdminSetUserMFAPPreference + retry). Disable COGNITO_TEMP_DISABLE_USER_MFA_BEFORE_LOGIN when MFA UX is ready."
+        );
+        return second;
+      }
+    } catch (e) {
+      console.warn("[cognito] MFA bypass (AdminSetUserMFAPPreference) failed — ensure IAM cognito-idp:AdminSetUserMFAPPreference", e);
+    }
   }
 
   if (resp.ChallengeName) {

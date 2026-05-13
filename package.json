@@ -6,6 +6,7 @@
     "dev": "next dev --webpack",
     "dev:turbo": "next dev --turbopack",
     "build": "next build",
+    "build:clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true});\" && prisma generate && next build",
     "start": "next start --hostname 127.0.0.1",
     "lint": "eslint",
     "test": "vitest run",

@@ -45,15 +45,66 @@
  * ### Groups
  * - Model roles with Cognito groups `super_admin`, `admin`, and `customer` only, and include them in the ID token.
  *
- * ### First-login / invited staff (`NEW_PASSWORD_REQUIRED`)
- * - Users created with **AdminCreateUser** (console “invite” / temporary password) land in **FORCE_CHANGE_PASSWORD**.
- * - First `USER_PASSWORD_AUTH` returns **`NEW_PASSWORD_REQUIRED`** until **`RespondToAuthChallenge`** posts `NEW_PASSWORD`.
+ * ### Internal admins / super_admin (preferred — avoid `NEW_PASSWORD_REQUIRED`)
+ * - Do **not** rely on **`AdminCreateUser` + temporary password** alone for **`admin` / `super_admin`**; that puts the user in **`FORCE_CHANGE_PASSWORD`**, so the first **`USER_PASSWORD_AUTH`** returns **`NEW_PASSWORD_REQUIRED`** until they complete **`RespondToAuthChallenge`** or you fix it with the API below.
+ * - **Preferred provisioning**: Create the pool user (optional **`admin-create-user`**), then immediately call **`admin-set-user-password`** with **`--permanent`** (`Permanent: true` in APIs). Cognito accepts normal sign-in without the forced new-password challenge.
+ * - **`NEW_PASSWORD_REQUIRED` UI/API** (`POST /api/auth/cognito/new-password`, **`409`** on login with **`requiresPasswordChange`**) stays in the app **for legacy invited users** — keep using it where temp-password onboarding already exists.
+ *
+ * ### AWS CLI v2 cheat sheet — permanent password after create
+ * Replace **`USER_POOL_ID`**, **`USERNAME`**, **`PASSWORD`**, and region/profile as needed. Ensure the IAM principal has **`cognito-idp:AdminCreateUser`**, **`cognito-idp:AdminSetUserPassword`**, **`cognito-idp:AdminDeleteUser`** (cleanup), **`cognito-idp:AdminAddUserToGroup`**, **`cognito-idp:AdminRemoveUserFromGroup`** (when re-provisioning groups).
+ *
+ * **1a. Optional create user (suppress default invite email)**  
+ * ```bash
+ * aws cognito-idp admin-create-user \
+ *   --region "$AWS_REGION" \
+ *   --user-pool-id "$USER_POOL_ID" \
+ *   --username "$USERNAME" \
+ *   --user-attributes Name=email,Value=user@example.com Name=email_verified,Value=true \
+ *   --message-action SUPPRESS
+ * ```
+ *
+ * **1b. Set password as permanent (`CONFIRMED` path — user does not see `NEW_PASSWORD_REQUIRED`)**  
+ * ```bash
+ * aws cognito-idp admin-set-user-password \
+ *   --region "$AWS_REGION" \
+ *   --user-pool-id "$USER_POOL_ID" \
+ *   --username "$USERNAME" \
+ *   --password "$PASSWORD" \
+ *   --permanent
+ * ```
+ *
+ * **2. Attach groups (`super_admin` and/or `admin`)** — run once per group (repeat with **`group-name admin`** if needed):  
+ * ```bash
+ * aws cognito-idp admin-add-user-to-group \
+ *   --region "$AWS_REGION" \
+ *   --user-pool-id "$USER_POOL_ID" \
+ *   --username "$USERNAME" \
+ *   --group-name super_admin
+ * ```
+ *
+ * **3a. Dirty state / accidental temp password**: Still `FORCE_CHANGE_PASSWORD`? Repeat **1b** with a fresh strong **`$PASSWORD`**.
+ *
+ * **3b. Full reset**: Remove and recreate cleanly (drops group memberships — re-run **2**):  
+ * ```bash
+ * aws cognito-idp admin-delete-user \
+ *   --region "$AWS_REGION" \
+ *   --user-pool-id "$USER_POOL_ID" \
+ *   --username "$USERNAME"
+ * ```
+ * …then **1a** (optional), **1b**, **2** again.
+ *
+ * ### Console caveat (`FORCE_CHANGE_PASSWORD`)
+ * - In the Cognito console, a user appearing **Confirmed** and **Enabled** does **not** by itself clear **`FORCE_CHANGE_PASSWORD`**. Operators must finish the **`NEW_PASSWORD_REQUIRED`** challenge in-app (legacy path) **or** an admin must call **`admin-set-user-password` / `AdminSetUserPassword`** with a **permanent** password.
+ *
+ * ### First-login / invited staff (`NEW_PASSWORD_REQUIRED`, legacy onboarding)
+ * - Users created with **AdminCreateUser** and a **temporary** password / invite flow land in **FORCE_CHANGE_PASSWORD**.
+ * - First **`USER_PASSWORD_AUTH`** returns **`NEW_PASSWORD_REQUIRED`** until **`RespondToAuthChallenge`** posts **`NEW_PASSWORD`**.
  * - App route: **`POST /api/auth/cognito/new-password`** — UI collects permanent password after **`409`** from **`POST /api/auth/cognito/login`** when **`requiresPasswordChange`** is true.
  *
  * ### Long-term onboarding (recommended)
  * - **Customers**: Self-signup via **`/signup`** → confirm email if pool requires → **`/login`** with chosen password (no temp-password challenge).
- * - **Admin / super_admin**: Prefer invite email OR AdminCreateUser with temp password → user completes **Choose your password** step once → optional future **TOTP for super_admin only**.
- * - Avoid leaving operators in perpetual FORCE_CHANGE_PASSWORD — either complete our password step or use Cognito console **Reset password** to set a permanent password directly.
+ * - **Admin / super_admin (internal)**: Use **`AdminSetUserPassword`** with **`Permanent: true`** (CLI above) right after **`AdminCreateUser`** so **`NEW_PASSWORD_REQUIRED`** never triggers; legacy temp-password onboarding remains available for invites.
+ * - **Optional future**: Enforce **TOTP** for **`super_admin`** via **`RespondToAuthChallenge`** (`mfa.ts`).
  */
 
 export {};

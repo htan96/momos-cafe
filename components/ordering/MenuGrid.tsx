@@ -69,12 +69,14 @@ export default function MenuGrid({
   const handleAdd = (item: MenuItem) => {
     if (orderingDisabled) return;
     const price = item.price ?? 0;
+    const savedForLater = !item.is_active;
     addItem({
       id: item.id,
       variationId: item.variationId ?? undefined,
       name: item.name,
       price,
       quantity: 1,
+      ...(savedForLater ? { savedForLater: true } : {}),
     });
     showToast(`${item.name} added!`);
   };

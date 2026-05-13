@@ -89,17 +89,16 @@ export default function CheckoutOrderSummary({
         )}
         {heldAsideFoodLines && heldAsideFoodLines.length > 0 ? (
           <div className="border-t border-dashed border-cream-dark pt-4">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-charcoal/45 mb-2">
-              Café picks saved for later
-            </p>
-            <p className="text-xs text-charcoal/55 leading-relaxed mb-3">
-              We hold these until the kitchen opens again — your shop lines still sail through checkout.
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-teal-dark mb-2">Saved for later</p>
+            <p className="text-xs text-charcoal/60 leading-relaxed mb-3">
+              This item is currently unavailable but has been saved for later — these lines aren’t included in today’s total.
+              {heldAsideFoodLines.length > 1 ? " You can still check out other eligible picks." : ""}
             </p>
             <ul className="space-y-2">
               {heldAsideFoodLines.map((f) => (
                 <li
                   key={f.lineId}
-                  className="flex justify-between gap-3 text-sm text-charcoal/50 line-through decoration-charcoal/25 leading-snug"
+                  className="flex justify-between gap-3 text-sm text-charcoal/65 leading-snug border-l-2 border-teal-dark/20 pl-3 -ml-0.5"
                 >
                   <span className="min-w-0">{lineTitle(f)}</span>
                   <span className="shrink-0 font-medium">

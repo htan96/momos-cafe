@@ -18,6 +18,11 @@ export interface UnifiedFoodLine {
   price: number;
   quantity: number;
   modifiers?: SelectedModifier[];
+  /**
+   * When true, the shopper may keep the line in-cart but it is withheld from tender until the dish is
+   * active again (or the kitchen ordering window permits). Omit/false → normal payable kitchen line when eligible.
+   */
+  savedForLater?: boolean;
   fulfillmentPipeline: "KITCHEN";
   pickupEligible: true;
   shippingEligible: false;

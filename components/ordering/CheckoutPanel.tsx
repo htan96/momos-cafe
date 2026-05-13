@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useMemo, useCallback } from "react";
-import { useCart, useCommerceCart } from "@/context/CartContext";
+import { useCommerceCart } from "@/context/CartContext";
 import { useToast } from "@/context/ToastContext";
 import { formatPickupTime } from "@/lib/pickupTime";
 import { useAdminSettings, resolveOrderingRules } from "@/lib/useAdminSettings";
@@ -82,13 +82,26 @@ export default function CheckoutPanel({
   const { settings } = useAdminSettings();
   const rules = resolveOrderingRules(settings.orderingRules);
   const allowKitchenPay = kitchenFoodPaymentAllowed && !orderingDisabled;
-  const { items, total, count } = useCart();
-  const { lines: allLines, guestCartToken, merchCount } = useCommerceCart();
+  const {
+    lines: allLines,
+    guestCartToken,
+    merchCount,
+    foodCount,
+    totalCount,
+    removeUnifiedLinesByLineIds,
+  } = useCommerceCart();
 
-  const foodItemsForPayment = useMemo(
-    () => (allowKitchenPay ? items : []),
-    [allowKitchenPay, items]
+  const cartEligibility = useMemo(
+    () => validateCartEligibilityFromAdminSettings(new Date(), allLines, settings),
+    [allLines, settings]
   );
+
+  const foodItemsForPayment = useMemo(() => {
+    if (!allowKitchenPay) return [];
+    return cartEligibility.eligibleLines
+      .filter((l): l is UnifiedFoodLine => l.kind === "food")
+      .map(unifiedFoodToCartItem);
+  }, [allowKitchenPay, cartEligibility.eligibleLines]);
 
   const foodQtyForPayment = useMemo(
     () => foodItemsForPayment.reduce((s, i) => s + i.quantity, 0),
@@ -176,10 +189,15 @@ export default function CheckoutPanel({
   const checkoutAttemptIdRef = useRef(crypto.randomUUID());
 
   const foodOnlyOutsideWindow =
-    !allowKitchenPay && count > 0 && merchCount === 0;
-  const hasCheckoutLines = count > 0 || merchCount > 0;
+    !allowKitchenPay && foodCount > 0 && merchCount === 0;
+  const hasCheckoutLines = totalCount > 0;
+  const payableMerchLineCount = useMemo(() => {
+    return cartEligibility.eligibleLines.filter((l): l is UnifiedMerchLine => l.kind === "merch").length;
+  }, [cartEligibility.eligibleLines]);
+
   const hasPayableLine =
-    merchCount > 0 || (allowKitchenPay && count > 0 && kitchenPickupUtc !== null);
+    payableMerchLineCount > 0 ||
+    (allowKitchenPay && foodQtyForPayment > 0 && kitchenPickupUtc !== null);
   const shippingGate = requiresShippingChoice && shippingCents <= 0;
 
   const ensureCommerceOrder = useCallback(async (): Promise<string | null> => {
@@ -264,6 +282,7 @@ export default function CheckoutPanel({
         showToast(msg);
         return;
       }
+      removeUnifiedLinesByLineIds(elig.eligibleLines.map((l) => l.lineId));
       const orderId = data.orderId ?? data.paymentId ?? "unknown";
       const verification: OrderPlacedVerification =
         data.isFreeOrder === true
@@ -307,6 +326,7 @@ export default function CheckoutPanel({
       ensureCommerceOrder,
       pickupDisplayInstant,
       onOrderPlaced,
+      removeUnifiedLinesByLineIds,
       showToast,
     ]
   );
@@ -341,7 +361,7 @@ export default function CheckoutPanel({
         showToast("Nothing in your bag is ready to pay in this window.");
         return;
       }
-      if (allowKitchenPay && count > 0 && !kitchenPickupUtc) {
+      if (allowKitchenPay && foodQtyForPayment > 0 && !kitchenPickupUtc) {
         showToast("Kitchen pickup isn’t available for this moment — try again shortly.");
         return;
       }
@@ -359,7 +379,7 @@ export default function CheckoutPanel({
       shippingGate,
       hasPayableLine,
       allowKitchenPay,
-      count,
+      foodQtyForPayment,
       kitchenPickupUtc,
       name,
       phone,
@@ -399,7 +419,7 @@ export default function CheckoutPanel({
       showToast("Nothing in your bag is ready to pay in this window.");
       return;
     }
-    if (allowKitchenPay && count > 0 && !kitchenPickupUtc) {
+    if (allowKitchenPay && foodQtyForPayment > 0 && !kitchenPickupUtc) {
       showToast("Kitchen pickup isn’t available for this moment — try again shortly.");
       return;
     }
@@ -439,7 +459,7 @@ export default function CheckoutPanel({
     shippingGate,
     hasPayableLine,
     allowKitchenPay,
-    count,
+    foodQtyForPayment,
     kitchenPickupUtc,
     name,
     phone,
@@ -475,13 +495,13 @@ export default function CheckoutPanel({
       )}
 
       <div className={embedInPage ? "p-5 md:p-6" : "p-6"}>
-        {count > 0 ? (
+        {foodCount > 0 ? (
           <>
             <h3 className="font-display text-xl text-charcoal mb-2">Fulfillment choreography</h3>
             <p className="text-sm text-charcoal/70 mb-4 leading-relaxed">
               Hospitality runs in lanes: café pickups alongside mercantile + parcel drops. Morgen&apos;s Kitchen stays
               on the posted window logic while retail paths hum quietly beside it.
-              {count > 0 && !allowKitchenPay ? (
+              {foodCount > 0 && !allowKitchenPay ? (
                 <span className="block mt-2 text-teal-dark font-semibold">
                   The kitchen is resting — we&apos;ll gracefully skip plated items for this tender while mercantile
                   continues uninterrupted.
@@ -505,7 +525,7 @@ export default function CheckoutPanel({
                     If the window changes before you pay, we&apos;ll refresh this moment automatically.
                   </p>
                 </div>
-              ) : allowKitchenPay && count > 0 ? (
+              ) : allowKitchenPay && foodQtyForPayment > 0 ? (
                 <p className="text-xs text-teal-dark font-semibold leading-relaxed">
                   No qualifying pickup remains in today&apos;s window — revisit when the kitchen is open or Ops hours
                   are adjusted.
@@ -525,9 +545,9 @@ export default function CheckoutPanel({
           </p>
         ) : null}
 
-        {(count > 0 || merchCount > 0) && (
+        {(foodCount > 0 || merchCount > 0) && (
           <div className="space-y-2 mb-6">
-            {count > 0 && (
+            {foodQtyForPayment > 0 && (
               <>
                 <div className="flex justify-between text-sm text-charcoal/65 py-1.5 border-b border-cream-dark">
                   <span>Café pickup subtotal</span>
@@ -703,7 +723,7 @@ export default function CheckoutPanel({
             foodOnlyOutsideWindow ||
             shippingGate ||
             !hasPayableLine ||
-            (allowKitchenPay && count > 0 && !kitchenPickupUtc)
+            (allowKitchenPay && foodQtyForPayment > 0 && !kitchenPickupUtc)
           }
           className={`w-full py-4 rounded-xl font-semibold text-base tracking-wider uppercase transition-all ${
             foodOnlyOutsideWindow
@@ -719,7 +739,7 @@ export default function CheckoutPanel({
         </button>
         <p className="text-center text-[11px] text-charcoal/45 mt-2.5 font-medium tracking-wide">
           Pickup · 1922 Broadway St · Morgen&apos;s Kitchen
-          {pickupDisplayInstant && allowKitchenPay && count > 0 ? (
+          {pickupDisplayInstant && allowKitchenPay && foodQtyForPayment > 0 ? (
             <> · Locked {formatPickupTime(pickupDisplayInstant)}</>
           ) : null}
         </p>

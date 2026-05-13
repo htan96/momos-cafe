@@ -49,6 +49,7 @@ export default function MenuPage() {
   const addToCart = useCallback(
     (item: MenuItem, qty = 1, modifiers?: SelectedModifier[]) => {
       const base = item.price ?? 0;
+      const savedForLater = !item.is_active;
       addItem({
         id: item.id,
         variationId: item.variationId ?? undefined,
@@ -56,6 +57,7 @@ export default function MenuPage() {
         price: base,
         quantity: qty,
         modifiers,
+        ...(savedForLater ? { savedForLater: true } : {}),
       });
     },
     [addItem]
@@ -64,6 +66,7 @@ export default function MenuPage() {
   const handleAddFromModal = useCallback(
     (item: MenuItem, qty: number, mods: SelectedModifier[]) => {
       const basePrice = item.price ?? 0;
+      const savedForLater = !item.is_active;
       addItem({
         id: item.id,
         variationId: item.variationId ?? undefined,
@@ -71,6 +74,7 @@ export default function MenuPage() {
         price: basePrice,
         quantity: qty,
         modifiers: mods.length > 0 ? mods : undefined,
+        ...(savedForLater ? { savedForLater: true } : {}),
       });
       setModifierItem(null);
     },
@@ -122,21 +126,16 @@ export default function MenuPage() {
       <section aria-label="Menu introduction" className="pt-6 md:pt-10 pb-0">
         <div className="container max-w-[1200px] mx-auto px-4 md:px-5">
           <div
-            className={`flex flex-col md:flex-row md:items-end md:justify-between ${commerceSectionSpacing.gap} mb-2`}
+            className={`flex flex-col md:flex-row md:items-start md:justify-between ${commerceSectionSpacing.gap} mb-5 md:mb-6`}
           >
             <div>
               <p className={`${commerceCheckoutShell.sectionLabel} mb-1`}>Order pickup</p>
               <h1 className="font-display text-2xl md:text-[clamp(28px,4vw,40px)] text-charcoal leading-tight">
                 Momo&apos;s kitchen menu
               </h1>
-              <p className="text-[13px] text-charcoal/55 mt-2 max-w-xl leading-relaxed">
-                One category at a time — same cart as Shop for one calm checkout.
+              <p className="text-[13px] md:text-[14px] text-charcoal/60 mt-3 max-w-xl leading-relaxed">
+                Seasonal favorites from our kitchen, composed for pickup.
               </p>
-              {categories.length > 0 ? (
-                <p className="text-[11px] text-charcoal/45 mt-1.5">
-                  {categories.length} categor{categories.length === 1 ? "y" : "ies"}
-                </p>
-              ) : null}
             </div>
             <Link
               href="/shop"

@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from "react";
 
 const DEBUG_CHECKOUT = process.env.NODE_ENV === "development";
-import { useCart } from "@/context/CartContext";
 import type { OrderPlacedVerification } from "@/types/order";
 import { useSwipeToClose } from "@/hooks/useSwipeToClose";
 import CartSummary from "./CartSummary";
@@ -27,7 +26,6 @@ export default function MobileCheckoutOverlay({
   const [orderNum, setOrderNum] = useState("");
   const [estimatedPickupTime, setEstimatedPickupTime] = useState<string | undefined>();
   const [orderVerification, setOrderVerification] = useState<OrderPlacedVerification | null>(null);
-  const { clearCart } = useCart();
 
   useEffect(() => {
     if (isOpen) {
@@ -61,7 +59,6 @@ export default function MobileCheckoutOverlay({
     setEstimatedPickupTime(pickupTime);
     setOrderVerification(verification ?? null);
     setStep(3);
-    clearCart();
   };
 
   const handleOrderAgain = () => {

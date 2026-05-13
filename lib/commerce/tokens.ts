@@ -18,7 +18,7 @@ export const commerceMenuScrollMargin = "scroll-mt-[128px]";
 
 /** Sticky collection / menu category chrome — pairs with `CollectionFilterBar` */
 export const commerceCategoryStripShell =
-  "bg-cream/95 backdrop-blur-md border-y border-cream-dark/70 shadow-[0_8px_20px_-12px_rgba(44,44,44,0.18)]";
+  "bg-cream/95 backdrop-blur-md border-b border-cream-dark/75 border-t border-cream-dark/35 shadow-[0_10px_28px_-14px_rgba(45,107,107,0.14),0_4px_14px_-8px_rgba(44,44,44,0.08)]";
 
 /** Shared checkout / shop shell — cream field, teal structure, red CTAs */
 export const commerceCheckoutShell = {

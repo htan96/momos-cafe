@@ -43,6 +43,8 @@ export interface CartItem {
   quantity: number;
   /** Selected options; `id` must be Square MODIFIER catalog object id when using Orders API. */
   modifiers?: SelectedModifier[];
+  /** Mirrors `UnifiedFoodLine.savedForLater`; omitted for legacy rows / merch compatibility. */
+  savedForLater?: boolean;
 }
 
 export function getCartItemTotal(item: CartItem): number {
@@ -53,5 +55,6 @@ export function getCartItemTotal(item: CartItem): number {
 export function getCartItemKey(item: CartItem): string {
   const modKey = item.modifiers?.map((m) => m.id).sort().join(",") ?? "";
   const lineId = item.variationId ?? item.id;
-  return `${lineId}:${modKey}`;
+  const sfl = item.savedForLater === true ? ":sfl" : "";
+  return `${lineId}:${modKey}${sfl}`;
 }

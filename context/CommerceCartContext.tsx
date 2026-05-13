@@ -46,6 +46,8 @@ interface CommerceCartContextValue {
   clearMerchLines: () => void;
 
   clearAllLines: () => void;
+  /** Drops paid unified rows after a successful tender (kitchen + merch lines that cleared). */
+  removeUnifiedLinesByLineIds: (lineIds: string[]) => void;
 }
 
 const CommerceCartContext = createContext<CommerceCartContextValue | null>(null);
@@ -84,6 +86,7 @@ function toCartItem(line: UnifiedFoodLine): CartItem {
     price: line.price,
     quantity: line.quantity,
     modifiers: line.modifiers,
+    savedForLater: line.savedForLater === true ? true : undefined,
   };
 }
 
@@ -156,6 +159,7 @@ export function CommerceCartProvider({ children }: { children: ReactNode }) {
           next[idx] = { ...row, quantity: row.quantity + qty };
           return next;
         }
+        const saved = item.savedForLater === true;
         const row: UnifiedFoodLine = {
           kind: "food",
           lineId: crypto.randomUUID(),
@@ -165,6 +169,7 @@ export function CommerceCartProvider({ children }: { children: ReactNode }) {
           price: item.price,
           quantity: qty,
           modifiers: item.modifiers,
+          ...(saved ? { savedForLater: true as const } : {}),
           fulfillmentPipeline: "KITCHEN",
           pickupEligible: true,
           shippingEligible: false,
@@ -270,6 +275,12 @@ export function CommerceCartProvider({ children }: { children: ReactNode }) {
 
   const clearAllLines = useCallback(() => setLines([]), []);
 
+  const removeUnifiedLinesByLineIds = useCallback((lineIds: string[]) => {
+    if (lineIds.length === 0) return;
+    const drop = new Set(lineIds);
+    setLines((prev) => prev.filter((l) => !drop.has(l.lineId)));
+  }, []);
+
   const fulfillmentSummary = useMemo(() => buildFulfillmentSummary(lines), [lines]);
 
   const { foodCount, merchCount, totalCount, foodSubtotal, merchSubtotal, grandTotal } =
@@ -320,6 +331,7 @@ export function CommerceCartProvider({ children }: { children: ReactNode }) {
       removeMerchLine,
       clearMerchLines,
       clearAllLines,
+      removeUnifiedLinesByLineIds,
     }),
     [
       lines,
@@ -341,6 +353,7 @@ export function CommerceCartProvider({ children }: { children: ReactNode }) {
       removeMerchLine,
       clearMerchLines,
       clearAllLines,
+      removeUnifiedLinesByLineIds,
     ]
   );
 

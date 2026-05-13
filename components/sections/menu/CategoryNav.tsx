@@ -3,6 +3,7 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import type { MenuCategory } from "@/types/menu";
 import CommerceCategoryPill from "@/components/commerce/CommerceCategoryPill";
+import CommerceCategoryScrollRail from "@/components/commerce/CommerceCategoryScrollRail";
 import { commerceCategoryStripShell } from "@/lib/commerce/tokens";
 
 const STICKY_OFFSET = 140;
@@ -136,10 +137,10 @@ export default function CategoryNav({
 
   return (
     <nav id="cat-nav" className={outerClass} aria-label="Menu categories">
-      <div className="container max-w-[1200px] mx-auto px-4 py-2.5">
-        <div
+      <div className="container max-w-[1200px] mx-auto px-5 sm:px-6 py-2.5">
+        <CommerceCategoryScrollRail
           ref={scrollRef}
-          className="flex flex-nowrap gap-2 overflow-x-auto pb-1 scrollbar-none snap-x snap-mandatory min-h-[40px] items-center"
+          scrollClassName="flex flex-nowrap gap-3 overflow-x-auto overscroll-x-contain pb-1 [-webkit-overflow-scrolling:touch] scrollbar-none snap-x snap-mandatory min-h-[40px] items-center"
           role="tablist"
           aria-label="Menu categories"
         >
@@ -158,7 +159,7 @@ export default function CategoryNav({
               />
             );
           })}
-        </div>
+        </CommerceCategoryScrollRail>
       </div>
     </nav>
   );

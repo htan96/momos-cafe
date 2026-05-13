@@ -32,7 +32,8 @@ export function isUnifiedFoodLine(o: unknown): o is UnifiedFoodLine {
     o.quantity <= MAX_QTY &&
     o.fulfillmentPipeline === "KITCHEN" &&
     o.pickupEligible === true &&
-    o.shippingEligible === false
+    o.shippingEligible === false &&
+    (o.savedForLater === undefined || typeof o.savedForLater === "boolean")
   );
 }
 

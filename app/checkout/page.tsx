@@ -14,7 +14,7 @@ import type { OrderPlacedVerification } from "@/types/order";
 export default function CheckoutPage() {
   const router = useRouter();
   const { settings } = useAdminSettings();
-  const { totalCount, foodCount, merchCount, lines, setDrawerOpen, clearAllLines } = useCommerceCart();
+  const { totalCount, foodCount, merchCount, lines, setDrawerOpen } = useCommerceCart();
   const [eligibilityTick, setEligibilityTick] = useState(0);
 
   useEffect(() => {
@@ -360,7 +360,6 @@ export default function CheckoutPage() {
                   commerceOrderId={commerceOrderId}
                   onCommerceOrderResolved={(id) => setCommerceOrderId(id)}
                   onOrderPlaced={(orderNum, pickup, verification) => {
-                    clearAllLines();
                     setComplete({ orderNum, pickup, verification });
                   }}
                 />

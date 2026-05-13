@@ -126,6 +126,7 @@ export default function ItemModal({
       }
     });
 
+    const savedForLater = !item.is_active;
     addItem({
       id: item.id,
       variationId: item.variationId ?? undefined,
@@ -133,6 +134,7 @@ export default function ItemModal({
       price: basePrice,
       quantity: qty,
       modifiers: mods.length > 0 ? mods : undefined,
+      ...(savedForLater ? { savedForLater: true } : {}),
     });
     onAdded?.();
     onClose();

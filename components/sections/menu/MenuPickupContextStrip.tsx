@@ -1,34 +1,15 @@
 "use client";
 
-/** Food-context counterpart to Shop `ShopFulfillmentStrip` — calm pickup framing on `/menu`. */
+import { commerceCheckoutShell } from "@/lib/commerce/tokens";
+
+/** Calm pickup framing on `/menu` — editorial tone, aligned with commerce shell tokens. */
 export default function MenuPickupContextStrip() {
   return (
-    <div className="rounded-xl border border-teal/25 bg-teal/8 px-4 py-3 md:px-5 md:py-3.5 mb-6 md:mb-8">
-      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
-        <div className="flex gap-3">
-          <span
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal text-white text-[10px] font-bold uppercase tracking-wide shadow-sm"
-            aria-hidden
-          >
-            ETA
-          </span>
-          <div>
-            <p className="font-semibold text-charcoal text-sm">Kitchen pickup</p>
-            <p className="text-[13px] text-charcoal/70 leading-snug mt-0.5">
-              Most plates are ready in <strong className="text-charcoal font-semibold">about 15 minutes</strong> once
-              the kitchen confirms your order — we&apos;ll text when it&apos;s bagged.
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2 md:justify-end">
-          <span className="rounded-full bg-white border border-cream-dark px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-charcoal/80">
-            Vallejo · Morgen&apos;s Kitchen
-          </span>
-          <span className="rounded-full bg-white border border-cream-dark px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-charcoal/80">
-            Same cart as Shop
-          </span>
-        </div>
-      </div>
+    <div className="rounded-2xl border border-cream-dark bg-white px-5 py-5 md:px-7 md:py-6 mb-6 md:mb-8 shadow-[0_10px_36px_-22px_rgba(45,107,107,0.14)]">
+      <p className={`${commerceCheckoutShell.sectionLabel} mb-3`}>Pickup timing</p>
+      <p className="font-display text-[15px] md:text-[17px] text-charcoal leading-[1.55] max-w-2xl">
+        Ready in about 15 minutes — or schedule a pickup time that works for you.
+      </p>
     </div>
   );
 }

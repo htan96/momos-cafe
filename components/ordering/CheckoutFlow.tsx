@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useEffect, useImperativeHandle, useMemo } from "react";
-import { useCart } from "@/context/CartContext";
 import type { OrderPlacedVerification } from "@/types/order";
-import { useAdminSettings } from "@/lib/useAdminSettings";
 import { useCommerceCart } from "@/context/CartContext";
+import { useAdminSettings } from "@/lib/useAdminSettings";
 import { validateCartEligibilityFromAdminSettings } from "@/lib/ordering/validateCartEligibility";
 import CartSummary from "./CartSummary";
 import CheckoutPanel from "./CheckoutPanel";
@@ -32,7 +31,7 @@ export default function CheckoutFlow({
 }: CheckoutFlowProps) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const { settings } = useAdminSettings();
-  const { lines } = useCommerceCart();
+  const { lines, totalCount } = useCommerceCart();
   const [eligibilityTick, setEligibilityTick] = useState(0);
 
   useEffect(() => {
@@ -54,7 +53,6 @@ export default function CheckoutFlow({
   const [orderNum, setOrderNum] = useState("");
   const [estimatedPickupTime, setEstimatedPickupTime] = useState<string | undefined>();
   const [orderVerification, setOrderVerification] = useState<OrderPlacedVerification | null>(null);
-  const { clearCart, count } = useCart();
 
   const goToCheckout = () => {
     setStep(2);
@@ -74,7 +72,6 @@ export default function CheckoutFlow({
     setEstimatedPickupTime(pickupTime);
     setOrderVerification(verification ?? null);
     setStep(3);
-    clearCart();
   };
 
   const handleOrderAgain = () => {
@@ -149,7 +146,7 @@ export default function CheckoutFlow({
       </div>
 
       {/* Sticky checkout CTA — visible when on step 1 with items */}
-      <StickyCheckoutBar onGoToCheckout={goToCheckout} visible={step === 1 && count > 0} orderingDisabled={false} />
+      <StickyCheckoutBar onGoToCheckout={goToCheckout} visible={step === 1 && totalCount > 0} orderingDisabled={false} />
     </div>
   );
 }

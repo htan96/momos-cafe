@@ -1,24 +1,78 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCommerceCart } from "@/context/CartContext";
-import { formatMoney } from "@/lib/commerce/fulfillmentPreview";
+import { formatMoney, buildFulfillmentSummary } from "@/lib/commerce/fulfillmentPreview";
 import { getCartItemTotal } from "@/types/ordering";
 import type { UnifiedFoodLine, UnifiedMerchLine } from "@/types/commerce";
 import CommerceQuantityControl from "@/components/commerce/CommerceQuantityControl";
+import { useAdminSettings } from "@/lib/useAdminSettings";
+import { validateCartEligibilityFromAdminSettings } from "@/lib/ordering/validateCartEligibility";
+
+function FoodLineRow({
+  line,
+  labelIdx,
+  updateFoodQuantityAtIndex,
+  removeFoodLineAtIndex,
+  muted,
+}: {
+  line: UnifiedFoodLine;
+  labelIdx: number;
+  updateFoodQuantityAtIndex: (index: number, delta: number) => void;
+  removeFoodLineAtIndex: (index: number) => void;
+  muted?: boolean;
+}) {
+  return (
+    <li
+      className={`flex gap-3 text-sm border-b border-cream-dark/60 pb-2 last:border-0 last:pb-0 ${
+        muted ? "opacity-80" : ""
+      }`}
+    >
+      <div className="flex-1 min-w-0">
+        <p className="font-semibold text-charcoal">{line.name}</p>
+        {muted ? (
+          <p className="text-[11px] text-charcoal/50 mt-1 leading-snug">
+            This item is currently unavailable but has been saved for later.
+          </p>
+        ) : null}
+        <p className="text-teal-dark font-semibold text-xs mt-0.5">
+          {formatMoney(
+            getCartItemTotal({
+              id: line.id,
+              variationId: line.variationId,
+              name: line.name,
+              price: line.price,
+              quantity: line.quantity,
+              modifiers: line.modifiers,
+            })
+          )}
+        </p>
+      </div>
+      <CommerceQuantityControl
+        quantity={line.quantity}
+        onDelta={(delta) => updateFoodQuantityAtIndex(labelIdx, delta)}
+      />
+      <button
+        type="button"
+        className="text-xs text-red font-semibold underline-offset-2 hover:underline shrink-0"
+        onClick={() => removeFoodLineAtIndex(labelIdx)}
+      >
+        Remove
+      </button>
+    </li>
+  );
+}
 
 /** Shared shell layout for the global cart surface (bottom sheet on mobile, centered card on desktop). */
 export default function UnifiedCartDrawer() {
   const router = useRouter();
+  const { settings } = useAdminSettings();
   const {
     drawerOpen,
     setDrawerOpen,
     lines,
-    fulfillmentSummary,
-    grandTotal,
-    foodSubtotal,
     merchSubtotal,
     totalCount,
     setMerchQuantity,
@@ -34,10 +88,61 @@ export default function UnifiedCartDrawer() {
     return () => window.removeEventListener("keydown", onKey);
   }, [drawerOpen, setDrawerOpen]);
 
-  if (!drawerOpen) return null;
+  const eligibility = useMemo(
+    () => validateCartEligibilityFromAdminSettings(new Date(), lines, settings),
+    [lines, settings]
+  );
 
-  const foodLines = lines.filter((l): l is UnifiedFoodLine => l.kind === "food");
+  const fulfillmentSummary = useMemo(() => buildFulfillmentSummary(lines), [lines]);
+
+  const foodLinesOrdered = lines.filter((l): l is UnifiedFoodLine => l.kind === "food");
   const merchLines = lines.filter((l): l is UnifiedMerchLine => l.kind === "merch");
+
+  const foodIndexByLineId = useMemo(() => {
+    const m = new Map<string, number>();
+    foodLinesOrdered.forEach((line, i) => m.set(line.lineId, i));
+    return m;
+  }, [foodLinesOrdered]);
+
+  const payableFoodLines = useMemo(
+    () =>
+      foodLinesOrdered.filter((l) => {
+        if (!eligibility.kitchenAcceptsFoodNow) return false;
+        return !l.savedForLater;
+      }),
+    [foodLinesOrdered, eligibility.kitchenAcceptsFoodNow]
+  );
+
+  const savedLaterFoodLines = useMemo(
+    () =>
+      foodLinesOrdered.filter((l) => {
+        if (!eligibility.kitchenAcceptsFoodNow) return true;
+        return l.savedForLater === true;
+      }),
+    [foodLinesOrdered, eligibility.kitchenAcceptsFoodNow]
+  );
+
+  const payableFoodSubtotal = useMemo(
+    () =>
+      payableFoodLines.reduce(
+        (s, line) =>
+          s +
+          getCartItemTotal({
+            id: line.id,
+            variationId: line.variationId,
+            name: line.name,
+            price: line.price,
+            quantity: line.quantity,
+            modifiers: line.modifiers,
+          }),
+        0
+      ),
+    [payableFoodLines]
+  );
+
+  const drawerGrandTotal = payableFoodSubtotal + merchSubtotal;
+
+  if (!drawerOpen) return null;
 
   return (
     <div className="fixed inset-0 z-[960] flex justify-end lg:justify-center lg:items-start lg:pt-24">
@@ -50,9 +155,7 @@ export default function UnifiedCartDrawer() {
       <aside className="relative z-[961] w-full max-w-md bg-cream shadow-2xl flex flex-col max-h-[92vh] lg:max-h-[85vh] rounded-t-2xl lg:rounded-2xl overflow-hidden border border-cream-dark pb-[env(safe-area-inset-bottom)] mt-auto lg:mt-0">
         <header className="flex items-start justify-between px-5 py-4 border-b border-cream-dark bg-white gap-3">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-teal-dark">
-              Your cart
-            </p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-teal-dark">Your cart</p>
             <h2 className="font-display text-xl text-charcoal">Kitchen + shop</h2>
             {fulfillmentSummary.isMixed && (
               <p className="text-xs text-charcoal/60 mt-1 leading-snug">
@@ -73,9 +176,7 @@ export default function UnifiedCartDrawer() {
           {totalCount === 0 && (
             <div className="text-center py-10 px-2">
               <p className="font-display text-lg text-charcoal">Cart is empty</p>
-              <p className="text-sm text-charcoal/55 mt-2">
-                Grab breakfast pickup from Order or browse merch in Shop.
-              </p>
+              <p className="text-sm text-charcoal/55 mt-2">Grab breakfast pickup from Order or browse merch in Shop.</p>
               <div className="flex flex-col gap-2 mt-6">
                 <Link
                   href="/order"
@@ -94,79 +195,85 @@ export default function UnifiedCartDrawer() {
               </div>
             </div>
           )}
-          {totalCount > 0 &&
-            fulfillmentSummary.groups.map((g) => (
-              <section key={g.pipeline} className="rounded-xl border border-cream-dark bg-white p-4">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-teal-dark">{g.title}</p>
-                    <p className="text-xs text-charcoal/55 mt-0.5">{g.subtitle}</p>
-                  </div>
-                </div>
-                <p className="text-sm text-charcoal mt-2 leading-snug">{g.etaHint}</p>
-                <ul className="mt-3 space-y-2 border-t border-cream-dark pt-3">
-                  {g.pipeline === "KITCHEN"
-                    ? foodLines.map((line, labelIdx) => (
-                        <li
-                          key={line.lineId}
-                          className="flex gap-3 text-sm border-b border-cream-dark/60 pb-2 last:border-0 last:pb-0"
-                        >
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-charcoal">{line.name}</p>
-                            <p className="text-teal-dark font-semibold text-xs mt-0.5">
-                              {formatMoney(
-                                getCartItemTotal({
-                                  id: line.id,
-                                  variationId: line.variationId,
-                                  name: line.name,
-                                  price: line.price,
-                                  quantity: line.quantity,
-                                  modifiers: line.modifiers,
-                                })
-                              )}
-                            </p>
-                          </div>
-                          <CommerceQuantityControl
-                            quantity={line.quantity}
-                            onDelta={(delta) => updateFoodQuantityAtIndex(labelIdx, delta)}
-                          />
-                          <button
-                            type="button"
-                            className="text-xs text-red font-semibold underline-offset-2 hover:underline shrink-0"
-                            onClick={() => removeFoodLineAtIndex(labelIdx)}
-                          >
-                            Remove
-                          </button>
-                        </li>
-                      ))
-                    : merchLines.map((line) => (
-                        <li
-                          key={line.lineId}
-                          className="flex gap-3 text-sm border-b border-cream-dark/60 pb-2 last:border-0 last:pb-0"
-                        >
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-charcoal">{line.name}</p>
-                            <p className="text-[11px] text-charcoal/50">{line.variantSummary}</p>
-                            <p className="text-teal-dark font-semibold text-xs mt-0.5">
-                              {formatMoney(line.unitPrice * line.quantity)}
-                            </p>
-                          </div>
-                          <CommerceQuantityControl
-                            quantity={line.quantity}
-                            onDelta={(delta) => setMerchQuantity(line.lineId, line.quantity + delta)}
-                          />
-                          <button
-                            type="button"
-                            className="text-xs text-red font-semibold underline-offset-2 hover:underline shrink-0"
-                            onClick={() => removeMerchLine(line.lineId)}
-                          >
-                            Remove
-                          </button>
-                        </li>
-                      ))}
-                </ul>
-              </section>
-            ))}
+
+          {totalCount > 0 && payableFoodLines.length > 0 ? (
+            <section className="rounded-xl border border-cream-dark bg-white p-4">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-teal-dark">Kitchen pickup</p>
+              <p className="text-xs text-charcoal/55 mt-0.5">Ready for checkout</p>
+              <p className="text-sm text-charcoal mt-2 leading-snug">Food ready in ~15 minutes for pickup.</p>
+              <ul className="mt-3 space-y-2 border-t border-cream-dark pt-3">
+                {payableFoodLines.map((line) => (
+                  <FoodLineRow
+                    key={line.lineId}
+                    line={line}
+                    labelIdx={foodIndexByLineId.get(line.lineId) ?? 0}
+                    updateFoodQuantityAtIndex={updateFoodQuantityAtIndex}
+                    removeFoodLineAtIndex={removeFoodLineAtIndex}
+                  />
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
+          {totalCount > 0 && merchLines.length > 0 ? (
+            <section className="rounded-xl border border-cream-dark bg-white p-4">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-teal-dark">Retail & gifts</p>
+              <p className="text-xs text-charcoal/55 mt-0.5">Merch prep runs separately from the kitchen line.</p>
+              <p className="text-sm text-charcoal mt-2 leading-snug">
+                Shop items (like hoodies) are usually ready for pickup in 2–3 business days.
+              </p>
+              <ul className="mt-3 space-y-2 border-t border-cream-dark pt-3">
+                {merchLines.map((line) => (
+                  <li
+                    key={line.lineId}
+                    className="flex gap-3 text-sm border-b border-cream-dark/60 pb-2 last:border-0 last:pb-0"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-charcoal">{line.name}</p>
+                      <p className="text-[11px] text-charcoal/50">{line.variantSummary}</p>
+                      <p className="text-teal-dark font-semibold text-xs mt-0.5">
+                        {formatMoney(line.unitPrice * line.quantity)}
+                      </p>
+                    </div>
+                    <CommerceQuantityControl
+                      quantity={line.quantity}
+                      onDelta={(delta) => setMerchQuantity(line.lineId, line.quantity + delta)}
+                    />
+                    <button
+                      type="button"
+                      className="text-xs text-red font-semibold underline-offset-2 hover:underline shrink-0"
+                      onClick={() => removeMerchLine(line.lineId)}
+                    >
+                      Remove
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
+          {totalCount > 0 && savedLaterFoodLines.length > 0 ? (
+            <section className="rounded-xl border border-dashed border-teal-dark/35 bg-teal/5 p-4">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-teal-dark">Saved for later</p>
+              <p className="text-xs text-charcoal/65 mt-1 leading-snug mb-3">
+                {eligibility.kitchenAcceptsFoodNow
+                  ? "These lines aren’t included in today’s tally — they’ll come back whenever they’re pickup-eligible again."
+                  : "While the kitchen lane is paused, these picks stay in your bag until the next ordering window opens."}
+              </p>
+              <ul className="space-y-2 border-t border-cream-dark/60 pt-3">
+                {savedLaterFoodLines.map((line) => (
+                  <FoodLineRow
+                    key={line.lineId}
+                    line={line}
+                    labelIdx={foodIndexByLineId.get(line.lineId) ?? 0}
+                    updateFoodQuantityAtIndex={updateFoodQuantityAtIndex}
+                    removeFoodLineAtIndex={removeFoodLineAtIndex}
+                    muted
+                  />
+                ))}
+              </ul>
+            </section>
+          ) : null}
 
           {totalCount > 0 && fulfillmentSummary.messages.length > 0 && (
             <div className="rounded-lg bg-cream-dark/40 border border-cream-dark px-3 py-2 text-xs text-charcoal/75 space-y-1">
@@ -180,18 +287,30 @@ export default function UnifiedCartDrawer() {
         <footer className="border-t border-cream-dark bg-white px-5 py-4 space-y-3">
           {totalCount > 0 && (
             <>
-              <div className="flex justify-between text-sm">
-                <span className="text-charcoal/65">Food subtotal</span>
-                <span className="font-semibold">{formatMoney(foodSubtotal)}</span>
-              </div>
+              {payableFoodLines.length > 0 ? (
+                <div className="flex justify-between text-sm">
+                  <span className="text-charcoal/65">Food subtotal · payable now</span>
+                  <span className="font-semibold">{formatMoney(payableFoodSubtotal)}</span>
+                </div>
+              ) : foodLinesOrdered.length > 0 ? (
+                <div className="flex justify-between text-sm">
+                  <span className="text-charcoal/65">Kitchen lines</span>
+                  <span className="font-semibold text-charcoal/50">Held aside</span>
+                </div>
+              ) : null}
               <div className="flex justify-between text-sm">
                 <span className="text-charcoal/65">Shop subtotal</span>
                 <span className="font-semibold">{formatMoney(merchSubtotal)}</span>
               </div>
               <div className="flex justify-between font-display text-lg border-t border-cream-dark pt-2">
-                <span>Total</span>
-                <span>{formatMoney(grandTotal)}</span>
+                <span>Total due now</span>
+                <span>{formatMoney(drawerGrandTotal)}</span>
               </div>
+              {savedLaterFoodLines.length > 0 ? (
+                <p className="text-[11px] text-charcoal/50 leading-snug">
+                  Saved-for-later café lines aren’t included in Total due now.
+                </p>
+              ) : null}
             </>
           )}
 

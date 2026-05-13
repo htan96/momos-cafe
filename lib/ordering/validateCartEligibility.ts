@@ -1,5 +1,5 @@
 import type { AdminSettings, OrderingRules, WeeklyHours } from "@/lib/adminSettings.model";
-import type { UnifiedCartLine, UnifiedFoodLine } from "@/types/commerce";
+import type { UnifiedCartLine, UnifiedFoodLine, UnifiedMerchLine } from "@/types/commerce";
 import type { CartEligibilityResult } from "@/lib/ordering/cartEligibilityTypes";
 import { filterUnavailableFoodItems } from "@/lib/ordering/filterUnavailableFoodItems";
 import { getKitchenAvailability } from "@/lib/ordering/getKitchenAvailability";
@@ -67,10 +67,36 @@ export function validateCartEligibility(params: {
   );
 
   if (foodOrderingLive) {
+    const merchLines: UnifiedMerchLine[] = [];
+    for (const l of params.lines) {
+      if (l.kind === "merch") merchLines.push(l);
+    }
+
+    const savedFoodLines = foodLines.filter((f) => f.savedForLater === true);
+    const payableFoodLines = foodLines.filter((f) => !f.savedForLater);
+    const eligibleLines: UnifiedCartLine[] = [...payableFoodLines, ...merchLines];
+    const notices: string[] = [];
+
+    const lineSavedCopy = "This item is currently unavailable but has been saved for later.";
+
+    if (savedFoodLines.length > 0) {
+      if (payableFoodLines.length === 0 && merchLines.length > 0) {
+        notices.push(
+          `${lineSavedCopy} Shop lines in your bag are still payable on this checkout — kitchen picks remain saved for later.`
+        );
+      } else if (payableFoodLines.length > 0 && savedFoodLines.length === 1) {
+        notices.push(lineSavedCopy);
+      } else if (payableFoodLines.length > 0 && savedFoodLines.length > 1) {
+        notices.push(
+          "Several café selections are set aside until they’re pickup-eligible again — review them under Saved for later."
+        );
+      }
+    }
+
     return {
-      eligibleLines: params.lines,
-      removedFoodLines: [],
-      notices: [],
+      eligibleLines,
+      removedFoodLines: savedFoodLines,
+      notices,
       kitchenAcceptsFoodNow: true,
       nextFoodOrderingSummary: null,
     };

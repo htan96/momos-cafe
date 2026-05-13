@@ -3,6 +3,8 @@ import CognitoLoginForm from "@/components/auth/CognitoLoginForm";
 import { StorefrontAuthCard } from "@/components/auth/StorefrontAuthChrome";
 import { commerceCheckoutShell } from "@/lib/commerce/tokens";
 
+/** Login uses API routes only (`/api/auth/cognito/login`, etc.); no Server Actions. */
+
 export default function LoginPage() {
   return (
     <Suspense

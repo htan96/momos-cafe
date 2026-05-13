@@ -1,8 +1,12 @@
 import "./globals.css";
 import Layout from "@/components/layout/Layout";
-import { Inter, Playfair_Display } from "next/font/google";
-import { Poppins } from "next/font/google";
-import { League_Spartan, Source_Sans_3 } from "next/font/google";
+import {
+  Inter,
+  League_Spartan,
+  Playfair_Display,
+  Poppins,
+  Source_Sans_3,
+} from "next/font/google";
 
 const spartan = League_Spartan({
   subsets: ["latin"],
@@ -66,7 +70,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
+    <html
+      lang="en"
+      className={`${inter.variable} ${playfair.variable} ${spartan.variable} ${sourceSans.variable} ${poppins.variable}`}
+    >
       <body className="font-sans">
         <Layout>{children}</Layout>
       </body>

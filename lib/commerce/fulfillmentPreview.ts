@@ -5,11 +5,8 @@ import type {
   UnifiedCartLine,
 } from "@/types/commerce";
 
-const KITCHEN_ETA = "Food ready in ~15 minutes for pickup.";
-const RETAIL_ETA =
-  "Shop items (like hoodies) are usually ready for pickup in 2–3 business days.";
-const SHIPPING_HINT =
-  "Ship-eligible shop items use delivery rates from Square — choose a method at checkout.";
+const KITCHEN_ETA = "About 15 minutes when we’re open.";
+const RETAIL_ETA = "Often ready in 2–3 business days.";
 
 export function partitionByFulfillmentPipeline(lines: UnifiedCartLine[]): {
   kitchen: UnifiedCartLine[];
@@ -38,8 +35,8 @@ function groupPreview(
   if (pipeline === "KITCHEN") {
     return {
       pipeline,
-      title: "Kitchen pickup",
-      subtitle: "Cooked to order — same-day window.",
+      title: "Today’s picks",
+      subtitle: "Pickup from the café.",
       etaHint: KITCHEN_ETA,
       pickupEligible,
       shippingEligible: false,
@@ -49,9 +46,9 @@ function groupPreview(
 
   return {
     pipeline,
-    title: "Retail & gifts",
-    subtitle: "Merch prep runs separately from the kitchen line.",
-    etaHint: RETAIL_ETA + (shippingEligible ? ` ${SHIPPING_HINT}` : ""),
+    title: "From the shop",
+    subtitle: "Gifts & goods from our shelves.",
+    etaHint: RETAIL_ETA,
     pickupEligible,
     shippingEligible,
     lineIds,
@@ -82,14 +79,10 @@ export function buildFulfillmentSummary(lines: UnifiedCartLine[]): CheckoutFulfi
   }
 
   const isMixed = kitchen.length > 0 && retail.length > 0;
+  /** Kept minimal — cart surfaces avoid multi-lane explanations. */
   const messages: string[] = [];
   if (isMixed) {
-    messages.push(
-      "Your cart mixes food and merch — we'll coordinate pickup timing separately for each group."
-    );
-  }
-  if (retail.some((l) => l.shippingEligible)) {
-    messages.push(SHIPPING_HINT);
+    messages.push("Food and gifts sometimes finish on different days — we’ll keep you posted.");
   }
 
   return { isMixed, groups, messages };

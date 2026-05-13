@@ -49,7 +49,7 @@ export default function CartSidebar({ onCheckoutClick, className = "" }: CartSid
             Go to Checkout →
           </button>
           <p className="text-[11px] text-charcoal/40 text-center mt-2 font-medium tracking-wide">
-            Pickup at Morgen&apos;s Kitchen · ~15 min
+            Pickup in about 15 minutes · 1922 Broadway St, Vallejo
           </p>
         </div>
       )}

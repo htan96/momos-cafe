@@ -80,7 +80,7 @@ export default function MenuItemCard({
 
       <div className="absolute bottom-2 left-2 right-2 flex flex-wrap gap-1 pointer-events-none">
         <span className="rounded-full bg-white/92 backdrop-blur-sm px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-teal-dark shadow-sm ring-1 ring-white/60">
-          Kitchen pickup
+          Same-day pickup
         </span>
       </div>
     </>

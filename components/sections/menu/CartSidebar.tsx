@@ -8,10 +8,71 @@ import { useCommerceCart } from "@/context/CartContext";
 import { formatMoney } from "@/lib/commerce/fulfillmentPreview";
 import { getCartItemTotal } from "@/types/ordering";
 import CommerceQuantityControl from "@/components/commerce/CommerceQuantityControl";
+import { useAdminSettings } from "@/lib/useAdminSettings";
+import { validateCartEligibilityFromAdminSettings } from "@/lib/ordering/validateCartEligibility";
 
 interface CartSidebarProps {
   headerOffset?: number;
   orderingDisabled?: boolean;
+}
+
+function SidebarFoodRow({
+  line,
+  labelIdx,
+  muted,
+  updateFoodQuantityAtIndex,
+  removeFoodLineAtIndex,
+}: {
+  line: UnifiedFoodLine;
+  labelIdx: number;
+  muted?: boolean;
+  updateFoodQuantityAtIndex: (index: number, delta: number) => void;
+  removeFoodLineAtIndex: (index: number) => void;
+}) {
+  return (
+    <li
+      className={`flex gap-3 text-sm border-b border-cream-dark/60 pb-2 last:border-0 last:pb-0 ${
+        muted ? "opacity-85" : ""
+      }`}
+    >
+      <div className="flex-1 min-w-0">
+        <p className="font-semibold text-charcoal">{line.name}</p>
+        {line.modifiers && line.modifiers.length > 0 && (
+          <p className="text-[11px] text-charcoal/50 mt-0.5 leading-snug">
+            {line.modifiers.map((m) => m.name).join(", ")}
+          </p>
+        )}
+        {muted ? (
+          <p className="text-[11px] text-charcoal/50 mt-1 leading-snug">
+            This item is currently unavailable but has been saved for later.
+          </p>
+        ) : null}
+        <p className="text-teal-dark font-semibold text-xs mt-0.5">
+          {formatMoney(
+            getCartItemTotal({
+              id: line.id,
+              variationId: line.variationId,
+              name: line.name,
+              price: line.price,
+              quantity: line.quantity,
+              modifiers: line.modifiers,
+            })
+          )}
+        </p>
+      </div>
+      <CommerceQuantityControl
+        quantity={line.quantity}
+        onDelta={(delta) => updateFoodQuantityAtIndex(labelIdx, delta)}
+      />
+      <button
+        type="button"
+        className="text-xs text-red font-semibold underline-offset-2 hover:underline shrink-0 self-start pt-0.5"
+        onClick={() => removeFoodLineAtIndex(labelIdx)}
+      >
+        Remove
+      </button>
+    </li>
+  );
 }
 
 export default function CartSidebar({
@@ -19,13 +80,11 @@ export default function CartSidebar({
   orderingDisabled = false,
 }: CartSidebarProps) {
   const router = useRouter();
+  const { settings } = useAdminSettings();
   const {
     lines,
-    fulfillmentSummary,
     merchCount,
     merchSubtotal,
-    grandTotal,
-    foodSubtotal,
     totalCount,
     removeFoodLineAtIndex,
     updateFoodQuantityAtIndex,
@@ -34,16 +93,67 @@ export default function CartSidebar({
     setDrawerOpen,
   } = useCommerceCart();
 
-  const foodLines = useMemo(
+  const eligibility = useMemo(
+    () => validateCartEligibilityFromAdminSettings(new Date(), lines, settings),
+    [lines, settings]
+  );
+
+  const foodLinesOrdered = useMemo(
     () => lines.filter((l): l is UnifiedFoodLine => l.kind === "food"),
     [lines]
   );
+
   const merchLines = useMemo(
     () => lines.filter((l): l is UnifiedMerchLine => l.kind === "merch"),
     [lines]
   );
 
-  const checkoutDisabled = orderingDisabled && merchCount === 0 && foodLines.length > 0;
+  const foodIndexByLineId = useMemo(() => {
+    const m = new Map<string, number>();
+    foodLinesOrdered.forEach((line, i) => m.set(line.lineId, i));
+    return m;
+  }, [foodLinesOrdered]);
+
+  const payableFoodLines = useMemo(
+    () =>
+      foodLinesOrdered.filter((l) => {
+        if (!eligibility.kitchenAcceptsFoodNow) return false;
+        return !l.savedForLater;
+      }),
+    [foodLinesOrdered, eligibility.kitchenAcceptsFoodNow]
+  );
+
+  const savedLaterFoodLines = useMemo(
+    () =>
+      foodLinesOrdered.filter((l) => {
+        if (!eligibility.kitchenAcceptsFoodNow) return true;
+        return l.savedForLater === true;
+      }),
+    [foodLinesOrdered, eligibility.kitchenAcceptsFoodNow]
+  );
+
+  const payableFoodSubtotal = useMemo(
+    () =>
+      payableFoodLines.reduce(
+        (s, line) =>
+          s +
+          getCartItemTotal({
+            id: line.id,
+            variationId: line.variationId,
+            name: line.name,
+            price: line.price,
+            quantity: line.quantity,
+            modifiers: line.modifiers,
+          }),
+        0
+      ),
+    [payableFoodLines]
+  );
+
+  const drawerGrandTotal = payableFoodSubtotal + merchSubtotal;
+
+  /** Checkout disabled when ordering is paused and nothing in the bag is payable now. */
+  const checkoutDisabled = orderingDisabled && merchCount === 0 && payableFoodLines.length === 0;
 
   const stickyTop = headerOffset + 52 + 16;
   const stickyMaxH = `calc(100vh - ${headerOffset + 52 + 40}px)`;
@@ -59,12 +169,7 @@ export default function CartSidebar({
       <header className="flex items-start justify-between px-5 py-4 border-b border-cream-dark bg-white gap-3 shrink-0">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-teal-dark">Your cart</p>
-          <h3 className="font-display text-xl text-charcoal leading-tight">Kitchen + shop</h3>
-          {fulfillmentSummary.isMixed && (
-            <p className="text-xs text-charcoal/60 mt-1 leading-snug">
-              Mixed pickup timing — food is ASAP; retail follows its own window.
-            </p>
-          )}
+          <h3 className="font-display text-xl text-charcoal leading-tight">Your picks</h3>
         </div>
         <button
           type="button"
@@ -80,7 +185,7 @@ export default function CartSidebar({
           <div className="text-center py-10 px-2 rounded-xl border border-dashed border-cream-dark bg-white">
             <p className="font-display text-lg text-charcoal">Cart is empty</p>
             <p className="text-sm text-charcoal/55 mt-2 leading-snug">
-              Add plates from the menu — shop picks live in the same bag.
+              Add plates from the menu or browse the shop — same bag.
             </p>
             <Link
               href="/shop"
@@ -91,109 +196,86 @@ export default function CartSidebar({
           </div>
         ) : (
           <>
-            {fulfillmentSummary.groups.map((g) => (
-              <section key={g.pipeline} className="rounded-xl border border-cream-dark bg-white p-4">
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-teal-dark">{g.title}</p>
-                  <p className="text-xs text-charcoal/55 mt-0.5">{g.subtitle}</p>
-                </div>
-                <p className="text-sm text-charcoal mt-2 leading-snug">{g.etaHint}</p>
-                <ul className="mt-3 space-y-2 border-t border-cream-dark pt-3">
-                  {g.pipeline === "KITCHEN"
-                    ? foodLines.map((line, labelIdx) => (
-                        <li
-                          key={line.lineId}
-                          className="flex gap-3 text-sm border-b border-cream-dark/60 pb-2 last:border-0 last:pb-0"
-                        >
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-charcoal">{line.name}</p>
-                            {line.modifiers && line.modifiers.length > 0 && (
-                              <p className="text-[11px] text-charcoal/50 mt-0.5 leading-snug">
-                                {line.modifiers.map((m) => m.name).join(", ")}
-                              </p>
-                            )}
-                            <p className="text-teal-dark font-semibold text-xs mt-0.5">
-                              {formatMoney(
-                                getCartItemTotal({
-                                  id: line.id,
-                                  variationId: line.variationId,
-                                  name: line.name,
-                                  price: line.price,
-                                  quantity: line.quantity,
-                                  modifiers: line.modifiers,
-                                })
-                              )}
-                            </p>
-                          </div>
-                          <CommerceQuantityControl
-                            quantity={line.quantity}
-                            onDelta={(delta) => updateFoodQuantityAtIndex(labelIdx, delta)}
-                          />
-                          <button
-                            type="button"
-                            className="text-xs text-red font-semibold underline-offset-2 hover:underline shrink-0 self-start pt-0.5"
-                            onClick={() => removeFoodLineAtIndex(labelIdx)}
-                          >
-                            Remove
-                          </button>
-                        </li>
-                      ))
-                    : merchLines.map((line) => (
-                        <li
-                          key={line.lineId}
-                          className="flex gap-3 text-sm border-b border-cream-dark/60 pb-2 last:border-0 last:pb-0"
-                        >
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-charcoal">{line.name}</p>
-                            <p className="text-[11px] text-charcoal/50">{line.variantSummary}</p>
-                            <p className="text-teal-dark font-semibold text-xs mt-0.5">
-                              {formatMoney(line.unitPrice * line.quantity)}
-                            </p>
-                          </div>
-                          <CommerceQuantityControl
-                            quantity={line.quantity}
-                            onDelta={(delta) => setMerchQuantity(line.lineId, line.quantity + delta)}
-                          />
-                          <button
-                            type="button"
-                            className="text-xs text-red font-semibold underline-offset-2 hover:underline shrink-0 self-start pt-0.5"
-                            onClick={() => removeMerchLine(line.lineId)}
-                          >
-                            Remove
-                          </button>
-                        </li>
-                      ))}
+            {payableFoodLines.length > 0 || merchLines.length > 0 ? (
+              <section className="rounded-xl border border-cream-dark bg-white p-4">
+                <ul className="space-y-2">
+                  {payableFoodLines.map((line) => (
+                    <SidebarFoodRow
+                      key={line.lineId}
+                      line={line}
+                      labelIdx={foodIndexByLineId.get(line.lineId) ?? 0}
+                      updateFoodQuantityAtIndex={updateFoodQuantityAtIndex}
+                      removeFoodLineAtIndex={removeFoodLineAtIndex}
+                    />
+                  ))}
+                  {payableFoodLines.length > 0 && merchLines.length > 0 ? (
+                    <li className="list-none pt-2 mt-1 border-t border-cream-dark/80" aria-hidden />
+                  ) : null}
+                  {merchLines.map((line) => (
+                    <li
+                      key={line.lineId}
+                      className="flex gap-3 text-sm border-b border-cream-dark/60 pb-2 last:border-0 last:pb-0"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-charcoal">{line.name}</p>
+                        <p className="text-[11px] text-charcoal/50">{line.variantSummary}</p>
+                        <p className="text-teal-dark font-semibold text-xs mt-0.5">
+                          {formatMoney(line.unitPrice * line.quantity)}
+                        </p>
+                      </div>
+                      <CommerceQuantityControl
+                        quantity={line.quantity}
+                        onDelta={(delta) => setMerchQuantity(line.lineId, line.quantity + delta)}
+                      />
+                      <button
+                        type="button"
+                        className="text-xs text-red font-semibold underline-offset-2 hover:underline shrink-0 self-start pt-0.5"
+                        onClick={() => removeMerchLine(line.lineId)}
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  ))}
                 </ul>
               </section>
-            ))}
+            ) : null}
 
-            {fulfillmentSummary.messages.length > 0 && (
-              <div className="rounded-lg bg-cream-dark/40 border border-cream-dark px-3 py-2 text-xs text-charcoal/75 space-y-1">
-                {fulfillmentSummary.messages.map((m, i) => (
-                  <p key={i}>{m}</p>
-                ))}
-              </div>
-            )}
+            {savedLaterFoodLines.length > 0 ? (
+              <section className="rounded-xl border border-dashed border-teal-dark/35 bg-teal/5 p-4">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-teal-dark">Saved for later</p>
+                <p className="text-xs text-charcoal/65 mt-1 leading-snug mb-3">
+                  {eligibility.kitchenAcceptsFoodNow
+                    ? "Not included in today’s total — we’ll bring them back when they’re available again."
+                    : "Saved while ordering is paused — still here when you’re ready."}
+                </p>
+                <ul className="space-y-2 border-t border-cream-dark/60 pt-3">
+                  {savedLaterFoodLines.map((line) => (
+                    <SidebarFoodRow
+                      key={line.lineId}
+                      muted
+                      line={line}
+                      labelIdx={foodIndexByLineId.get(line.lineId) ?? 0}
+                      updateFoodQuantityAtIndex={updateFoodQuantityAtIndex}
+                      removeFoodLineAtIndex={removeFoodLineAtIndex}
+                    />
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+
           </>
         )}
       </div>
 
       {totalCount > 0 && (
         <footer className="border-t border-cream-dark bg-white px-5 py-4 space-y-3 shrink-0">
-          <div className="flex justify-between text-sm">
-            <span className="text-charcoal/65">Food subtotal</span>
-            <span className="font-semibold">{formatMoney(foodSubtotal)}</span>
-          </div>
-          {merchCount > 0 && (
-            <div className="flex justify-between text-sm">
-              <span className="text-charcoal/65">Shop subtotal</span>
-              <span className="font-semibold">{formatMoney(merchSubtotal)}</span>
-            </div>
-          )}
           <div className="flex justify-between font-display text-lg border-t border-cream-dark pt-2">
             <span className="text-charcoal">Total</span>
-            <span>{formatMoney(grandTotal)}</span>
+            <span>{formatMoney(drawerGrandTotal)}</span>
           </div>
+          {savedLaterFoodLines.length > 0 ? (
+            <p className="text-[11px] text-charcoal/50 leading-snug">Saved items aren’t included in this total.</p>
+          ) : null}
 
           <button
             type="button"
@@ -208,13 +290,13 @@ export default function CartSidebar({
               router.push("/checkout");
             }}
           >
-            {checkoutDisabled ? "Kitchen checkout paused" : "Checkout"}
+            {checkoutDisabled ? "Ordering paused" : "Checkout"}
           </button>
 
           <p className="text-center text-[11px] text-charcoal/55 leading-snug">
-            {orderingDisabled && foodLines.length > 0 && merchCount > 0
-              ? "Food checkout follows the next open window — shop items can still finish at checkout when eligible."
-              : "Same checkout as Shop — one ticket, coordinated pickup notes."}
+            {orderingDisabled && foodLinesOrdered.length > 0 && merchCount > 0
+              ? "Café items join in on the next open window — shop picks can still check out."
+              : "One checkout for everything in your bag."}
           </p>
 
           <div className="flex justify-center gap-3 text-[11px]">

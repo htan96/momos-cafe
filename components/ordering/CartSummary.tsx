@@ -59,8 +59,8 @@ export default function CartSummary({ onNext, orderingDisabled = false }: CartSu
             {orderingDisabled
               ? "Come back again at 8 AM."
               : estimatedPickupTime
-                ? `Pickup at Morgen's Kitchen · Est. ${formatPickupTime(estimatedPickupTime)}`
-                : "Pickup at Morgen's Kitchen"}
+                ? `Pickup · Est. ${formatPickupTime(estimatedPickupTime)} · Vallejo`
+                : "Pickup · Vallejo"}
           </p>
         </div>
       )}

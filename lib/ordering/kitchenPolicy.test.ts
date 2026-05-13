@@ -123,4 +123,27 @@ describe("validateCartEligibility", () => {
     });
     expect(e.notices.some((n) => /gift card/i.test(n))).toBe(true);
   });
+
+  it("holds inactive-tagged café lines aside while checkout keeps pay-ready food live", () => {
+    const now = zonedUtc(2026, 5, 12, 10, 0);
+    const lines: UnifiedCartLine[] = [
+      { ...foodLine(), lineId: "fa" },
+      { ...foodLine(), lineId: "fs", savedForLater: true },
+      merchLine(),
+    ];
+    const e = validateCartEligibility({
+      nowUtc: now,
+      lines,
+      weeklyHours: openWeek,
+      orderingRulesPartial: DEFAULT_ORDERING_RULES,
+      isOrderingOpen: true,
+    });
+    expect(e.kitchenAcceptsFoodNow).toBe(true);
+    expect(e.removedFoodLines).toHaveLength(1);
+    expect(e.removedFoodLines[0]!.lineId).toBe("fs");
+    const payFood = e.eligibleLines.filter((l): l is UnifiedFoodLine => l.kind === "food");
+    expect(payFood).toHaveLength(1);
+    expect(payFood[0]!.lineId).toBe("fa");
+    expect(e.eligibleLines.some((l) => l.kind === "merch")).toBe(true);
+  });
 });

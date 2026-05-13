@@ -5,20 +5,22 @@ import { filterUnavailableFoodItems } from "@/lib/ordering/filterUnavailableFood
 import { getKitchenAvailability } from "@/lib/ordering/getKitchenAvailability";
 import { getNextFoodOrderingWindow } from "@/lib/ordering/getNextFoodOrderingWindow";
 
-function totalFoodQty(lines: UnifiedCartLine[]): number {
-  let n = 0;
-  for (const l of lines) {
-    if (l.kind === "food") n += l.quantity;
-  }
-  return n;
-}
-
 function collectFoodLines(lines: UnifiedCartLine[]): UnifiedFoodLine[] {
   const out: UnifiedFoodLine[] = [];
   for (const l of lines) {
     if (l.kind === "food") out.push(l);
   }
   return out;
+}
+
+/** Prep slots for payable food; fallback to minimal probe qty when cart is café-only-but-saved. */
+function foodAvailabilityProbeQty(foodLines: UnifiedFoodLine[]): number {
+  const prepExclusive = foodLines.reduce(
+    (s, f) => s + (!f.savedForLater ? f.quantity : 0),
+    0
+  );
+  if (prepExclusive > 0) return prepExclusive;
+  return foodLines.length > 0 ? 1 : 0;
 }
 
 /** Premium shopper-facing copy when shop lines remain but kitchen food was dropped. */
@@ -45,10 +47,9 @@ export function validateCartEligibility(params: {
   /** Ops pause for kitchen; does not block merch-only checkout. */
   isOrderingOpen: boolean;
 }): CartEligibilityResult {
-  const foodQty = totalFoodQty(params.lines);
   const foodLines = collectFoodLines(params.lines);
 
-  if (foodQty === 0) {
+  if (foodLines.length === 0) {
     return {
       eligibleLines: params.lines,
       removedFoodLines: [],
@@ -58,11 +59,13 @@ export function validateCartEligibility(params: {
     };
   }
 
+  const availabilityProbeQty = foodAvailabilityProbeQty(foodLines);
+
   const { foodOrderingLive } = getKitchenAvailability(
     params.nowUtc,
     params.weeklyHours,
     params.orderingRulesPartial,
-    foodQty,
+    availabilityProbeQty,
     { isOrderingOpen: params.isOrderingOpen }
   );
 

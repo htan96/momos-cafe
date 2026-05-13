@@ -29,7 +29,7 @@ export default function OrderConfirmation({
         Order #{orderNum.length > 8 ? orderNum.slice(-8).toUpperCase() : orderNum}
       </div>
       <p className="text-[15px] text-gray-mid leading-relaxed max-w-[380px] mx-auto mb-2">
-        Your order is being prepared. Head to the pickup window at Morgen&apos;s Kitchen.
+        Your order is being prepared. Head to the pickup window when you arrive.
       </p>
       <p className="text-[15px] font-semibold text-teal-dark mb-1">
         1922 Broadway St, Vallejo
@@ -47,7 +47,7 @@ export default function OrderConfirmation({
       {verification?.paymentVerified && !verification.freeOrder && (
         <div className="rounded-xl border border-teal/25 bg-teal/5 px-4 py-3 max-w-[400px] mx-auto mb-4 text-left">
           <p className="text-[11px] font-bold tracking-wider uppercase text-teal-dark mb-1">
-            Payment confirmed with Square
+            Payment confirmed
           </p>
           {verification.squarePaymentStatus && (
             <p className="text-[12px] text-charcoal/80">

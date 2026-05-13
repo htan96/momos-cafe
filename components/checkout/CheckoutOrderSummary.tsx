@@ -52,7 +52,7 @@ export default function CheckoutOrderSummary({
         <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-cream/80">
           Checkout summary
         </p>
-        <p className="font-display text-lg mt-0.5">Kitchen + mercantile</p>
+        <p className="font-display text-lg mt-0.5">Your order</p>
       </div>
       <div className="p-4 space-y-5 max-h-[min(62vh,520px)] overflow-y-auto">
         {groups.length === 0 &&
@@ -61,7 +61,9 @@ export default function CheckoutOrderSummary({
         ) : (
           groups.map((g) => (
             <div key={g.key}>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-teal-dark mb-2">{g.title}</p>
+              {g.title ? (
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-teal-dark mb-2">{g.title}</p>
+              ) : null}
               <ul className="space-y-2">
                 {g.lines.map((l) => (
                   <li
@@ -91,8 +93,7 @@ export default function CheckoutOrderSummary({
           <div className="border-t border-dashed border-cream-dark pt-4">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-teal-dark mb-2">Saved for later</p>
             <p className="text-xs text-charcoal/60 leading-relaxed mb-3">
-              This item is currently unavailable but has been saved for later — these lines aren’t included in today’s total.
-              {heldAsideFoodLines.length > 1 ? " You can still check out other eligible picks." : ""}
+              Not part of today’s total — we’ll bring them back when they’re available again.
             </p>
             <ul className="space-y-2">
               {heldAsideFoodLines.map((f) => (
@@ -114,24 +115,12 @@ export default function CheckoutOrderSummary({
         ) : null}
       </div>
       <div className="px-4 py-3 border-t border-cream-dark bg-cream/80 text-sm space-y-1">
-        {subtotals.food > 0 && (
-          <div className="flex justify-between text-charcoal/70">
-            <span>Café pickup subtotal</span>
-            <span>{formatMoney(subtotals.food)}</span>
-          </div>
-        )}
-        {subtotals.merch > 0 && (
-          <div className="flex justify-between text-charcoal/70">
-            <span>Shop subtotal</span>
-            <span>{formatMoney(subtotals.merch)}</span>
-          </div>
-        )}
         <div className="flex justify-between font-display text-lg text-charcoal pt-1">
           <span>Subtotal</span>
           <span>{formatMoney(subtotals.total)}</span>
         </div>
         <p className="text-[11px] text-charcoal/45 leading-snug pt-1">
-          One tally for every fulfillment lane — finalize taxes, parcel selection, and your total beside payment.
+          Tax and final total are confirmed beside payment.
         </p>
       </div>
     </>

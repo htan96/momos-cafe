@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useRef } from "react";
 
-const DEBUG_CHECKOUT = process.env.NODE_ENV === "development";
 import type { OrderPlacedVerification } from "@/types/order";
 import { useSwipeToClose } from "@/hooks/useSwipeToClose";
 import CartSummary from "./CartSummary";
 import CheckoutPanel from "./CheckoutPanel";
 import OrderConfirmation from "./OrderConfirmation";
+
+const DEBUG_CHECKOUT = process.env.NODE_ENV === "development";
 
 interface MobileCheckoutOverlayProps {
   isOpen: boolean;

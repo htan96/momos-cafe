@@ -121,7 +121,7 @@ export default function CheckoutPage() {
       if (!res.ok) {
         setShippingOptions([]);
         setSelectedShip(null);
-        setQuoteHint("We couldn’t load rates right now — you can still finish shop pickup or try again.");
+        setQuoteHint("We couldn’t load options — you can still check out with pickup or try again.");
         return;
       }
       const opts = Array.isArray(data.options) ? data.options : [];
@@ -131,7 +131,7 @@ export default function CheckoutPage() {
         setQuoteHint(
           typeof data.message === "string"
             ? data.message
-            : "No delivery options matched this address yet — try another ZIP or shop pickup."
+            : "No delivery match for this address yet — try another ZIP or choose pickup."
         );
       } else {
         setSelectedShip(opts[0] ?? null);
@@ -176,7 +176,7 @@ export default function CheckoutPage() {
     return (
       <div className={`${commerceCheckoutShell.page} min-h-[70vh] flex items-center justify-center pb-24 pt-12 px-4`}>
         <div className={`max-w-md w-full ${commerceCheckoutShell.card} p-8 md:p-10 text-center space-y-5`}>
-          <p className={commerceCheckoutShell.sectionLabel}>Kitchen · Momo&apos;s</p>
+          <p className={commerceCheckoutShell.sectionLabel}>Momo&apos;s · Order</p>
           <h1 className="font-display text-2xl md:text-[28px] text-charcoal leading-snug">
             We&apos;re not taking food orders online right now
           </h1>
@@ -218,18 +218,18 @@ export default function CheckoutPage() {
     <div className={`${commerceCheckoutShell.page} pb-28 lg:pb-16 pt-6 px-4`}>
       <div className={`max-w-6xl mx-auto ${commerceSectionSpacing.gap} flex flex-col`}>
         <header className="space-y-2">
-          <p className={commerceCheckoutShell.sectionLabel}>Checkout · Momo&apos;s</p>
-          <h1 className="font-display text-3xl text-charcoal">One café commerce checkout</h1>
+          <p className={commerceCheckoutShell.sectionLabel}>Checkout</p>
+          <h1 className="font-display text-3xl text-charcoal">Almost there</h1>
           <p className="text-sm text-charcoal/65 max-w-2xl leading-relaxed">
-            Morgen&apos;s Kitchen plates, hoodies for the block, parcels heading out — all orchestrated once. Peek into{" "}
+            Review your bag and complete payment. Open{" "}
             <button
               type="button"
               onClick={() => setDrawerOpen(true)}
               className="text-teal-dark font-semibold underline-offset-2 hover:underline"
             >
               your cart
-            </button>
-            .
+            </button>{" "}
+            anytime.
           </p>
         </header>
 
@@ -257,12 +257,12 @@ export default function CheckoutPage() {
             {hasShippableMerch ? (
               <section
                 className={`${commerceCheckoutShell.card} p-5 md:p-6`}
-                aria-label="Shipping"
+                aria-label="Delivery address"
               >
-                <p className={commerceCheckoutShell.sectionLabel}>Delivery · parcels</p>
-                <h2 className="font-display text-xl text-charcoal mt-1 mb-3">Where shall we ship your shop pieces?</h2>
+                <p className={commerceCheckoutShell.sectionLabel}>Delivery</p>
+                <h2 className="font-display text-xl text-charcoal mt-1 mb-3">Ship to</h2>
                 <p className="text-sm text-charcoal/65 mb-4 leading-relaxed">
-                  Carrier choices unlock after a complete address — pickup-first merch skips this gracefully on its own.
+                  Add your address to see delivery choices for ship-eligible items.
                 </p>
                 <div className="grid sm:grid-cols-2 gap-3">
                   <label className="block text-[10px] font-semibold uppercase tracking-wider text-charcoal/55">

@@ -33,7 +33,7 @@ export default function MobileOrderBar({
             <span className="font-semibold text-sm truncate">{formatMoney(total)}</span>
             {orderingDisabled ? (
               <span className="block text-[10px] text-white/60 mt-0.5 leading-snug">
-                Kitchen checkout may pause — bag stays saved
+                Ordering may pause — your bag is saved
               </span>
             ) : null}
           </span>

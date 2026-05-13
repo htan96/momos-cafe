@@ -271,7 +271,7 @@ export default function ModifierModal({
                 }`}
               >
                 {orderingDisabled
-                  ? "Kitchen checkout is paused — we saved your selections"
+                  ? "Ordering is paused — we saved your selections"
                   : `Add to cart · $${getTotalPrice().toFixed(2)}`}
               </button>
             </div>

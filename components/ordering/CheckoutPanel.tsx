@@ -4,7 +4,7 @@ import { useState, useRef, useMemo, useCallback } from "react";
 import { useCommerceCart } from "@/context/CartContext";
 import { useToast } from "@/context/ToastContext";
 import { formatPickupTime } from "@/lib/pickupTime";
-import { useAdminSettings, resolveOrderingRules } from "@/lib/useAdminSettings";
+import { useAdminSettings } from "@/lib/useAdminSettings";
 import { getNextAvailablePickupTime } from "@/lib/ordering/getNextAvailablePickupTime";
 import { validateCartEligibilityFromAdminSettings } from "@/lib/ordering/validateCartEligibility";
 import type { OrderPlacedVerification } from "@/types/order";
@@ -80,7 +80,6 @@ export default function CheckoutPanel({
   embedInPage = false,
 }: CheckoutPanelProps) {
   const { settings } = useAdminSettings();
-  const rules = resolveOrderingRules(settings.orderingRules);
   const allowKitchenPay = kitchenFoodPaymentAllowed && !orderingDisabled;
   const {
     lines: allLines,
@@ -101,7 +100,7 @@ export default function CheckoutPanel({
     return cartEligibility.eligibleLines
       .filter((l): l is UnifiedFoodLine => l.kind === "food")
       .map(unifiedFoodToCartItem);
-  }, [allowKitchenPay, cartEligibility.eligibleLines]);
+  }, [allowKitchenPay, cartEligibility]);
 
   const foodQtyForPayment = useMemo(
     () => foodItemsForPayment.reduce((s, i) => s + i.quantity, 0),
@@ -142,14 +141,10 @@ export default function CheckoutPanel({
   );
   const merchTax = merchSubtotal * taxRate;
   const shippingUsd = shippingCents / 100;
+  const pretaxCombined = foodTotalForPayment + merchSubtotal;
+  const taxCombined = tax + merchTax;
 
-  /**
-   * One Square card flow for the combined bag when possible: a single `orders.create` + `payments.create`
-   * carries kitchen catalog lines, shop lines, tax, and a `TOTAL_PHASE` delivery charge (see `/api/order`).
-   *
-   * Square only allows one fulfillment on `orders.create`; we keep kitchen pickup on the paid order and
-   * attach ship-to-home operations on retail fulfillment groups using checkout delivery quotes + ops labels.
-   */
+  /** Combined bag totals for a single payment (kitchen + shop + delivery when applicable). */
   const combinedGrandTotal = foodGrandTotal + merchSubtotal + merchTax + shippingUsd;
 
   /** Food subtotal + tax (matches legacy /api/order food path). */
@@ -193,7 +188,7 @@ export default function CheckoutPanel({
   const hasCheckoutLines = totalCount > 0;
   const payableMerchLineCount = useMemo(() => {
     return cartEligibility.eligibleLines.filter((l): l is UnifiedMerchLine => l.kind === "merch").length;
-  }, [cartEligibility.eligibleLines]);
+  }, [cartEligibility]);
 
   const hasPayableLine =
     payableMerchLineCount > 0 ||
@@ -215,7 +210,7 @@ export default function CheckoutPanel({
     });
     const data = (await res.json().catch(() => ({}))) as { ok?: boolean; orderId?: string; error?: unknown };
     if (!res.ok) {
-      showToast("We couldn’t save your shop order. Please try again.");
+      showToast("We couldn’t save your order. Please try again.");
       return null;
     }
     const id = typeof data.orderId === "string" ? data.orderId : null;
@@ -252,7 +247,7 @@ export default function CheckoutPanel({
           { maxFutureDaysOverride: 0 }
         );
         if (!slot) {
-          showToast("The kitchen window just changed — refresh checkout and try again.");
+          showToast("Timing just updated — refresh checkout and try again.");
           return;
         }
         pickupIso = slot.toISOString();
@@ -354,7 +349,7 @@ export default function CheckoutPanel({
         return;
       }
       if (shippingGate) {
-        showToast("Choose a shipping option to continue.");
+        showToast("Select a delivery option to continue.");
         return;
       }
       if (!hasPayableLine) {
@@ -362,7 +357,7 @@ export default function CheckoutPanel({
         return;
       }
       if (allowKitchenPay && foodQtyForPayment > 0 && !kitchenPickupUtc) {
-        showToast("Kitchen pickup isn’t available for this moment — try again shortly.");
+        showToast("Pickup times aren’t available right now — try again shortly.");
         return;
       }
       setPlacing(true);
@@ -412,7 +407,7 @@ export default function CheckoutPanel({
       return;
     }
     if (shippingGate) {
-      showToast("Choose a shipping option to continue.");
+      showToast("Select a delivery option to continue.");
       return;
     }
     if (!hasPayableLine) {
@@ -420,7 +415,7 @@ export default function CheckoutPanel({
       return;
     }
     if (allowKitchenPay && foodQtyForPayment > 0 && !kitchenPickupUtc) {
-      showToast("Kitchen pickup isn’t available for this moment — try again shortly.");
+      showToast("Pickup times aren’t available right now — try again shortly.");
       return;
     }
     if (combinedOrderTotalCents <= 0) {
@@ -497,83 +492,61 @@ export default function CheckoutPanel({
       <div className={embedInPage ? "p-5 md:p-6" : "p-6"}>
         {foodCount > 0 ? (
           <>
-            <h3 className="font-display text-xl text-charcoal mb-2">Fulfillment choreography</h3>
+            <h3 className="font-display text-xl text-charcoal mb-2">Pickup</h3>
             <p className="text-sm text-charcoal/70 mb-4 leading-relaxed">
-              Hospitality runs in lanes: café pickups alongside mercantile + parcel drops. Morgen&apos;s Kitchen stays
-              on the posted window logic while retail paths hum quietly beside it.
+              Café orders are ready for pickup at our window — we’ll confirm timing with your confirmation.
               {foodCount > 0 && !allowKitchenPay ? (
                 <span className="block mt-2 text-teal-dark font-semibold">
-                  The kitchen is resting — we&apos;ll gracefully skip plated items for this tender while mercantile
-                  continues uninterrupted.
+                  Food ordering is paused right now — shop items in your bag can still finish here.
                 </span>
               ) : null}
             </p>
 
             <div className="border border-teal/25 bg-teal/5 rounded-xl p-4 mb-6">
-              <h4 className="font-semibold text-[15px] text-charcoal mb-1">Pickup timing</h4>
+              <h4 className="font-semibold text-[15px] text-charcoal mb-1">Your pickup time</h4>
               {allowKitchenPay && kitchenPickupUtc ? (
                 <div className="space-y-2">
-                  <p className="text-xs text-charcoal/65 leading-relaxed">
-                    Next pickup honors {rules.minimumPrepLeadMinutes}+ minutes of prep, today&apos;s hours, last-order
-                    cutoff, and {rules.pickupIntervalMinutes}-minute spacing.
-                  </p>
                   <p className="text-sm font-medium text-charcoal">
-                    Locked arrival:{" "}
                     <span className="font-display text-teal-dark">{formatPickupTime(kitchenPickupUtc)}</span>
                   </p>
                   <p className="text-[11px] text-charcoal/55 leading-snug">
-                    If the window changes before you pay, we&apos;ll refresh this moment automatically.
+                    If timing shifts before you pay, this updates automatically.
                   </p>
                 </div>
               ) : allowKitchenPay && foodQtyForPayment > 0 ? (
                 <p className="text-xs text-teal-dark font-semibold leading-relaxed">
-                  No qualifying pickup remains in today&apos;s window — revisit when the kitchen is open or Ops hours
-                  are adjusted.
+                  No slots left today — check back when we&apos;re open.
                 </p>
               ) : (
                 <p className="text-xs text-charcoal/65 leading-relaxed">
-                  We&apos;ll confirm shop shipping or pickup with your order when kitchen items aren&apos;t part of this
-                  payment.
+                  We&apos;ll confirm details after you complete this order.
                 </p>
               )}
             </div>
           </>
         ) : merchCount > 0 ? (
           <p className="text-sm text-charcoal/70 mb-6 leading-relaxed">
-            Retail pickup or parcel shipping stays paired with mercantile items — Ops routes each lane while you settle
-            up once for everything.
+            Thanks for shopping with us — delivery or pickup follows the options you choose below.
           </p>
         ) : null}
 
         {(foodCount > 0 || merchCount > 0) && (
           <div className="space-y-2 mb-6">
-            {foodQtyForPayment > 0 && (
+            {foodQtyForPayment > 0 || merchCount > 0 ? (
               <>
                 <div className="flex justify-between text-sm text-charcoal/65 py-1.5 border-b border-cream-dark">
-                  <span>Café pickup subtotal</span>
-                  <span>${foodTotalForPayment.toFixed(2)}</span>
+                  <span>Subtotal</span>
+                  <span>${pretaxCombined.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm text-charcoal/65 py-1.5 border-b border-cream-dark">
-                  <span>Café tax (9.25%)</span>
-                  <span>${tax.toFixed(2)}</span>
+                  <span>Estimated tax (9.25%)</span>
+                  <span>${taxCombined.toFixed(2)}</span>
                 </div>
               </>
-            )}
-            {merchCount > 0 && (
-              <>
-                <div className="flex justify-between text-sm text-charcoal/65 py-1.5 border-b border-cream-dark">
-                  <span>Shop subtotal</span>
-                  <span>${merchSubtotal.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-sm text-charcoal/65 py-1.5 border-b border-cream-dark">
-                  <span>Shop tax (9.25%)</span>
-                  <span>${merchTax.toFixed(2)}</span>
-                </div>
-              </>
-            )}
+            ) : null}
             {shippingCents > 0 && (
               <div className="flex justify-between text-sm text-charcoal/65 py-1.5 border-b border-cream-dark">
-                <span>{selectedShippingLabel ?? "Shipping"}</span>
+                <span>{selectedShippingLabel ?? "Delivery"}</span>
                 <span>${shippingUsd.toFixed(2)}</span>
               </div>
             )}
@@ -677,14 +650,9 @@ export default function CheckoutPanel({
         </form>
 
         <div className="mb-6">
-          <div className="flex items-center gap-2.5 mb-3">
-            <h3 className="font-display text-xl text-charcoal">Payment</h3>
-            <span className="bg-charcoal text-cream font-bold text-[10px] tracking-wider px-2 py-0.5 rounded">
-              Square
-            </span>
-          </div>
+          <h3 className="font-display text-xl text-charcoal mb-3">Payment</h3>
           <p className="text-xs text-charcoal/55 mb-3 leading-snug">
-            One secure checkout for your kitchen and shop items whenever they share the same run.
+            Pay once for everything in your bag — card details are handled securely.
           </p>
           <div className="bg-cream border border-cream-dark rounded-xl p-5 min-h-[80px]">
             {SQUARE_APP_ID && SQUARE_LOC_ID ? (
@@ -710,7 +678,7 @@ export default function CheckoutPanel({
           </div>
           <p className="flex items-center gap-1.5 mt-2.5 text-[11px] text-charcoal/40 font-medium">
             <span aria-hidden>🔒</span>
-            Processed by Square · card data stays on their secure form
+            Secure encrypted checkout
           </p>
         </div>
 
@@ -732,15 +700,15 @@ export default function CheckoutPanel({
           }`}
         >
           {foodOnlyOutsideWindow
-            ? "Kitchen closed for food orders"
+            ? "Food ordering is closed for now"
             : placing
               ? "Placing order…"
               : `Pay $${combinedGrandTotal.toFixed(2)}`}
         </button>
         <p className="text-center text-[11px] text-charcoal/45 mt-2.5 font-medium tracking-wide">
-          Pickup · 1922 Broadway St · Morgen&apos;s Kitchen
+          Pickup · 1922 Broadway St · Vallejo
           {pickupDisplayInstant && allowKitchenPay && foodQtyForPayment > 0 ? (
-            <> · Locked {formatPickupTime(pickupDisplayInstant)}</>
+            <> · {formatPickupTime(pickupDisplayInstant)}</>
           ) : null}
         </p>
       </div>

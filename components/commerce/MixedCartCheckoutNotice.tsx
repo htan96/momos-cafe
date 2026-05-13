@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCommerceCart } from "@/context/CartContext";
+import { formatMoney } from "@/lib/commerce/fulfillmentPreview";
 
 interface MixedCartCheckoutNoticeProps {
   /** Narrow emphasis during payment step */
@@ -11,7 +12,7 @@ interface MixedCartCheckoutNoticeProps {
 export default function MixedCartCheckoutNotice({
   variant = "cart",
 }: MixedCartCheckoutNoticeProps) {
-  const { merchCount, fulfillmentSummary, merchSubtotal } = useCommerceCart();
+  const { merchCount, merchSubtotal } = useCommerceCart();
   if (merchCount === 0) return null;
 
   return (
@@ -19,30 +20,19 @@ export default function MixedCartCheckoutNotice({
       className={`rounded-xl border border-teal-dark/25 bg-teal-dark/5 px-4 py-3 text-sm text-charcoal ${
         variant === "checkout" ? "mb-3" : "mb-4"
       }`}
-      role="region"
-      aria-label="Shop bag reminder"
+      role="status"
     >
       <p className="font-semibold text-teal-dark">
-        You have {merchCount} shop item{merchCount === 1 ? "" : "s"} in your bag
-        {merchSubtotal > 0 ? ` (~$${merchSubtotal.toFixed(2)})` : ""}.
+        {merchCount} shop item{merchCount === 1 ? "" : "s"} in your bag
+        {merchSubtotal > 0 ? ` · ${formatMoney(merchSubtotal)}` : ""}
       </p>
       <p className="text-charcoal/75 mt-1 leading-snug">
-        Finish everything on the{" "}
+        Everything in your bag checks out together on the{" "}
         <Link href="/checkout" className="font-semibold text-teal-dark underline-offset-2 hover:underline">
           checkout
         </Link>{" "}
-        page — kitchen pickup and shop lines stay on one Square receipt when you pay there.
+        page.
       </p>
-      <ul className="mt-2 space-y-1 text-xs text-charcoal/65">
-        {fulfillmentSummary.groups.map((g) => (
-          <li key={g.pipeline}>
-            <span className="font-semibold text-charcoal/80">{g.title}:</span> {g.etaHint}
-          </li>
-        ))}
-      </ul>
-      {fulfillmentSummary.isMixed && (
-        <p className="mt-2 text-xs text-charcoal/55">{fulfillmentSummary.messages[0]}</p>
-      )}
     </div>
   );
 }

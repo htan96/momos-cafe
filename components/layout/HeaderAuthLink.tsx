@@ -2,14 +2,20 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { readApiJson } from "@/lib/http/readApiJson";
 
 export default function HeaderAuthLink() {
   const [phase, setPhase] = useState<"loading" | "in" | "out">("loading");
 
   useEffect(() => {
     fetch("/api/auth/cognito/session", { credentials: "include" })
-      .then((r) => r.json())
-      .then((d: { authenticated?: boolean; user?: { groups?: string[] } | null }) => {
+      .then((r) => readApiJson<{ authenticated?: boolean; user?: { groups?: string[] } | null }>(r))
+      .then((parsed) => {
+        if (!parsed.ok) {
+          setPhase("out");
+          return;
+        }
+        const d = parsed.data;
         const customer = Boolean(d.authenticated && d.user?.groups?.includes("customer"));
         setPhase(customer ? "in" : "out");
       })

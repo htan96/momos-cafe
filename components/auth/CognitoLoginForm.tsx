@@ -14,6 +14,11 @@ import {
 import { commerceCheckoutShell } from "@/lib/commerce/tokens";
 import { resolvePostLoginRedirect } from "@/lib/auth/cognito/redirectByRole";
 
+/** Full sentences from `readApiJson` (HTML/502 bodies); snake_case stays for storefront copy. */
+function isLikelyTransportLayerMessage(msg: string): boolean {
+  return msg.includes("HTTP") || /\s/.test(msg);
+}
+
 export default function CognitoLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -54,7 +59,13 @@ export default function CognitoLoginForm() {
         );
         return;
       }
-      setError(out.error === "invalid_credentials" ? "Invalid username/email or password." : "Could not sign in.");
+      setError(
+        out.error === "invalid_credentials"
+          ? "Invalid username/email or password."
+          : isLikelyTransportLayerMessage(out.error)
+            ? out.error
+            : "Could not sign in."
+      );
       return;
     }
     const destination = out.redirectTo ?? resolvePostLoginRedirect(out.groups ?? [], rawNext);
@@ -88,7 +99,11 @@ export default function CognitoLoginForm() {
         );
         return;
       }
-      setError("We couldn't save that password. Try again or use Forgot password.");
+      setError(
+        isLikelyTransportLayerMessage(out.error)
+          ? out.error
+          : "We couldn't save that password. Try again or use Forgot password."
+      );
       return;
     }
     const destination = out.redirectTo ?? resolvePostLoginRedirect(out.groups ?? [], rawNext);

@@ -52,6 +52,11 @@ function internalGate(request: NextRequest): NextResponse {
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
+  /** Public browser auth — must never hit `internalGate` (storefront users have no orchestration secret). */
+  if (pathname.startsWith("/api/auth/cognito/")) {
+    return NextResponse.next();
+  }
+
   /**
    * Cognito JWT cookie gate for `/account`, `/admin`, `/super-admin`, optional `/portal`, `/ops`, `/api/ops`, etc.
    */
@@ -72,6 +77,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    "/api/auth/cognito/:path*",
     /**
      * Cognito-gated areas — when changing `COGNITO_PROTECTED_PREFIXES`, add matching prefixes here so middleware runs
      * before the internal orchestration secret gate (non-`/api` matcher paths return `NextResponse.next()`).

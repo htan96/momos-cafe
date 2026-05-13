@@ -23,28 +23,39 @@ async function readBody(request: Request): Promise<Record<string, unknown>> {
  * Completes Cognito `NEW_PASSWORD_REQUIRED` after `USER_PASSWORD_AUTH` returned a challenge.
  */
 export async function POST(request: Request) {
-  const cfg = getCognitoConfig();
-  if (!cfg) {
-    return NextResponse.json({ error: "cognito_unconfigured" }, { status: 503 });
-  }
-
-  const body = await readBody(request);
-  const username = typeof body.username === "string" ? body.username.trim() : "";
-  const session = typeof body.session === "string" ? body.session : "";
-  const newPassword = typeof body.newPassword === "string" ? body.newPassword : "";
-  const nextRaw = typeof body.next === "string" ? body.next : null;
-
-  if (!username || !session || !newPassword) {
-    return NextResponse.json({ error: "missing_fields" }, { status: 400 });
-  }
-
   try {
-    const out = await respondToNewPasswordChallenge({
-      cfg,
-      username,
-      session,
-      newPassword,
-    });
+    const cfg = getCognitoConfig();
+    if (!cfg) {
+      return NextResponse.json({ error: "cognito_unconfigured", code: "COGNITO_ENV_MISSING" }, { status: 503 });
+    }
+
+    const body = await readBody(request);
+    const username = typeof body.username === "string" ? body.username.trim() : "";
+    const session = typeof body.session === "string" ? body.session : "";
+    const newPassword = typeof body.newPassword === "string" ? body.newPassword : "";
+    const nextRaw = typeof body.next === "string" ? body.next : null;
+
+    if (!username || !session || !newPassword) {
+      return NextResponse.json({ error: "missing_fields", code: "VALIDATION" }, { status: 400 });
+    }
+
+    let out: Awaited<ReturnType<typeof respondToNewPasswordChallenge>>;
+    try {
+      out = await respondToNewPasswordChallenge({
+        cfg,
+        username,
+        session,
+        newPassword,
+      });
+    } catch (e) {
+      console.warn("[cognito/new-password] RespondToAuthChallenge failed", e);
+      const res = NextResponse.json(
+        { error: "password_change_failed", code: "COGNITO_CHALLENGE" },
+        { status: 401 }
+      );
+      clearCognitoCookieJar(res);
+      return res;
+    }
 
     if (out.kind === "challenge") {
       console.warn("[cognito/new-password] follow-on challenge after NEW_PASSWORD", {
@@ -53,6 +64,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error: "auth_challenge",
+          code: "FOLLOW_ON_CHALLENGE",
           challengeName: out.challengeName,
           session: out.session ?? null,
           mfaOptional: cfg.mfaOptional,
@@ -64,12 +76,15 @@ export async function POST(request: Request) {
 
     const user = extractUserFromIdToken(out.idToken);
     if (!user) {
-      return NextResponse.json({ error: "bad_id_token" }, { status: 502 });
+      return NextResponse.json({ error: "bad_id_token", code: "TOKEN_DECODE" }, { status: 500 });
     }
 
     const valid = await validateAccessToken(cfg, out.accessToken);
     if (!valid) {
-      const res = NextResponse.json({ error: "token_validation_failed" }, { status: 502 });
+      const res = NextResponse.json(
+        { error: "token_validation_failed", code: "ACCESS_TOKEN_INVALID" },
+        { status: 500 }
+      );
       clearCognitoCookieJar(res);
       return res;
     }
@@ -86,8 +101,11 @@ export async function POST(request: Request) {
     });
     return res;
   } catch (e) {
-    console.warn("[cognito/new-password] RespondToAuthChallenge failed", e);
-    const res = NextResponse.json({ error: "password_change_failed" }, { status: 401 });
+    console.error("[cognito/new-password] unhandled", e);
+    const res = NextResponse.json(
+      { error: "internal_error", code: "UNHANDLED" },
+      { status: 500 }
+    );
     clearCognitoCookieJar(res);
     return res;
   }

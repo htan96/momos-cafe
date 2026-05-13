@@ -50,20 +50,6 @@ model CateringInquiry {
   @@map("catering_inquiries")
 }
 
-/// Single-use magic login tokens for customer magic-link sign-in (not ops session).
-model AuthMagicLinkToken {
-  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  emailNorm  String    @map("email_norm")
-  tokenHash  String    @unique @map("token_hash")
-  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
-  consumedAt DateTime? @map("consumed_at") @db.Timestamptz(6)
-  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-
-  @@index([emailNorm])
-  @@index([expiresAt])
-  @@map("auth_magic_link_tokens")
-}
-
 /// Guest / future Clerk-linked profile — cafe_orders remain separate until unified checkout migrates.
 model Customer {
   id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid

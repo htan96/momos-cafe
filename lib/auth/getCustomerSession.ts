@@ -4,21 +4,22 @@ import { getCognitoConfig } from "@/lib/auth/cognito/config";
 import { COGNITO_ID_TOKEN_COOKIE } from "@/lib/auth/cognito/sessionCookies";
 import { issuerMatches, sessionUserFromIdTokenPayload } from "@/lib/auth/cognito/tokens";
 import { isCustomer } from "@/lib/auth/cognito/roles";
-import { CUSTOMER_SESSION_COOKIE, verifyCustomerSessionToken } from "@/lib/auth/customerSessionCrypto";
-import type { CustomerSessionPayload } from "@/lib/auth/customerSessionCrypto";
+
+export type CustomerSessionPayload = {
+  typ: "customer";
+  sub: string;
+  email: string;
+  exp: number;
+};
 
 /**
- * Storefront customer session: legacy magic-link cookie **or** Cognito ID token when the user is in the `customer` group.
- * Order history remains keyed by `sub` from the active session (linking Cognito users to commerce rows is a separate concern).
+ * Storefront customer session from Cognito ID token when the user is in the `customer` group.
  */
 export async function getCustomerSession(): Promise<CustomerSessionPayload | null> {
-  const jar = await cookies();
-  const legacy = await verifyCustomerSessionToken(jar.get(CUSTOMER_SESSION_COOKIE)?.value);
-  if (legacy) return legacy;
-
   const cfg = getCognitoConfig();
   if (!cfg) return null;
 
+  const jar = await cookies();
   const id = jar.get(COGNITO_ID_TOKEN_COOKIE)?.value;
   if (!id) return null;
 

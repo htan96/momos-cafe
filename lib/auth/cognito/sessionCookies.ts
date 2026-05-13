@@ -1,5 +1,5 @@
 /**
- * Cookie names are prefixed to avoid collisions with `MOMOS_CUSTOMER` / `OPS_SESSION` flows.
+ * Cookie names use an app-specific prefix to avoid collisions with third-party cookies.
  *
  * Tradeoffs (Next.js App Router):
  * - **httpOnly JWT cookies (this module)** keep tokens off `document.cookie` and reduce XSS blast radius.

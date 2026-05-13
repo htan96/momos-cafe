@@ -4,6 +4,14 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useCognitoAuth } from "@/components/auth/CognitoAuthProvider";
+import {
+  StorefrontAuthCard,
+  StorefrontAuthLogo,
+  storefrontAuthFooterLink,
+  storefrontAuthInput,
+  storefrontAuthPrimaryButton,
+} from "@/components/auth/StorefrontAuthChrome";
+import { commerceCheckoutShell } from "@/lib/commerce/tokens";
 import { resolvePostLoginRedirect } from "@/lib/auth/cognito/redirectByRole";
 
 export default function CognitoLoginForm() {
@@ -40,75 +48,64 @@ export default function CognitoLoginForm() {
   }
 
   return (
-    <div className="w-full max-w-[420px] rounded-2xl border border-charcoal/10 bg-white px-8 py-10 shadow-[0_16px_64px_rgba(0,0,0,0.06)]">
-      <p className="text-center text-[11px] uppercase tracking-[0.28em] text-teal-dark font-semibold">
-        Momo&apos;s Café
-      </p>
-      <h1 className="mt-2 text-center text-2xl font-semibold text-charcoal tracking-tight font-display">Sign in</h1>
-      <p className="mt-2 text-center text-[13px] text-charcoal/70">
-        Familiar email and password sign-in when you&apos;ve set one up — perfect for café accounts used across visits.
-      </p>
-      <p className="mt-3 text-center text-[13px] text-charcoal/65">
-        Prefer a calm link instead? Try{" "}
-        <Link href="/login/email" className="text-teal-dark underline underline-offset-2 font-semibold">
-          sign-in by email
-        </Link>
-        .
-      </p>
+    <>
+      <StorefrontAuthLogo />
+      <StorefrontAuthCard>
+        <p className={`${commerceCheckoutShell.sectionLabel} text-center`}>Momo&apos;s · Account</p>
+        <h1 className="mt-2 text-center font-display text-2xl font-semibold tracking-tight text-charcoal sm:text-[26px]">
+          Sign in
+        </h1>
+        <p className="mt-2.5 text-center text-[14px] leading-relaxed text-charcoal/75">
+          Welcome back — sign in with the email and password on your Momo&apos;s account.
+        </p>
 
-      <form onSubmit={(e) => void onSubmit(e)} className="mt-8 space-y-4">
-        <label className="block">
-          <span className="text-[11px] uppercase tracking-wide text-charcoal/55 font-semibold">
-            Email or username
-          </span>
-          <input
-            autoComplete="username"
-            required
-            value={username}
-            onChange={(ev) => setUsername(ev.target.value)}
-            className="mt-1 w-full rounded-lg border border-charcoal/15 bg-white px-3 py-2.5 text-[15px] text-charcoal outline-none focus:border-teal-dark"
-          />
-        </label>
+        <form onSubmit={(e) => void onSubmit(e)} className="mt-8 space-y-5">
+          <label className="block">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-charcoal/60">Email or username</span>
+            <input
+              autoComplete="username"
+              required
+              value={username}
+              onChange={(ev) => setUsername(ev.target.value)}
+              className={storefrontAuthInput}
+            />
+          </label>
 
-        <label className="block">
-          <span className="text-[11px] uppercase tracking-wide text-charcoal/55 font-semibold">Password</span>
-          <input
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(ev) => setPassword(ev.target.value)}
-            className="mt-1 w-full rounded-lg border border-charcoal/15 bg-white px-3 py-2.5 text-[15px] text-charcoal outline-none focus:border-teal-dark"
-          />
-        </label>
+          <label className="block">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-charcoal/60">Password</span>
+            <input
+              type="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(ev) => setPassword(ev.target.value)}
+              className={storefrontAuthInput}
+            />
+          </label>
 
-        {error ? (
-          <p className="text-sm text-red bg-red/10 border border-red/25 rounded-lg px-3 py-2">{error}</p>
-        ) : null}
+          {error ? (
+            <p className="rounded-xl border border-red/25 bg-red/10 px-3 py-2.5 text-sm text-red" role="alert">
+              {error}
+            </p>
+          ) : null}
 
-        <button
-          type="submit"
-          disabled={busy}
-          className="w-full rounded-lg bg-teal-dark text-white font-semibold py-3 text-[15px] disabled:opacity-60 hover:opacity-95 transition-opacity"
-        >
-          {busy ? "Signing in…" : "Sign in"}
-        </button>
-      </form>
+          <button type="submit" disabled={busy} className={storefrontAuthPrimaryButton}>
+            {busy ? "Signing in…" : "Sign in"}
+          </button>
+        </form>
 
-      <div className="mt-6 flex flex-col gap-2 text-center text-[13px] text-charcoal/60">
-        <Link href="/signup" className="hover:text-charcoal">
-          Create account
-        </Link>
-        <Link href="/forgot-password" className="hover:text-charcoal">
-          Forgot password
-        </Link>
-        <Link href="/ops/login" className="hover:text-charcoal">
-          Team dashboard sign-in (separate)
-        </Link>
-        <Link href="/" className="hover:text-charcoal">
-          Back to site
-        </Link>
-      </div>
-    </div>
+        <nav className="mt-6 flex flex-col border-t border-gold/25 pt-2" aria-label="Account help">
+          <Link href="/signup" className={storefrontAuthFooterLink}>
+            Create account
+          </Link>
+          <Link href="/forgot-password" className={storefrontAuthFooterLink}>
+            Forgot password
+          </Link>
+          <Link href="/" className={storefrontAuthFooterLink}>
+            Back to the café
+          </Link>
+        </nav>
+      </StorefrontAuthCard>
+    </>
   );
 }

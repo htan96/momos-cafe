@@ -2,6 +2,14 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import {
+  StorefrontAuthCard,
+  StorefrontAuthLogo,
+  storefrontAuthInlineLink,
+  storefrontAuthInput,
+  storefrontAuthPrimaryButton,
+} from "@/components/auth/StorefrontAuthChrome";
+import { commerceCheckoutShell } from "@/lib/commerce/tokens";
 
 export default function CognitoSignupForm() {
   const [username, setUsername] = useState("");
@@ -32,7 +40,7 @@ export default function CognitoSignupForm() {
         setError(data.detail ?? data.error ?? "Sign up failed.");
         return;
       }
-      setInfo("Peek your inbox — we sent a verification code.");
+      setInfo("Peek your inbox — we sent a short code to finish up. We’ll keep the rest easy.");
       setPassword("");
     } finally {
       setBusy(false);
@@ -40,61 +48,70 @@ export default function CognitoSignupForm() {
   }
 
   return (
-    <div className="w-full max-w-[420px] rounded-2xl border border-charcoal/10 bg-white px-8 py-10 shadow-[0_16px_64px_rgba(0,0,0,0.06)]">
-      <h1 className="text-center text-2xl font-semibold text-charcoal font-display">Create account</h1>
-      <p className="mt-2 text-center text-[13px] text-charcoal/70">
-        We&apos;ll email a short code so you can finish — quick and human, no spam.
-      </p>
+    <>
+      <StorefrontAuthLogo />
+      <StorefrontAuthCard>
+        <p className={`${commerceCheckoutShell.sectionLabel} text-center`}>Join the guest list</p>
+        <h1 className="mt-2 text-center font-display text-2xl font-semibold text-charcoal sm:text-[26px]">
+          Create account
+        </h1>
+        <p className="mt-2.5 text-center text-[14px] leading-relaxed text-charcoal/75">
+          We&apos;ll send one quick verification — no clutter, just enough to keep your orders safe.
+        </p>
 
-      <form onSubmit={(e) => void onSubmit(e)} className="mt-8 space-y-4">
-        <label className="block">
-          <span className="text-[11px] uppercase tracking-wide text-charcoal/55 font-semibold">Username</span>
-          <input
-            required
-            value={username}
-            onChange={(ev) => setUsername(ev.target.value)}
-            className="mt-1 w-full rounded-lg border border-charcoal/15 bg-white px-3 py-2.5 text-[15px]"
-          />
-        </label>
-        <label className="block">
-          <span className="text-[11px] uppercase tracking-wide text-charcoal/55 font-semibold">
-            Email (optional)
-          </span>
-          <input
-            type="email"
-            value={email}
-            onChange={(ev) => setEmail(ev.target.value)}
-            className="mt-1 w-full rounded-lg border border-charcoal/15 bg-white px-3 py-2.5 text-[15px]"
-          />
-        </label>
-        <label className="block">
-          <span className="text-[11px] uppercase tracking-wide text-charcoal/55 font-semibold">Password</span>
-          <input
-            type="password"
-            required
-            value={password}
-            onChange={(ev) => setPassword(ev.target.value)}
-            className="mt-1 w-full rounded-lg border border-charcoal/15 bg-white px-3 py-2.5 text-[15px]"
-          />
-        </label>
+        <form onSubmit={(e) => void onSubmit(e)} className="mt-8 space-y-5">
+          <label className="block">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-charcoal/60">Username</span>
+            <input
+              required
+              value={username}
+              onChange={(ev) => setUsername(ev.target.value)}
+              className={storefrontAuthInput}
+            />
+          </label>
+          <label className="block">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-charcoal/60">
+              Email (optional)
+            </span>
+            <input
+              type="email"
+              value={email}
+              onChange={(ev) => setEmail(ev.target.value)}
+              className={storefrontAuthInput}
+            />
+          </label>
+          <label className="block">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-charcoal/60">Password</span>
+            <input
+              type="password"
+              required
+              value={password}
+              onChange={(ev) => setPassword(ev.target.value)}
+              className={storefrontAuthInput}
+            />
+          </label>
 
-        {info ? <p className="text-sm text-teal-dark bg-teal/10 rounded-lg px-3 py-2">{info}</p> : null}
-        {error ? <p className="text-sm text-red bg-red/10 rounded-lg px-3 py-2">{error}</p> : null}
+          {info ? (
+            <p className="rounded-xl border border-teal/20 bg-teal/10 px-3 py-2.5 text-sm text-teal-dark">{info}</p>
+          ) : null}
+          {error ? (
+            <p className="rounded-xl border border-red/25 bg-red/10 px-3 py-2.5 text-sm text-red" role="alert">
+              {error}
+            </p>
+          ) : null}
 
-        <button
-          type="submit"
-          disabled={busy}
-          className="w-full rounded-lg bg-teal-dark text-white font-semibold py-3 text-[15px] disabled:opacity-60"
-        >
-          {busy ? "Creating…" : "Create account"}
-        </button>
-      </form>
+          <button type="submit" disabled={busy} className={storefrontAuthPrimaryButton}>
+            {busy ? "Creating…" : "Create account"}
+          </button>
+        </form>
 
-      <p className="mt-6 text-center text-[13px]">
-        <Link href="/login" className="text-teal-dark underline">
-          Back to sign in
-        </Link>
-      </p>
-    </div>
+        <p className="mt-6 border-t border-gold/25 pt-5 text-center text-[13px] text-charcoal/70">
+          Already visiting with us?{" "}
+          <Link href="/login" className={storefrontAuthInlineLink}>
+            Back to sign in
+          </Link>
+        </p>
+      </StorefrontAuthCard>
+    </>
   );
 }

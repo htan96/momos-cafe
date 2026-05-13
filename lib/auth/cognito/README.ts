@@ -4,6 +4,12 @@
  * This package centralizes password auth against a Cognito User Pool while leaving room for Hosted UI or social IdPs.
  * An Identity Pool id is accepted via env for future temporary AWS credential flows but is not exercised yet.
  *
+ * ### Migration note (legacy removal)
+ * - Previous magic-link storefront sessions (`MOMOS_CUSTOMER`), ops password bootstrap (`OPS_SESSION`), and related routes
+ *   have been removed. **All humans** (customers and ops staff) authenticate through Cognito user pool accounts with
+ *   groups `customer`, `admin`, and/or `super_admin`. Provision ops users in Cognito with `admin` or `super_admin`; data
+ *   migration from legacy sessions is not automated.
+ *
  * ### Security notes
  * - **Middleware** decodes the ID token from an httpOnly cookie and checks `iss` + `exp` only. For proof against
  *   token forgery, call `GetUser` with the access token inside API Routes or verify signatures with the pool JWKS
@@ -17,11 +23,11 @@
  * - Flip `COGNITO_MFA_OPTIONAL=false` when you want builds to treat MFA challenges as blocking until implemented.
  *
  * ### Route protection
- * - `COGNITO_PROTECTED_PREFIXES` lists path prefixes gated in `middleware.ts` (default `/account,/admin,/super-admin`).
+ * - `COGNITO_PROTECTED_PREFIXES` lists extra path prefixes gated in `middleware.ts` (default `/account,/admin,/super-admin`).
+ * - **`/ops` and `/api/ops`** always require Cognito with `admin` or `super_admin`, regardless of that env list.
  * - When you change prefixes, **extend `middleware.ts` `config.matcher`** with matching patterns (matchers are static);
  *   non-`/api` matched paths skip the internal orchestration secret gate.
- * - Storefront **Cognito** sign-in UI is `/login`; `/auth/cognito/login` redirects there for bookmarks.
- * - Magic-link guests use `/login/email` + `MOMOS_CUSTOMER`. **Ops** uses `OPS_SESSION` at `/ops/login` (unchanged).
+ * - Storefront Cognito sign-in UI is `/login`; `/auth/cognito/login` redirects there for bookmarks.
  *
  * ### AWS console map for env values
  * - **COGNITO_REGION**: Cognito → User pools → your pool → **Pool overview** (ARN includes region) or top-right region.

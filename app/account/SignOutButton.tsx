@@ -10,7 +10,7 @@ export default function SignOutButton() {
   async function onSignOut() {
     setBusy(true);
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
+      await fetch("/api/auth/cognito/logout", { method: "POST", credentials: "include" });
       router.replace("/login");
       router.refresh();
     } finally {

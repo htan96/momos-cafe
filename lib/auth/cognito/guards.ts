@@ -12,10 +12,9 @@ import {
   isCustomer,
   isSuperAdmin,
 } from "@/lib/auth/cognito/roles";
-import { CUSTOMER_SESSION_COOKIE, verifyCustomerSessionToken } from "@/lib/auth/customerSessionCrypto";
 
 /**
- * Comma-separated path prefixes protected by Cognito **in addition to** existing middleware gates.
+ * Comma-separated path prefixes protected by Cognito **in addition to** `/ops` and `/api/ops` (always enforced).
  * Defaults to `/account`, `/admin`, and `/super-admin` (plus any extra entries such as `/portal` from env).
  */
 export function cognitoProtectedPrefixes(): string[] {
@@ -28,6 +27,7 @@ export function cognitoProtectedPrefixes(): string[] {
 }
 
 export function isCognitoProtectedPath(pathname: string): boolean {
+  if (pathname.startsWith("/ops") || pathname.startsWith("/api/ops")) return true;
   return cognitoProtectedPrefixes().some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
@@ -62,18 +62,32 @@ function decodeRequestCognitoSession(
   }
 }
 
-/**
- * Cognito + legacy customer cookie gate. When Cognito env is missing, `/account` stays open for magic-link sessions
- * only (server pages still enforce session). Other protected prefixes require Cognito configuration.
- */
+function opsUnauthorizedApi(): NextResponse {
+  return NextResponse.json({ error: "auth_required", code: "AUTH_REQUIRED" }, { status: 401 });
+}
+
+function cognitoUnconfiguredApi(): NextResponse {
+  return NextResponse.json({ error: "cognito_unconfigured", code: "COGNITO_UNCONFIGURED" }, { status: 503 });
+}
+
+/** Middleware gate for Cognito JWT cookie across storefront account, admin surfaces, portal prefixes, and ops. */
 export async function cognitoGate(request: NextRequest): Promise<NextResponse> {
   const pathname = request.nextUrl.pathname;
   const cfg = getCognitoConfig();
+  const isApiOps = pathname.startsWith("/api/ops");
+
+  if (pathname.startsWith("/ops") || isApiOps) {
+    if (!cfg) {
+      return isApiOps ? cognitoUnconfiguredApi() : new NextResponse("Cognito auth is not configured.", { status: 503 });
+    }
+    const cognito = decodeRequestCognitoSession(request, cfg);
+    if (!cognito || !isAdmin(cognito.user.groups)) {
+      return isApiOps ? opsUnauthorizedApi() : redirectToLogin(request);
+    }
+    return NextResponse.next();
+  }
 
   if (!cfg) {
-    if (pathname === "/account" || pathname.startsWith("/account/")) {
-      return NextResponse.next();
-    }
     return new NextResponse("Cognito auth is not configured (missing env).", { status: 503 });
   }
 
@@ -88,10 +102,6 @@ export async function cognitoGate(request: NextRequest): Promise<NextResponse> {
         return redirectToRoleHome(request, groups);
       }
       return redirectToLogin(request);
-    }
-    const legacy = await verifyCustomerSessionToken(request.cookies.get(CUSTOMER_SESSION_COOKIE)?.value);
-    if (legacy) {
-      return NextResponse.next();
     }
     return redirectToLogin(request);
   }

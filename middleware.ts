@@ -2,11 +2,6 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { cognitoGate, isCognitoProtectedPath } from "@/lib/auth/cognito/guards";
 import { INTERNAL_SECRET_HEADER } from "@/lib/server/orchestrationConstants";
-import {
-  OPS_SESSION_COOKIE,
-  opsSigningKeyMaterial,
-  verifyOpsSessionToken,
-} from "@/lib/ops/sessionCrypto";
 
 function timingSafeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
@@ -15,35 +10,9 @@ function timingSafeEqual(a: string, b: string): boolean {
   return out === 0;
 }
 
-async function opsGate(request: NextRequest): Promise<NextResponse> {
-  const signingReady = opsSigningKeyMaterial();
-  if (!signingReady) {
-    console.error("[ops] OPS_SESSION_SECRET missing or shorter than 24 chars");
-    const pathname = request.nextUrl.pathname;
-    if (pathname.startsWith("/api/ops")) {
-      return NextResponse.json({ error: "ops_unconfigured", code: "OPS_SECRET_MISSING" }, { status: 503 });
-    }
-    return new NextResponse("Ops console unconfigured", { status: 503 });
-  }
-
-  const token = request.cookies.get(OPS_SESSION_COOKIE)?.value;
-  const session = await verifyOpsSessionToken(token);
-  if (!session) {
-    const pathname = request.nextUrl.pathname;
-    if (pathname.startsWith("/api/ops")) {
-      return NextResponse.json({ error: "ops_unauthorized", code: "OPS_AUTH_REQUIRED" }, { status: 401 });
-    }
-    const login = new URL("/ops/login", request.url);
-    login.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
-    return NextResponse.redirect(login);
-  }
-
-  return NextResponse.next();
-}
-
 /**
  * Browser-facing storefront endpoints must not sit behind INTERNAL_API_SECRET
- * (only server jobs / orchestration use that gate). OPS routes stay locked.
+ * (only server jobs / orchestration use that gate).
  */
 function isPublicStorefrontApi(pathname: string): boolean {
   if (pathname === "/api/orders" || pathname.startsWith("/api/orders/")) return true;
@@ -84,23 +53,10 @@ export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   /**
-   * Cognito-protected routes (additive layer). Does not replace `OPS_SESSION` or legacy magic-link `MOMOS_CUSTOMER`.
-   * Unified sign-in UI: `/login` (see also `/auth/cognito/*` redirects for bookmarks).
+   * Cognito JWT cookie gate for `/account`, `/admin`, `/super-admin`, optional `/portal`, `/ops`, `/api/ops`, etc.
    */
   if (isCognitoProtectedPath(pathname)) {
     return await cognitoGate(request);
-  }
-
-  if (pathname === "/ops/login" || pathname.startsWith("/ops/login/")) {
-    return NextResponse.next();
-  }
-
-  if (pathname === "/api/ops/auth/login" || pathname === "/api/ops/auth/logout") {
-    return NextResponse.next();
-  }
-
-  if (pathname.startsWith("/ops") || pathname.startsWith("/api/ops")) {
-    return opsGate(request);
   }
 
   if (isPublicStorefrontApi(pathname)) {

@@ -7,9 +7,12 @@ export default function HeaderAuthLink() {
   const [phase, setPhase] = useState<"loading" | "in" | "out">("loading");
 
   useEffect(() => {
-    fetch("/api/auth/session")
+    fetch("/api/auth/cognito/session", { credentials: "include" })
       .then((r) => r.json())
-      .then((d: { authenticated?: boolean }) => setPhase(d.authenticated ? "in" : "out"))
+      .then((d: { authenticated?: boolean; user?: { groups?: string[] } | null }) => {
+        const customer = Boolean(d.authenticated && d.user?.groups?.includes("customer"));
+        setPhase(customer ? "in" : "out");
+      })
       .catch(() => setPhase("out"));
   }, []);
 

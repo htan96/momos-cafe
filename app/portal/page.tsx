@@ -11,10 +11,10 @@ export default async function PortalHomePage() {
       <h1 className="text-3xl font-semibold font-display text-charcoal">Portal</h1>
       <p className="text-charcoal/70">
         Optional demo route when <code className="text-xs">COGNITO_PROTECTED_PREFIXES</code> includes{" "}
-        <code className="text-xs">/portal</code>. Default middleware prefixes are{" "}
-        <code className="text-xs">/account</code>, <code className="text-xs">/admin</code>, and{" "}
-        <code className="text-xs">/super-admin</code>. Magic-link sessions stay on <code className="text-xs">/login/email</code>{" "}
-        and operations use <code className="text-xs">OPS_SESSION</code> at <code className="text-xs">/ops/login</code>.
+        <code className="text-xs">/portal</code>. Cognito also gates{" "}
+        <code className="text-xs">/account</code>, <code className="text-xs">/admin</code>,{" "}
+        <code className="text-xs">/super-admin</code>, and operations at <code className="text-xs">/ops</code> (
+        <code className="text-xs">admin</code> / <code className="text-xs">super_admin</code> groups).
       </p>
 
       <pre className="rounded-xl border border-charcoal/10 bg-white p-4 text-sm overflow-auto">

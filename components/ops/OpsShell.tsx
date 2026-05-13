@@ -27,10 +27,12 @@ const links = [
 export default function OpsShell({
   email,
   role,
+  roleBadge,
   children,
 }: {
   email: string;
   role: OpsRole;
+  roleBadge?: string;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -38,8 +40,8 @@ export default function OpsShell({
   const [drawer, setDrawer] = useState(false);
 
   async function logout() {
-    await fetch("/api/ops/auth/logout", { method: "POST" });
-    router.replace(`/ops/login?next=${encodeURIComponent("/ops")}`);
+    await fetch("/api/auth/cognito/logout", { method: "POST", credentials: "include" });
+    router.replace("/login");
     router.refresh();
   }
 
@@ -115,7 +117,9 @@ export default function OpsShell({
             <span className="text-[12px] text-[#c9bba8]/80 hidden sm:inline">
               Signed in as <span className="text-[#f5e5c0]">{email}</span>
               <span className="mx-2 text-[#3d3830]">|</span>
-              <span className="uppercase tracking-wide text-[10px] text-[#8FC4C4]">{role}</span>
+              <span className="uppercase tracking-wide text-[10px] text-[#8FC4C4]">
+                {(roleBadge ?? role).replace(/_/g, " ")}
+              </span>
             </span>
           </div>
           <button

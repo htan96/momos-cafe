@@ -2,6 +2,14 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import {
+  StorefrontAuthCard,
+  StorefrontAuthLogo,
+  storefrontAuthInlineLink,
+  storefrontAuthInput,
+  storefrontAuthPrimaryButton,
+} from "@/components/auth/StorefrontAuthChrome";
+import { commerceCheckoutShell } from "@/lib/commerce/tokens";
 
 export default function ForgotPasswordClient() {
   const [step, setStep] = useState<"request" | "confirm">("request");
@@ -29,7 +37,7 @@ export default function ForgotPasswordClient() {
         setError(data.detail ?? data.error ?? "Request failed.");
         return;
       }
-      setMessage("Check your inbox for a reset code when this account exists.");
+      setMessage("If we find that email or username, a private code is on its way.");
       setStep("confirm");
     } finally {
       setBusy(false);
@@ -56,7 +64,7 @@ export default function ForgotPasswordClient() {
         setError(data.detail ?? data.error ?? "Could not reset password.");
         return;
       }
-      setMessage("All set — sign in with your new password.");
+      setMessage("You’re all set — sign in whenever you’re ready with the new password.");
       setNewPassword("");
     } finally {
       setBusy(false);
@@ -64,74 +72,83 @@ export default function ForgotPasswordClient() {
   }
 
   return (
-    <div className="w-full max-w-[420px] rounded-2xl border border-charcoal/10 bg-white px-8 py-10 shadow-[0_16px_64px_rgba(0,0,0,0.06)]">
-      <h1 className="text-center text-2xl font-semibold text-charcoal font-display">Reset password</h1>
-      <p className="mt-3 text-center text-[13px] text-charcoal/65 leading-relaxed px-1">
-        If there&apos;s an account on file, we&apos;ll email a private code — nothing shows up when there isn&apos;t.
-      </p>
+    <>
+      <StorefrontAuthLogo />
+      <StorefrontAuthCard>
+        <p className={`${commerceCheckoutShell.sectionLabel} text-center`}>We’ve got you</p>
+        <h1 className="mt-2 text-center font-display text-2xl font-semibold text-charcoal sm:text-[26px]">
+          Reset password
+        </h1>
+        <p className="mt-3 text-center text-[13px] leading-relaxed text-charcoal/68 px-0.5">
+          Enter what you usually sign in with — we only email a code when there&apos;s a matching guest account, so you
+          stay private either way.
+        </p>
 
-      {step === "request" ? (
-        <form onSubmit={(e) => void onRequest(e)} className="mt-8 space-y-4">
-          <label className="block">
-            <span className="text-[11px] uppercase tracking-wide text-charcoal/55 font-semibold">
-              Email or username
-            </span>
-            <input
-              required
-              value={username}
-              onChange={(ev) => setUsername(ev.target.value)}
-              className="mt-1 w-full rounded-lg border border-charcoal/15 bg-white px-3 py-2.5 text-[15px]"
-            />
-          </label>
-          {error ? <p className="text-sm text-red bg-red/10 rounded-lg px-3 py-2">{error}</p> : null}
-          <button
-            type="submit"
-            disabled={busy}
-            className="w-full rounded-lg bg-teal-dark text-white font-semibold py-3 disabled:opacity-60"
-          >
-            {busy ? "Sending…" : "Send reset code"}
-          </button>
-        </form>
-      ) : (
-        <form onSubmit={(e) => void onConfirm(e)} className="mt-8 space-y-4">
-          {message ? <p className="text-sm text-teal-dark bg-teal/10 rounded-lg px-3 py-2">{message}</p> : null}
-          <label className="block">
-            <span className="text-[11px] uppercase tracking-wide text-charcoal/55 font-semibold">Code</span>
-            <input
-              required
-              value={code}
-              onChange={(ev) => setCode(ev.target.value)}
-              className="mt-1 w-full rounded-lg border border-charcoal/15 bg-white px-3 py-2.5 text-[15px]"
-            />
-          </label>
-          <label className="block">
-            <span className="text-[11px] uppercase tracking-wide text-charcoal/55 font-semibold">
-              New password
-            </span>
-            <input
-              type="password"
-              required
-              value={newPassword}
-              onChange={(ev) => setNewPassword(ev.target.value)}
-              className="mt-1 w-full rounded-lg border border-charcoal/15 bg-white px-3 py-2.5 text-[15px]"
-            />
-          </label>
-          {error ? <p className="text-sm text-red bg-red/10 rounded-lg px-3 py-2">{error}</p> : null}
-          <button
-            type="submit"
-            disabled={busy}
-            className="w-full rounded-lg bg-teal-dark text-white font-semibold py-3 disabled:opacity-60"
-          >
-            {busy ? "Updating…" : "Confirm new password"}
-          </button>
-        </form>
-      )}
+        {step === "request" ? (
+          <form onSubmit={(e) => void onRequest(e)} className="mt-8 space-y-5">
+            <label className="block">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-charcoal/60">
+                Email or username
+              </span>
+              <input
+                required
+                value={username}
+                onChange={(ev) => setUsername(ev.target.value)}
+                className={storefrontAuthInput}
+              />
+            </label>
+            {error ? (
+              <p className="rounded-xl border border-red/25 bg-red/10 px-3 py-2.5 text-sm text-red" role="alert">
+                {error}
+              </p>
+            ) : null}
+            <button type="submit" disabled={busy} className={storefrontAuthPrimaryButton}>
+              {busy ? "Sending…" : "Send reset code"}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={(e) => void onConfirm(e)} className="mt-8 space-y-5">
+            {message ? (
+              <p className="rounded-xl border border-teal/20 bg-teal/10 px-3 py-2.5 text-sm text-teal-dark">{message}</p>
+            ) : null}
+            <label className="block">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-charcoal/60">Code</span>
+              <input
+                required
+                value={code}
+                onChange={(ev) => setCode(ev.target.value)}
+                className={storefrontAuthInput}
+                autoComplete="one-time-code"
+              />
+            </label>
+            <label className="block">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-charcoal/60">New password</span>
+              <input
+                type="password"
+                required
+                value={newPassword}
+                onChange={(ev) => setNewPassword(ev.target.value)}
+                className={storefrontAuthInput}
+                autoComplete="new-password"
+              />
+            </label>
+            {error ? (
+              <p className="rounded-xl border border-red/25 bg-red/10 px-3 py-2.5 text-sm text-red" role="alert">
+                {error}
+              </p>
+            ) : null}
+            <button type="submit" disabled={busy} className={storefrontAuthPrimaryButton}>
+              {busy ? "Updating…" : "Confirm new password"}
+            </button>
+          </form>
+        )}
 
-      <p className="mt-6 text-center text-[13px]">
-        <Link href="/login" className="text-teal-dark underline">
-          Back to sign in
-        </Link>
-      </p>
-    </div>
+        <p className="mt-6 border-t border-gold/25 pt-5 text-center text-[13px] text-charcoal/70">
+          <Link href="/login" className={storefrontAuthInlineLink}>
+            Back to sign in
+          </Link>
+        </p>
+      </StorefrontAuthCard>
+    </>
   );
 }

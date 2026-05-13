@@ -14,6 +14,8 @@ export type AuthSignInFailureExtras = {
   status?: number;
   /** Stable handler code e.g. `USER_NOT_CONFIRMED` (distinct from Cognito SDK codes). */
   code?: string;
+  /** Safe user-facing copy when the classification provides one (e.g. stale challenge session). */
+  message?: string;
   unconfirmed?: boolean;
   passwordResetRequired?: boolean;
   cognitoErrorName?: string;

@@ -4,7 +4,11 @@ import {
   respondToNewPasswordChallenge,
   validateAccessToken,
 } from "@/lib/auth/cognito/cognitoClient";
-import { classifyCognitoAuthFailure, extractSafeCognitoSdkFields } from "@/lib/auth/cognito/cognitoSdkError";
+import {
+  classifyCognitoAuthFailure,
+  extractSafeCognitoSdkFields,
+  extractCognitoErrorMessage,
+} from "@/lib/auth/cognito/cognitoSdkError";
 import { getCognitoConfig } from "@/lib/auth/cognito/config";
 import { cognitoChallengeJson } from "@/lib/auth/cognito/challengeResponse";
 import { applyCognitoTokenCookies } from "@/lib/auth/cognito/httpCookies";
@@ -52,15 +56,25 @@ export async function POST(request: Request) {
     } catch (e) {
       const c = classifyCognitoAuthFailure(e);
       const sdk = extractSafeCognitoSdkFields(e);
+      const cognitoMessageBrief = extractCognitoErrorMessage(e);
+      const reason =
+        c.code === "CHALLENGE_SESSION_INVALID" || c.code === "SESSION_EXPIRED"
+          ? "invalid_or_consumed_challenge_session"
+          : c.code === "NOT_AUTHORIZED"
+            ? "not_authorized_credentials"
+            : "cognito_auth_failure";
       console.warn("[cognito/new-password] RespondToAuthChallenge failed", {
+        reason,
         code: c.code,
         cognitoErrorName: sdk.cognitoErrorName,
         cognitoErrorCode: sdk.cognitoErrorCode,
+        cognitoMessagePreview: cognitoMessageBrief.slice(0, 200),
       });
       const res = NextResponse.json(
         {
           error: c.error,
           code: c.code,
+          ...(typeof c.message === "string" && c.message.length > 0 ? { message: c.message } : {}),
           ...(c.unconfirmed === true ? { unconfirmed: true } : {}),
           ...(c.passwordResetRequired === true ? { passwordResetRequired: true } : {}),
           ...(c.transient === true ? { transient: true } : {}),

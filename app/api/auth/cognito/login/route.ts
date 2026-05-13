@@ -28,6 +28,9 @@ function signInFailureResponse(result: Extract<AuthSignInResult, { ok: false }>)
   if (result.extras?.unconfirmed === true) payload.unconfirmed = true;
   if (result.extras?.passwordResetRequired === true) payload.passwordResetRequired = true;
   if (result.extras?.transient === true) payload.transient = true;
+  if (typeof result.extras?.message === "string" && result.extras.message.length > 0) {
+    payload.message = result.extras.message;
+  }
   if (result.extras?.cognitoErrorName) payload.cognitoErrorName = result.extras.cognitoErrorName;
   if (result.extras?.cognitoErrorCode) payload.cognitoErrorCode = result.extras.cognitoErrorCode;
 

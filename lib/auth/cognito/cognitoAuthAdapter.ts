@@ -12,6 +12,7 @@ function extrasFromClassification(c: CognitoLoginFailureClassification): AuthSig
   return {
     status: c.httpStatus,
     code: c.code,
+    ...(typeof c.message === "string" && c.message.trim().length > 0 ? { message: c.message } : {}),
     unconfirmed: c.unconfirmed || undefined,
     passwordResetRequired: c.passwordResetRequired || undefined,
     cognitoErrorName: c.cognitoErrorName,

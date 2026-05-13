@@ -99,6 +99,7 @@
  * ### First-login / invited staff (`NEW_PASSWORD_REQUIRED`, legacy onboarding)
  * - Users created with **AdminCreateUser** and a **temporary** password / invite flow land in **FORCE_CHANGE_PASSWORD**.
  * - First **`USER_PASSWORD_AUTH`** returns **`NEW_PASSWORD_REQUIRED`** until **`RespondToAuthChallenge`** posts **`NEW_PASSWORD`**.
+ * - **Challenge `Session` tokens are single-use**: each **`InitiateAuth`** returns a fresh session for that attempt. **`RespondToAuthChallenge`** must use the session from the **latest** **`InitiateAuth`** with no second **`InitiateAuth`** or successful respond in between (double submit, signing in again in another tab/device, etc.). **`NEW_PASSWORD_REQUIRED`** is unaffected by **`COGNITO_TEMP_DISABLE_USER_MFA_BEFORE_LOGIN`** (that retry path runs only when the challenge name is MFA-related). Otherwise Cognito may return “invalid session / only used once” — **`sign_in`** again for a fresh session.
  * - App route: **`POST /api/auth/cognito/new-password`** — UI collects permanent password after **`409`** from **`POST /api/auth/cognito/login`** when **`requiresPasswordChange`** is true.
  *
  * ### Long-term onboarding (recommended)

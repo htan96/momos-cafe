@@ -15,6 +15,14 @@ export type CognitoAuthChallengePayload = {
   selectMfaTypePending?: boolean;
 };
 
+type CognitoAuthFailurePayload = {
+  ok: false;
+  error: string;
+  code?: string;
+  message?: string;
+  challenge?: CognitoAuthChallengePayload;
+};
+
 export type CognitoAuthContextValue = {
   user: AuthUser | null;
   groups: string[];
@@ -23,19 +31,15 @@ export type CognitoAuthContextValue = {
     username: string,
     password: string,
     nextParam?: string | null
-  ) => Promise<
-    | { ok: true; redirectTo?: string; groups?: string[] }
-    | { ok: false; error: string; code?: string; challenge?: CognitoAuthChallengePayload }
-  >;
+  ) => Promise<{ ok: true; redirectTo?: string; groups?: string[] } | CognitoAuthFailurePayload>;
+
   completeNewPassword: (
     username: string,
     session: string,
     newPassword: string,
     nextParam?: string | null
-  ) => Promise<
-    | { ok: true; redirectTo?: string; groups?: string[] }
-    | { ok: false; error: string; code?: string; challenge?: CognitoAuthChallengePayload }
-  >;
+  ) => Promise<{ ok: true; redirectTo?: string; groups?: string[] } | CognitoAuthFailurePayload>;
+
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
 };
@@ -90,6 +94,7 @@ export function CognitoAuthProvider({ children }: { children: React.ReactNode })
       redirectTo?: string;
       error?: string;
       code?: string;
+      message?: string;
       challengeName?: string;
       session?: string | null;
       mfaOptional?: boolean;
@@ -129,10 +134,12 @@ export function CognitoAuthProvider({ children }: { children: React.ReactNode })
 
     if (status < 200 || status >= 400 || !data.user) {
       const code = typeof data.code === "string" ? data.code : undefined;
+      const hint = typeof data.message === "string" && data.message.trim().length > 0 ? data.message.trim() : undefined;
       return {
         ok: false as const,
         error: data.error ?? "sign_in_failed",
         ...(code ? { code } : {}),
+        ...(hint ? { message: hint } : {}),
       };
     }
 
@@ -173,6 +180,7 @@ export function CognitoAuthProvider({ children }: { children: React.ReactNode })
         redirectTo?: string;
         error?: string;
         code?: string;
+        message?: string;
         challengeName?: string;
         session?: string | null;
         mfaOptional?: boolean;
@@ -208,10 +216,12 @@ export function CognitoAuthProvider({ children }: { children: React.ReactNode })
 
       if (status < 200 || status >= 400 || !data.user) {
         const code = typeof data.code === "string" ? data.code : undefined;
+        const hint = typeof data.message === "string" && data.message.trim().length > 0 ? data.message.trim() : undefined;
         return {
           ok: false as const,
           error: data.error ?? "password_change_failed",
           ...(code ? { code } : {}),
+          ...(hint ? { message: hint } : {}),
         };
       }
 

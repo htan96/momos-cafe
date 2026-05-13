@@ -44,6 +44,16 @@
  *
  * ### Groups
  * - Model roles with Cognito groups `super_admin`, `admin`, and `customer` only, and include them in the ID token.
+ *
+ * ### First-login / invited staff (`NEW_PASSWORD_REQUIRED`)
+ * - Users created with **AdminCreateUser** (console “invite” / temporary password) land in **FORCE_CHANGE_PASSWORD**.
+ * - First `USER_PASSWORD_AUTH` returns **`NEW_PASSWORD_REQUIRED`** until **`RespondToAuthChallenge`** posts `NEW_PASSWORD`.
+ * - App route: **`POST /api/auth/cognito/new-password`** — UI collects permanent password after **`409`** from **`POST /api/auth/cognito/login`** when **`requiresPasswordChange`** is true.
+ *
+ * ### Long-term onboarding (recommended)
+ * - **Customers**: Self-signup via **`/signup`** → confirm email if pool requires → **`/login`** with chosen password (no temp-password challenge).
+ * - **Admin / super_admin**: Prefer invite email OR AdminCreateUser with temp password → user completes **Choose your password** step once → optional future **TOTP for super_admin only**.
+ * - Avoid leaving operators in perpetual FORCE_CHANGE_PASSWORD — either complete our password step or use Cognito console **Reset password** to set a permanent password directly.
  */
 
 export {};

@@ -5,6 +5,7 @@ import { getCognitoConfig } from "@/lib/auth/cognito/config";
 import { applyCognitoTokenCookies } from "@/lib/auth/cognito/httpCookies";
 import { resolvePostLoginRedirect } from "@/lib/auth/cognito/redirectByRole";
 import { clearCognitoCookieJar } from "@/lib/auth/cognito/sessionCookies";
+import { isMfaRelatedChallenge } from "@/lib/auth/cognito/mfa";
 
 export const runtime = "nodejs";
 
@@ -36,13 +37,24 @@ export async function POST(request: Request) {
     const result = await provider.signInWithPassword({ username, password });
     if (!result.ok) {
       if (result.challenge) {
+        const cn = result.challenge.name;
+        console.warn("[cognito/login] auth_challenge", {
+          challengeName: cn,
+          requiresPasswordChange: cn === "NEW_PASSWORD_REQUIRED",
+          mfaRelated: isMfaRelatedChallenge(cn),
+          note:
+            cn === "NEW_PASSWORD_REQUIRED"
+              ? "Typical for AdminCreateUser / invited users until permanent password is set via RespondToAuthChallenge."
+              : undefined,
+        });
         // TODO(MFA): Surface RespondToAuthChallenge UX here when COGNITO_TEMP_DISABLE_USER_MFA_BEFORE_LOGIN is off.
         return NextResponse.json(
           {
             error: "auth_challenge",
-            challengeName: result.challenge.name,
+            challengeName: cn,
             session: result.challenge.session ?? null,
             mfaOptional: cfg.mfaOptional,
+            requiresPasswordChange: cn === "NEW_PASSWORD_REQUIRED",
           },
           { status: 409 }
         );

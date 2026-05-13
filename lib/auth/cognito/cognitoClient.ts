@@ -7,6 +7,7 @@ import {
   GetUserCommand,
   GlobalSignOutCommand,
   InitiateAuthCommand,
+  RespondToAuthChallengeCommand,
   SignUpCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
 import type { CognitoEnvConfig } from "@/lib/auth/cognito/config";
@@ -236,15 +237,46 @@ export async function confirmForgotPassword(
   );
 }
 
-export async function respondToNewPasswordChallenge(_params: {
+export async function respondToNewPasswordChallenge(params: {
   cfg: CognitoEnvConfig;
   session: string;
   username: string;
   newPassword: string;
 }): Promise<PasswordAuthResult> {
-  // Intentionally minimal — pool policies differ; wire when NEW_PASSWORD_REQUIRED is enabled.
-  void _params;
-  throw new Error("NEW_PASSWORD_REQUIRED handling not implemented");
+  const username = params.username.trim();
+  const session = params.session.trim();
+  if (!session || !username || !params.newPassword) {
+    throw new Error("missing_new_password_challenge_fields");
+  }
+
+  const resp = await client(params.cfg).send(
+    new RespondToAuthChallengeCommand({
+      ClientId: params.cfg.clientId,
+      ChallengeName: "NEW_PASSWORD_REQUIRED",
+      Session: session,
+      ChallengeResponses: {
+        USERNAME: username,
+        NEW_PASSWORD: params.newPassword,
+        ...authParamSecretHash(params.cfg, username),
+      },
+    })
+  );
+
+  if (resp.AuthenticationResult?.IdToken && resp.AuthenticationResult?.AccessToken) {
+    return {
+      kind: "tokens",
+      idToken: resp.AuthenticationResult.IdToken,
+      accessToken: resp.AuthenticationResult.AccessToken,
+      refreshToken: resp.AuthenticationResult.RefreshToken ?? undefined,
+    };
+  }
+
+  if (resp.ChallengeName) {
+    console.warn("[cognito] RespondToAuthChallenge(NEW_PASSWORD) returned another challenge:", resp.ChallengeName);
+    return { kind: "challenge", challengeName: resp.ChallengeName, session: resp.Session };
+  }
+
+  throw new Error("Unexpected RespondToAuthChallenge response after NEW_PASSWORD");
 }
 
 export function extractUserFromIdToken(idToken: string) {

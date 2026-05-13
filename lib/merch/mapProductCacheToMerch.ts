@@ -8,6 +8,7 @@ import type {
 } from "@/types/merch";
 import { fulfillmentForSlug } from "@/lib/merch/fulfillment";
 import { unwrapProductCachePayload } from "@/lib/merch/productCacheEnvelope";
+import { attachRetailTaxonomyToProduct } from "@/lib/commerce/retailTaxonomy";
 
 const FALLBACK_KEYS = ["teal", "cream", "gold", "charcoal", "red"] as const;
 
@@ -29,6 +30,8 @@ function fulfillmentSlugFromSquareItem(squareItem: Record<string, unknown>): Mer
 export interface MapMerchProductsContext {
   /** Maps leaf / interior Square category id → collection slug persisted at sync (`merchStoreCategories`). */
   collectionSlugForCategorySquareId: (squareCategoryId: string) => string | undefined;
+  /** Square category id → display name from last sync (fallback when JSON lacks `storeCategoryNamesLeafFirst`). */
+  categoryNameForSquareId?: (squareCategoryId: string) => string | undefined;
 }
 
 function splitVariantLabel(label: string): { size?: string; color?: string } {
@@ -139,20 +142,24 @@ export function mapProductCacheToMerchProduct(
 
   const productId = row.slug?.trim() || row.squareCatalogItemId;
 
-  return {
+  const pathFromEnvelope = merch?.storeCategoryNamesLeafFirst?.filter(Boolean);
+  const anc = ancestry ?? (columnLeaf ? [columnLeaf] : leafSquareId ? [leafSquareId] : undefined);
+  const pathFromSq =
+    anc
+      ?.map((id) => ctx?.categoryNameForSquareId?.(id) ?? "")
+      .map((s) => s.trim())
+      .filter(Boolean) ?? [];
+  const categoryPathNamesLeafFirst =
+    pathFromEnvelope?.length ? pathFromEnvelope : pathFromSq.length ? pathFromSq : undefined;
+
+  const base: MerchProduct = {
     id: productId,
     squareCatalogItemId: row.squareCatalogItemId,
     variantOptions: variantOptions.length ? variantOptions : undefined,
     name: row.title,
     description: row.description ?? "",
     squareLeafCategoryId: leafSquareId || undefined,
-    squareCategoryAncestryLeafFirst:
-      ancestry ??
-      (columnLeaf
-        ? [columnLeaf]
-        : leafSquareId
-          ? [leafSquareId]
-          : undefined),
+    squareCategoryAncestryLeafFirst: anc,
     collectionId,
     featuredCollectionIds: [collectionId],
     price: priceFloor,
@@ -165,6 +172,11 @@ export function mapProductCacheToMerchProduct(
     amountOptions,
     buttonLabel,
   };
+
+  return attachRetailTaxonomyToProduct(base, {
+    categoryPathNamesLeafFirst,
+    taxonomyTags: merch?.taxonomyTags,
+  });
 }
 
 export function mapProductCacheRows(

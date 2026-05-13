@@ -17,6 +17,18 @@ export type MerchFulfillmentSlug =
   | "standard_pickup" // 2–3 biz days, made to order
   | "gift_card"; // digital / instant differentiator later
 
+/**
+ * Computed merchandising facets — product type, geo, campaign, etc. can overlap.
+ * Populated by `lib/commerce/retailTaxonomy` for `/shop`.
+ */
+export interface RetailFacet {
+  collectionIds: MerchCollectionId[];
+  productTypes: MerchCollectionId[];
+  regions: MerchCollectionId[];
+  campaigns: MerchCollectionId[];
+  fulfillmentSlug?: MerchFulfillmentSlug;
+}
+
 export interface MerchFulfillmentMeta {
   slug: MerchFulfillmentSlug;
   /** Short badge on cards */
@@ -64,6 +76,9 @@ export interface MerchProduct {
   collectionId: MerchCollectionId;
   /** Additional slugs for ribbons (optional) */
   featuredCollectionIds?: MerchCollectionId[];
+  /** Retail taxonomy membership (multi-collection filters, ops / analytics). */
+  retailCollectionIds?: MerchCollectionId[];
+  retailFacet?: RetailFacet;
   price: number;
   compareAtPrice?: number;
   priceLabel?: string;

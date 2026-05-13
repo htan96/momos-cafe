@@ -370,10 +370,12 @@ export async function runProductionStoreCatalogSync(): Promise<StoreCatalogSyncR
       parentByCategoryId
     );
     const ancestry = ancestrySquareIdsLeafFirst(leafCategoryId, storeCategorySquareId, parentByCategoryId);
+    const storeCategoryNamesLeafFirst = ancestry.map((id) => metaById.get(id)?.name?.trim() ?? "").filter(Boolean);
     const envelope = wrapStoreProductCachePayload(payload, {
       leafCategorySquareId: leafCategoryId,
       ancestrySquareIdsLeafFirst: ancestry,
       storeRootSquareId: storeCategorySquareId,
+      storeCategoryNamesLeafFirst: storeCategoryNamesLeafFirst.length ? storeCategoryNamesLeafFirst : undefined,
     });
 
     const itemJson = envelope as unknown as Prisma.InputJsonValue;

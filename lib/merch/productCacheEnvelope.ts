@@ -4,6 +4,10 @@ export interface MomosProductCacheMerchMeta {
   leafCategorySquareId: string;
   ancestrySquareIdsLeafFirst: string[];
   storeRootSquareId: string;
+  /** Category titles matching ancestry (leaf → root) — drives taxonomy rules when Square tags are sparse. */
+  storeCategoryNamesLeafFirst?: string[];
+  /** Optional future hook: labels from Square custom attributes or internal tagging. */
+  taxonomyTags?: string[];
 }
 
 export type MomosProductCacheEnvelope = {

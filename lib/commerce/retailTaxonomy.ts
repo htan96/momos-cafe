@@ -43,7 +43,6 @@ type NavDef = {
   featureEligible: boolean;
   categorySegmentPatterns?: RegExp[];
   textKeywords?: string[];
-  squareCatalogItemIds?: string[];
 };
 
 const NAV_DEFS: NavDef[] = [
@@ -231,24 +230,13 @@ function segmentsMatch(segments: string[], re: RegExp): boolean {
 
 function matchesDef(
   def: NavDef,
-  squareCatalogItemId: string | undefined,
   haystack: string,
   categorySegments: string[],
   merchTagsHaystack: string
 ): boolean {
-  if (def.squareCatalogItemIds?.includes(squareCatalogItemId ?? "")) return true;
-  if (def.textKeywords?.some((k) => haystack.includes(k.toLowerCase()))) return true;
-  if (def.categorySegmentPatterns?.length && segmentsMatch(categorySegments, def.categorySegmentPatterns[0]!)) {
-    return true;
-  }
-  if (def.categorySegmentPatterns && def.categorySegmentPatterns.length > 1) {
-    for (let i = 1; i < def.categorySegmentPatterns.length; i++) {
-      if (segmentsMatch(categorySegments, def.categorySegmentPatterns[i]!)) return true;
-    }
-  }
-  if (merchTagsHaystack && def.textKeywords?.some((k) => merchTagsHaystack.includes(k.toLowerCase()))) {
-    return true;
-  }
+  const textHay = `${haystack} ${merchTagsHaystack}`.trim();
+  if (def.textKeywords?.some((k) => textHay.includes(k.toLowerCase()))) return true;
+  if (def.categorySegmentPatterns?.some((re) => segmentsMatch(categorySegments, re))) return true;
   return false;
 }
 
@@ -285,13 +273,7 @@ export function computeRetailFacet(
     if (def.id === RETAIL_COLLECTION_IDS.gift_cards && product.fulfillment.slug === "gift_card") {
       continue;
     }
-    if (def.id === RETAIL_COLLECTION_IDS.gift_cards) {
-      if (matchesDef(def, squareId, haystack, categorySegments, merchTagsHaystack)) {
-        matches.add(def.id);
-      }
-      continue;
-    }
-    if (matchesDef(def, squareId, haystack, categorySegments, merchTagsHaystack)) {
+    if (matchesDef(def, haystack, categorySegments, merchTagsHaystack)) {
       matches.add(def.id);
     }
   }
@@ -299,15 +281,6 @@ export function computeRetailFacet(
   expandApparel(matches);
 
   const isGift = product.fulfillment.slug === "gift_card";
-  if (!isGift && matches.size > 0) {
-    const onlyGeo =
-      matches.size > 0 &&
-      [...matches].every((id) => id === RETAIL_COLLECTION_IDS.vallejo || id === RETAIL_COLLECTION_IDS.bay_area);
-    if (!onlyGeo) {
-      /* keep */ void 0;
-    }
-  }
-
   if (!isGift && matches.size === 0) {
     matches.add(RETAIL_COLLECTION_IDS.momos_core);
   }
@@ -334,13 +307,11 @@ export function computeRetailFacet(
     ).includes(id)
   );
 
-  const regions = collectionIds.filter((id) =>
-    [RETAIL_COLLECTION_IDS.vallejo, RETAIL_COLLECTION_IDS.bay_area].includes(id)
-  );
+  const regionKeys = [RETAIL_COLLECTION_IDS.vallejo, RETAIL_COLLECTION_IDS.bay_area] as MerchCollectionId[];
+  const regions = collectionIds.filter((id) => regionKeys.includes(id));
 
-  const campaigns = collectionIds.filter((id) =>
-    [RETAIL_COLLECTION_IDS.limited_drops, RETAIL_COLLECTION_IDS.momos_core].includes(id)
-  );
+  const campaignKeys = [RETAIL_COLLECTION_IDS.limited_drops, RETAIL_COLLECTION_IDS.momos_core] as MerchCollectionId[];
+  const campaigns = collectionIds.filter((id) => campaignKeys.includes(id));
 
   return {
     collectionIds,

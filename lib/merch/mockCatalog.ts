@@ -1,10 +1,12 @@
 import type { MerchProduct } from "@/types/merch";
 import { fulfillmentForSlug } from "@/lib/merch/fulfillment";
+import { attachRetailTaxonomyToProduct } from "@/lib/commerce/retailTaxonomy";
 
 /**
- * Mock catalog — replace with Square Catalog (Store category) fetch via `/api/store/catalog`.
+ * Mock catalog — `/api/products/store` falls back when ProductCache is empty (non-prod).
+ * Each row is normalized through `attachRetailTaxonomyToProduct` so `/shop` pills match production behavior.
  */
-export const merchCatalog: MerchProduct[] = [
+const MOCK_MERCH_CATALOG_RAW: MerchProduct[] = [
   {
     id: "tee-classic",
     squareCatalogItemId: undefined,
@@ -83,6 +85,32 @@ export const merchCatalog: MerchProduct[] = [
     buttonLabel: "Add to bag",
   },
   {
+    id: "sticker-bridge",
+    name: "Carquinez Vinyl Sticker",
+    subtitle: "Weatherproof matte",
+    description: "Die-cut vinyl slap — stash one on your bottle, journal, or laptop.",
+    collectionId: "accessories",
+    price: 5,
+    imageFallbackKey: "charcoal",
+    inventory: "in_stock",
+    fulfillment: fulfillmentForSlug("standard_pickup"),
+    buttonLabel: "Add to bag",
+  },
+  {
+    id: "tee-limited",
+    name: "Sunrise Diner Tee — Limited Run",
+    subtitle: "Small batch",
+    description: "Limited edition colorway celebrating our Vallejo breakfast crew. Exclusive one-time drop.",
+    collectionId: "tees",
+    price: 32,
+    imageFallbackKey: "red",
+    badges: ["Limited"],
+    inventory: "in_stock",
+    fulfillment: fulfillmentForSlug("standard_pickup"),
+    sizes: ["S", "M", "L", "XL"],
+    buttonLabel: "Choose options",
+  },
+  {
     id: "gift-card",
     name: "Momo's Gift Card",
     subtitle: "Breakfast budget",
@@ -99,3 +127,5 @@ export const merchCatalog: MerchProduct[] = [
     buttonLabel: "Choose options",
   },
 ];
+
+export const merchCatalog: MerchProduct[] = MOCK_MERCH_CATALOG_RAW.map((p) => attachRetailTaxonomyToProduct(p));

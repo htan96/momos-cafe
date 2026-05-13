@@ -13,7 +13,11 @@ import MerchProductSheet from "@/components/sections/shop/MerchProductSheet";
 import MerchFulfillmentSection from "@/components/sections/shop/MerchFulfillmentSection";
 import ShopCTA from "@/components/sections/shop/ShopCTA";
 import { merchCatalog } from "@/lib/merch/mockCatalog";
-import { MERCH_FALLBACK_COLLECTIONS } from "@/lib/merch/collections";
+import {
+  merchFallbackFeaturedCollections,
+  merchFallbackFilterCollections,
+  merchFallbackSlugMap,
+} from "@/lib/merch/collections";
 import type { MerchProduct } from "@/types/merch";
 import type { MerchStoreCollection } from "@/types/merchCatalog";
 import type { MerchFilterId } from "@/lib/merch/merchProductCollectionMatch";
@@ -89,14 +93,13 @@ export default function ShopPage() {
 
   const [products, setProducts] = useState<MerchProduct[]>(merchCatalog);
   const [catalogSource, setCatalogSource] = useState<string>("mock_seed");
-  const [filterCollections, setFilterCollections] =
-    useState<MerchStoreCollection[]>(MERCH_FALLBACK_COLLECTIONS);
+  const [filterCollections, setFilterCollections] = useState<MerchStoreCollection[]>(() =>
+    merchFallbackFilterCollections()
+  );
   const [featuredCollections, setFeaturedCollections] = useState<MerchStoreCollection[]>(() =>
-    MERCH_FALLBACK_COLLECTIONS.slice(0, 6)
+    merchFallbackFeaturedCollections()
   );
-  const [slugForSquareId, setSlugForSquareId] = useState<Map<string, string>>(() =>
-    new Map(MERCH_FALLBACK_COLLECTIONS.map((c) => [c.squareId, c.slug]))
-  );
+  const [slugForSquareId, setSlugForSquareId] = useState<Map<string, string>>(() => merchFallbackSlugMap());
 
   useEffect(() => {
     let cancelled = false;
@@ -113,12 +116,12 @@ export default function ShopPage() {
             ? data.filterCollections
             : Array.isArray(data.collections) && data.collections.length > 0
               ? data.collections
-              : MERCH_FALLBACK_COLLECTIONS;
+              : merchFallbackFilterCollections();
 
         const feat =
           Array.isArray(data.featuredCollections) && data.featuredCollections.length > 0
             ? data.featuredCollections
-            : fc.slice(0, 6);
+            : merchFallbackFeaturedCollections();
 
         setFilterCollections(fc);
         setFeaturedCollections(feat);
@@ -132,9 +135,9 @@ export default function ShopPage() {
         if (!cancelled) {
           setProducts(merchCatalog);
           setCatalogSource("client_fallback_error");
-          setFilterCollections(MERCH_FALLBACK_COLLECTIONS);
-          setFeaturedCollections(MERCH_FALLBACK_COLLECTIONS.slice(0, 6));
-          setSlugForSquareId(new Map(MERCH_FALLBACK_COLLECTIONS.map((c) => [c.squareId, c.slug])));
+          setFilterCollections(merchFallbackFilterCollections());
+          setFeaturedCollections(merchFallbackFeaturedCollections());
+          setSlugForSquareId(merchFallbackSlugMap());
         }
       }
     })();
@@ -162,6 +165,13 @@ export default function ShopPage() {
     );
     return sortProducts(filtered, sort, slugOrderForSort);
   }, [products, activeCollection, filterCollections, slugForSquareId, sort, slugOrderForSort]);
+
+  useEffect(() => {
+    if (activeCollection === "all") return;
+    if (!filterCollections.some((c) => c.slug === activeCollection)) {
+      setActiveCollection("all");
+    }
+  }, [filterCollections, activeCollection]);
 
   const openSheet = useCallback((product: MerchProduct) => {
     setSheetProduct(product);
@@ -239,7 +249,7 @@ export default function ShopPage() {
               </h2>
               <p className="text-[13px] text-charcoal/55 mt-2 max-w-xl">
                 {catalogSource === "product_cache"
-                  ? "Grouped by nested Square categories under your retail Store root via catalog sync."
+                  ? "Grouped with the Momo’s retail taxonomy (Square categories + title rules) — filter pills show what’s in stock."
                   : catalogSource === "mock_catalog_fallback"
                     ? "Showing mock assortment until production catalog sync hydrates the cache."
                     : catalogSource === "mock_seed"

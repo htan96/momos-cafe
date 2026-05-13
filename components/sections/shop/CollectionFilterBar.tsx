@@ -1,6 +1,7 @@
 "use client";
 
 import CommerceCategoryPill from "@/components/commerce/CommerceCategoryPill";
+import { commerceCategoryStripShell } from "@/lib/commerce/tokens";
 
 import type { MerchStoreCollection } from "@/types/merchCatalog";
 import type { MerchFilterId } from "@/lib/merch/merchProductCollectionMatch";
@@ -23,7 +24,9 @@ export default function CollectionFilterBar({
   ];
 
   return (
-    <div className="sticky top-[52px] md:top-[64px] z-30 bg-cream/95 backdrop-blur-md border-y border-cream-dark/70 shadow-[0_8px_20px_-12px_rgba(44,44,44,0.18)]">
+    <div
+      className={`sticky top-[52px] md:top-[64px] z-30 ${commerceCategoryStripShell}`}
+    >
       <div className="container max-w-[1200px] mx-auto px-4 py-2.5">
         <div
           className="flex gap-2 overflow-x-auto pb-1 md:flex-wrap md:overflow-visible scrollbar-none snap-x snap-mandatory"

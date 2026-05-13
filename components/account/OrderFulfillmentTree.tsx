@@ -10,9 +10,9 @@ export default function OrderFulfillmentTree({
   return (
     <div className="rounded-2xl border border-gold/30 bg-white overflow-hidden shadow-sm">
       <div className="bg-teal-dark/95 text-cream px-5 py-3">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-cream/85">Fulfillment</p>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-cream/85">Your order</p>
         <p className="font-display text-lg mt-0.5 leading-tight">
-          Multiple paths, one thoughtfully orchestrated checkout
+          Every part of this visit, lined up in one place
         </p>
       </div>
       <ul className="divide-y divide-cream-dark">
@@ -53,7 +53,7 @@ export default function OrderFulfillmentTree({
                       ) : null}
                     </p>
                   ) : shipment && g.pipeline.toUpperCase() === "RETAIL" ? (
-                    <p className="text-[13px] text-charcoal/55 italic mt-2">Carrier tracking pending.</p>
+                    <p className="text-[13px] text-charcoal/55 italic mt-2">Tracking arrives as soon as your shipper scans it.</p>
                   ) : null}
                 </div>
               </div>

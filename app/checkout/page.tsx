@@ -221,7 +221,7 @@ export default function CheckoutPage() {
           <p className={commerceCheckoutShell.sectionLabel}>Checkout</p>
           <h1 className="font-display text-3xl text-charcoal">Almost there</h1>
           <p className="text-sm text-charcoal/65 max-w-2xl leading-relaxed">
-            Review your bag and complete payment. Open{" "}
+            Take a last look, then finish up. Open{" "}
             <button
               type="button"
               onClick={() => setDrawerOpen(true)}
@@ -262,7 +262,7 @@ export default function CheckoutPage() {
                 <p className={commerceCheckoutShell.sectionLabel}>Delivery</p>
                 <h2 className="font-display text-xl text-charcoal mt-1 mb-3">Ship to</h2>
                 <p className="text-sm text-charcoal/65 mb-4 leading-relaxed">
-                  Add your address to see delivery choices for ship-eligible items.
+                  Add your address to see mailing options for items we can ship.
                 </p>
                 <div className="grid sm:grid-cols-2 gap-3">
                   <label className="block text-[10px] font-semibold uppercase tracking-wider text-charcoal/55">

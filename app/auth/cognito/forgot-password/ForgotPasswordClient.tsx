@@ -29,7 +29,7 @@ export default function ForgotPasswordClient() {
         setError(data.detail ?? data.error ?? "Request failed.");
         return;
       }
-      setMessage("If this account exists, we sent reset instructions/code.");
+      setMessage("Check your inbox for a reset code when this account exists.");
       setStep("confirm");
     } finally {
       setBusy(false);
@@ -56,7 +56,7 @@ export default function ForgotPasswordClient() {
         setError(data.detail ?? data.error ?? "Could not reset password.");
         return;
       }
-      setMessage("Password updated. Sign in again.");
+      setMessage("All set — sign in with your new password.");
       setNewPassword("");
     } finally {
       setBusy(false);
@@ -66,6 +66,9 @@ export default function ForgotPasswordClient() {
   return (
     <div className="w-full max-w-[420px] rounded-2xl border border-charcoal/10 bg-white px-8 py-10 shadow-[0_16px_64px_rgba(0,0,0,0.06)]">
       <h1 className="text-center text-2xl font-semibold text-charcoal font-display">Reset password</h1>
+      <p className="mt-3 text-center text-[13px] text-charcoal/65 leading-relaxed px-1">
+        If there&apos;s an account on file, we&apos;ll email a private code — nothing shows up when there isn&apos;t.
+      </p>
 
       {step === "request" ? (
         <form onSubmit={(e) => void onRequest(e)} className="mt-8 space-y-4">
@@ -125,7 +128,7 @@ export default function ForgotPasswordClient() {
       )}
 
       <p className="mt-6 text-center text-[13px]">
-        <Link href="/auth/cognito/login" className="text-teal-dark underline">
+        <Link href="/login" className="text-teal-dark underline">
           Back to sign in
         </Link>
       </p>

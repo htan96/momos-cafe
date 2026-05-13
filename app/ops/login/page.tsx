@@ -1,14 +1,16 @@
-import { redirect } from "next/navigation";
-import { safeAuthRedirectPath } from "@/lib/auth/emailNormalize";
+import { Suspense } from "react";
+import OpsLoginClient from "./OpsLoginClient";
 
-/** Legacy URL — unified entry is `/login`. */
-export default async function OpsLoginRedirectPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ next?: string }>;
-}) {
-  const sp = await searchParams;
-  const next = safeAuthRedirectPath(sp.next ?? null, "/ops");
-  const opsNext = next.startsWith("/ops") && !next.startsWith("//") ? next : "/ops";
-  redirect(`/login?next=${encodeURIComponent(opsNext)}`);
+export default function OpsLoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="w-full max-w-[420px] rounded-2xl border border-[#3d3830] bg-[#1c1916] px-8 py-16 text-center text-[#c9bba8]/70">
+          Loading…
+        </div>
+      }
+    >
+      <OpsLoginClient />
+    </Suspense>
+  );
 }

@@ -3,6 +3,7 @@ import { createCognitoAuthProvider } from "@/lib/auth/cognito/cognitoAuthAdapter
 import { validateAccessToken } from "@/lib/auth/cognito/cognitoClient";
 import { getCognitoConfig } from "@/lib/auth/cognito/config";
 import { applyCognitoTokenCookies } from "@/lib/auth/cognito/httpCookies";
+import { resolvePostLoginRedirect } from "@/lib/auth/cognito/redirectByRole";
 import { clearCognitoCookieJar } from "@/lib/auth/cognito/sessionCookies";
 
 export const runtime = "nodejs";
@@ -24,6 +25,7 @@ export async function POST(request: Request) {
   const body = await readBody(request);
   const username = typeof body.username === "string" ? body.username : "";
   const password = typeof body.password === "string" ? body.password : "";
+  const nextRaw = typeof body.next === "string" ? body.next : null;
 
   if (!username || !password) {
     return NextResponse.json({ error: "missing_credentials" }, { status: 400 });
@@ -59,7 +61,11 @@ export async function POST(request: Request) {
       return res;
     }
 
-    const res = NextResponse.json({ ok: true, user: result.user });
+    const res = NextResponse.json({
+      ok: true,
+      user: result.user,
+      redirectTo: resolvePostLoginRedirect(result.user.groups, nextRaw),
+    });
     applyCognitoTokenCookies(res, bundle);
     return res;
   } catch {

@@ -8,6 +8,7 @@ import { loadCustomerCommerceOrder, mapToDashboardBrief } from "@/lib/account/da
 import {
   buildCustomerOrderTimeline,
   orderDisplayNumber,
+  pipelineLabel,
 } from "@/lib/account/orderPresentation";
 
 type PageProps = { params: Promise<{ orderId: string }> };
@@ -41,11 +42,11 @@ export default async function AccountOrderDetailPage({ params }: PageProps) {
           Order #{num}
         </p>
         <h1 className="mt-2 font-display text-3xl md:text-[clamp(34px,4vw,44px)] text-charcoal tracking-tight">
-          Hospitality in motion
+          Here&apos;s where things stand
         </h1>
         <p className="mt-3 text-[15px] text-charcoal/70 max-w-2xl leading-relaxed">
-          Every fulfillment path underneath this order travels together — kitchen timing, pickup notes, parcels, and
-          tracking — without juggling separate systems on your side.
+          Café pickup, shop treats, and anything headed out by mail — one simple page with timing and tracking when
+          it&apos;s available.
         </p>
         <p className="mt-6 font-display text-3xl text-charcoal">{formatMoney(row.totalCents / 100)}</p>
         <p className="text-[12px] uppercase tracking-[0.2em] text-charcoal/45 mt-2">
@@ -73,7 +74,7 @@ export default async function AccountOrderDetailPage({ params }: PageProps) {
                     <span className="font-semibold">{it.quantity}×</span> {it.title}
                   </span>
                   <span className="text-charcoal/50 shrink-0 text-[11px] uppercase tracking-wide">
-                    {it.fulfillmentPipeline}
+                    {pipelineLabel(it.fulfillmentPipeline)}
                   </span>
                 </li>
               ))}

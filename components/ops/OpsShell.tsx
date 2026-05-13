@@ -39,7 +39,7 @@ export default function OpsShell({
 
   async function logout() {
     await fetch("/api/ops/auth/logout", { method: "POST" });
-    router.replace(`/login?next=${encodeURIComponent("/ops")}`);
+    router.replace(`/ops/login?next=${encodeURIComponent("/ops")}`);
     router.refresh();
   }
 

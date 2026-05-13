@@ -7,8 +7,12 @@ export type CognitoAuthContextValue = {
   user: AuthUser | null;
   groups: string[];
   loading: boolean;
-  signIn: (username: string, password: string) => Promise<
-    | { ok: true }
+  signIn: (
+    username: string,
+    password: string,
+    nextParam?: string | null
+  ) => Promise<
+    | { ok: true; redirectTo?: string; groups?: string[] }
     | { ok: false; error: string; challenge?: Record<string, unknown> }
   >;
   signOut: () => Promise<void>;
@@ -38,16 +42,17 @@ export function CognitoAuthProvider({ children }: { children: React.ReactNode })
     };
   }, [bootstrap]);
 
-  const signIn = useCallback(async (username: string, password: string) => {
+  const signIn = useCallback(async (username: string, password: string, nextParam?: string | null) => {
     const res = await fetch("/api/auth/cognito/login", {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ username, password, next: nextParam ?? undefined }),
     });
     const data = (await res.json()) as {
       ok?: boolean;
       user?: AuthUser;
+      redirectTo?: string;
       error?: string;
       challengeName?: string;
       session?: string | null;
@@ -71,7 +76,11 @@ export function CognitoAuthProvider({ children }: { children: React.ReactNode })
     }
 
     setUser(data.user);
-    return { ok: true as const };
+    return {
+      ok: true as const,
+      redirectTo: data.redirectTo,
+      groups: data.user.groups,
+    };
   }, []);
 
   const signOut = useCallback(async () => {

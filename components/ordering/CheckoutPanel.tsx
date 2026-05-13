@@ -535,7 +535,7 @@ export default function CheckoutPanel({
             {foodQtyForPayment > 0 || merchCount > 0 ? (
               <>
                 <div className="flex justify-between text-sm text-charcoal/65 py-1.5 border-b border-cream-dark">
-                  <span>Subtotal</span>
+                  <span>Bag subtotal</span>
                   <span>${pretaxCombined.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm text-charcoal/65 py-1.5 border-b border-cream-dark">

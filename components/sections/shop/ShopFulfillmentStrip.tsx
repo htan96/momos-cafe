@@ -12,7 +12,7 @@ export default function ShopFulfillmentStrip() {
             ETA
           </span>
           <div>
-            <p className="font-semibold text-charcoal text-sm">Merch fulfillment</p>
+            <p className="font-semibold text-charcoal text-sm">Shop timing</p>
             <p className="text-[13px] text-charcoal/70 leading-snug mt-0.5">
               Most retail items are{" "}
               <strong className="text-charcoal font-semibold">made to order</strong> and ready for{" "}

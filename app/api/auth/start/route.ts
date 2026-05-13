@@ -9,7 +9,7 @@ import { rateLimitHit, clientIp } from "@/lib/server/rateLimitMemory";
 import { customerSigningKeyMaterial } from "@/lib/auth/customerSessionCrypto";
 
 /**
- * Unified login step 1 — ops-eligible emails get password UI (still hits `/api/ops/auth/login`);
+ * Email sign-in step 1 (see `/login/email`) — ops-eligible emails get password UI (`/api/ops/auth/login`);
  * everyone else receives a Resend magic link (customer session).
  */
 export async function POST(req: Request) {

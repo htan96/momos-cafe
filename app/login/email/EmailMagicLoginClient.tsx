@@ -10,12 +10,12 @@ const ERROR_COPY: Record<string, string> = {
   missing_token: "That sign-in link is incomplete. Request a new one.",
   link_invalid: "This sign-in link has expired or was already used.",
   rate_limited: "Too many attempts. Try again in a minute.",
-  session_unconfigured: "Sign-in is temporarily unavailable. Please try again later.",
+  session_unconfigured: "Sign-in isn’t ready on our side yet — please try again in a little while.",
 };
 
 const MAGIC_RESEND_MS = 60_000;
 
-export default function LoginClient() {
+export default function EmailMagicLoginClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const rawNext = searchParams.get("next") ?? "/account";
@@ -93,7 +93,7 @@ export default function LoginClient() {
       if (!res.ok) {
         if (data.error === "rate_limited") setError("Too many requests. Wait a moment and try again.");
         else if (data.error === "auth_url_unconfigured" || data.error === "customer_session_unconfigured") {
-          setError("Sign-in is not fully configured yet.");
+          setError("We’re still polishing email sign-in — check back shortly.");
         } else if (data.error === "email_send_failed") {
           setError("We could not send the email. Try again shortly.");
         } else setError("Something went wrong. Try again.");
@@ -102,7 +102,7 @@ export default function LoginClient() {
 
       if (data.mode === "password_required") {
         setStep("password");
-        setInfo("Enter your operator password to continue.");
+        setInfo("Use the password your team shares for Momo’s back office.");
         return;
       }
 
@@ -113,7 +113,7 @@ export default function LoginClient() {
         return;
       }
 
-      setError("Unexpected response from server.");
+      setError("Something didn’t quite go through — try once more?");
     } finally {
       setBusy(false);
     }
@@ -150,7 +150,7 @@ export default function LoginClient() {
       }
       if (data.mode === "password_required") {
         setStep("password");
-        setInfo("This mailbox routes to Ops — switching you to secure password mode.");
+        setInfo("That email opens the secure password step — you’re almost there.");
       }
     } finally {
       setBusy(false);
@@ -192,10 +192,15 @@ export default function LoginClient() {
         Welcome back
       </p>
       <h1 className="mt-2 text-center text-2xl font-semibold text-charcoal tracking-tight font-display">
-        Sign in
+        Sign in by email
       </h1>
       <p className="mt-2 text-center text-[14px] text-charcoal/75 leading-relaxed">
-        One calm door for café guests + trusted operators behind the curtain.
+        Tell us where to reach you — we&apos;ll tuck a private link in your inbox. Some Momo&apos;s team addresses ask
+        for the shared café password instead, which you can wrap up below or{" "}
+        <Link href="/ops/login" className="text-teal-dark underline underline-offset-2">
+          on the ops sign-in screen
+        </Link>
+        .
       </p>
 
       {step === "magic_sent" ? (
@@ -220,7 +225,7 @@ export default function LoginClient() {
               disabled={busy || resendRemainSec > 0}
               className="w-full rounded-lg border border-teal-dark/35 text-teal-dark font-semibold py-3 text-[14px] disabled:opacity-40 hover:bg-teal/5 transition-colors"
             >
-              Resend magic link
+              Send another link
             </button>
           </form>
           <button
@@ -267,7 +272,7 @@ export default function LoginClient() {
             disabled={busy}
             className="w-full rounded-lg bg-red text-white font-semibold py-3 text-[15px] disabled:opacity-60 hover:bg-red-dark transition-colors shadow-sm"
           >
-            {busy ? "Signing in…" : "Sign in to ops"}
+            {busy ? "Signing in…" : "Continue to team sign-in"}
           </button>
           <button
             type="button"
@@ -300,7 +305,7 @@ export default function LoginClient() {
             />
           </label>
           <p className="text-[12px] text-charcoal/55 leading-relaxed">
-            Café guests glide in with magic links — operators optionally step through a password checkpoint.
+            We&apos;ll email a private link — quick, calm, nothing to remember unless your team asks for a password.
           </p>
           {error ? (
             <p className="text-sm text-red bg-red/10 border border-red/25 rounded-lg px-3 py-2">{error}</p>
@@ -315,7 +320,18 @@ export default function LoginClient() {
         </form>
       )}
 
-      <p className="mt-8 text-center text-[12px] text-charcoal/45">
+      <p className="mt-6 text-center text-[12px] text-charcoal/50 leading-relaxed">
+        <Link href="/login" className="text-teal-dark underline-offset-2 hover:underline">
+          Sign in with email &amp; password
+        </Link>
+        <span className="mx-1.5 text-charcoal/35" aria-hidden>
+          ·
+        </span>
+        <Link href="/ops/login" className="text-teal-dark underline-offset-2 hover:underline">
+          Team dashboard
+        </Link>
+      </p>
+      <p className="mt-3 text-center text-[12px] text-charcoal/45">
         <Link href="/" className="underline-offset-2 hover:underline">
           Back to site
         </Link>

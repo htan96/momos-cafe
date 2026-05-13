@@ -3,7 +3,6 @@ import type { CognitoGroup } from "@/lib/auth/cognito/types";
 export const KNOWN_COGNITO_GROUPS: readonly CognitoGroup[] = [
   "super_admin",
   "admin",
-  "employee",
   "customer",
 ] as const;
 
@@ -19,12 +18,15 @@ export function isAdmin(groups: readonly string[] | undefined): boolean {
   return hasRole(groups, "admin") || isSuperAdmin(groups);
 }
 
-export function isEmployee(groups: readonly string[] | undefined): boolean {
-  return hasRole(groups, "employee") || isAdmin(groups);
-}
-
 export function isCustomer(groups: readonly string[] | undefined): boolean {
   return hasRole(groups, "customer");
+}
+
+export function defaultRouteForGroups(groups: readonly string[] | undefined): string {
+  if (isSuperAdmin(groups)) return "/super-admin";
+  if (hasRole(groups, "admin")) return "/admin";
+  if (isCustomer(groups)) return "/account";
+  return "/account";
 }
 
 /** True if the user belongs to any of the supplied roles. */

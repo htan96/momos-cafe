@@ -10,9 +10,9 @@ import Link from "next/link";
 
 export default function AccountOrderCard({ row }: { row: LoadedCommerceAccountOrder }) {
   const num = orderDisplayNumber(row.id);
-  const brief = `${row.fulfillmentGroups.length} fulfillment path${
-    row.fulfillmentGroups.length === 1 ? "" : "s"
-  }`;
+  const n = row.fulfillmentGroups.length;
+  const brief =
+    n === 0 ? "Order details" : `${n} way${n === 1 ? "" : "s"} your order comes together`;
 
   return (
     <Link

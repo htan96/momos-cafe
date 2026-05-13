@@ -81,15 +81,15 @@ export function groupStatusHeadline(pipeline: string, status: string): string {
       case "merch_processing":
         return "We're preparing shop items";
       case "ready_for_pickup":
-        return "Retail pickup ready";
+        return "Shop pickup is ready";
       case "shipped":
         return "Shipped — tracking updates below";
       case "completed":
-        return "Fulfillment complete";
+        return "Shop order complete";
       case "cancelled":
-        return "Shop fulfilment cancelled";
+        return "Shop order cancelled";
       default:
-        return "Shop fulfilment update";
+        return "Shop order update";
     }
   }
 
@@ -104,7 +104,7 @@ export function groupStatusHeadline(pipeline: string, status: string): string {
     }
   }
 
-  return "Fulfillment update";
+  return "Order update";
 }
 
 export function formatOrderInstant(d: Date, timeZone?: string): string {

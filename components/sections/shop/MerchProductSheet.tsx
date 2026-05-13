@@ -164,18 +164,18 @@ export default function MerchProductSheet({ product, open, onClose }: MerchProdu
 
             <div className="rounded-lg bg-teal/10 border border-teal/20 px-3 py-2 mt-4">
               <p className="text-[11px] font-semibold text-teal-dark uppercase tracking-wide mb-0.5">
-                Fulfillment
+                How it arrives
               </p>
               <p className="text-[12px] text-charcoal/75 leading-snug">{product.fulfillment.detail}</p>
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {product.fulfillment.pickupEligible && (
                   <span className="text-[10px] font-semibold uppercase tracking-wide bg-white rounded-full px-2 py-0.5 border border-cream-dark">
-                    Pickup eligible
+                    Pickup ok
                   </span>
                 )}
                 {product.fulfillment.shippingEligible ? (
                   <span className="text-[10px] font-semibold uppercase tracking-wide bg-white rounded-full px-2 py-0.5 border border-cream-dark">
-                    Shipping eligible
+                    Can ship
                   </span>
                 ) : (
                   <span className="text-[10px] font-semibold uppercase tracking-wide bg-charcoal/5 rounded-full px-2 py-0.5 border border-cream-dark text-charcoal/45">

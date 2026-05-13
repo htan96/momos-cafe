@@ -2,20 +2,16 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useCognitoAuth } from "@/components/auth/CognitoAuthProvider";
+import { resolvePostLoginRedirect } from "@/lib/auth/cognito/redirectByRole";
 
 export default function CognitoLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { signIn } = useCognitoAuth();
 
-  const rawNext = searchParams.get("next") ?? "/portal";
-  const nextPath = useMemo(() => {
-    const t = rawNext.trim();
-    if (!t.startsWith("/") || t.startsWith("//") || t.includes("://")) return "/portal";
-    return t.slice(0, 512) || "/portal";
-  }, [rawNext]);
+  const rawNext = searchParams.get("next");
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -26,34 +22,36 @@ export default function CognitoLoginForm() {
     e.preventDefault();
     setBusy(true);
     setError(null);
-    const out = await signIn(username.trim(), password);
+    const out = await signIn(username.trim(), password, rawNext);
     setBusy(false);
     if (!out.ok) {
       if (out.challenge) {
         setError(
-          `Additional verification required (${String(out.challenge.challengeName)}). MFA UI is stubbed — complete RespondToAuthChallenge flow in lib/auth/cognito/mfa.ts.`
+          "We need one more step to be sure it’s you. If this keeps happening, ask the Momo’s crew for a quick hand."
         );
         return;
       }
       setError(out.error === "invalid_credentials" ? "Invalid username/email or password." : "Could not sign in.");
       return;
     }
-    router.replace(nextPath);
+    const destination = out.redirectTo ?? resolvePostLoginRedirect(out.groups, rawNext);
+    router.replace(destination);
     router.refresh();
   }
 
   return (
     <div className="w-full max-w-[420px] rounded-2xl border border-charcoal/10 bg-white px-8 py-10 shadow-[0_16px_64px_rgba(0,0,0,0.06)]">
       <p className="text-center text-[11px] uppercase tracking-[0.28em] text-teal-dark font-semibold">
-        Cognito
+        Momo&apos;s Café
       </p>
-      <h1 className="mt-2 text-center text-2xl font-semibold text-charcoal tracking-tight font-display">
-        Staff sign-in
-      </h1>
+      <h1 className="mt-2 text-center text-2xl font-semibold text-charcoal tracking-tight font-display">Sign in</h1>
       <p className="mt-2 text-center text-[13px] text-charcoal/70">
-        Separate from storefront magic-link{" "}
-        <Link href="/login" className="text-teal-dark underline underline-offset-2">
-          /login
+        Familiar email and password sign-in when you&apos;ve set one up — perfect for café accounts used across visits.
+      </p>
+      <p className="mt-3 text-center text-[13px] text-charcoal/65">
+        Prefer a calm link instead? Try{" "}
+        <Link href="/login/email" className="text-teal-dark underline underline-offset-2 font-semibold">
+          sign-in by email
         </Link>
         .
       </p>
@@ -98,11 +96,14 @@ export default function CognitoLoginForm() {
       </form>
 
       <div className="mt-6 flex flex-col gap-2 text-center text-[13px] text-charcoal/60">
-        <Link href="/auth/cognito/signup" className="hover:text-charcoal">
+        <Link href="/signup" className="hover:text-charcoal">
           Create account
         </Link>
-        <Link href="/auth/cognito/forgot-password" className="hover:text-charcoal">
+        <Link href="/forgot-password" className="hover:text-charcoal">
           Forgot password
+        </Link>
+        <Link href="/ops/login" className="hover:text-charcoal">
+          Team dashboard sign-in (separate)
         </Link>
         <Link href="/" className="hover:text-charcoal">
           Back to site

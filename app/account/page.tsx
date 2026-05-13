@@ -35,6 +35,12 @@ export default async function AccountDashboardPage() {
   return (
     <div className="max-w-[880px] mx-auto px-5 md:px-8 lg:px-10 py-12 md:py-16 lg:pb-24">
       <nav className="flex flex-wrap gap-2 mb-10 text-[11px] font-semibold uppercase tracking-[0.2em]">
+        <a href="#extras" className="text-teal-dark hover:underline underline-offset-4">
+          Shortcuts
+        </a>
+        <span className="text-charcoal/25" aria-hidden>
+          /
+        </span>
         <a href="#active" className="text-teal-dark hover:underline underline-offset-4">
           Active orders
         </a>
@@ -61,13 +67,61 @@ export default async function AccountDashboardPage() {
       <header className="mb-14">
         <p className="text-[11px] uppercase tracking-[0.28em] text-teal-dark font-semibold">Your table with us</p>
         <h1 className="mt-2 font-display text-4xl md:text-[2.85rem] text-charcoal tracking-tight leading-[1.05]">
-          Welcome home, {session.email.split("@")[0]}
+          Welcome back, {session.email.split("@")[0]}
         </h1>
         <p className="mt-3 text-[15px] text-charcoal/75 max-w-xl leading-relaxed">
-          Café pickup, mercantile, and parcels — surfaced as one warm experience. Peek in anytime for timelines and
-          tracking.
+          Pickup, shop picks, and mailed gifts — gathered here so you never have to hunt for a receipt.
         </p>
       </header>
+
+      <section id="extras" className="scroll-mt-28 mb-16">
+        <h2 className="font-display text-2xl text-charcoal tracking-tight mb-5">Your shortcuts</h2>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="rounded-2xl border border-cream-dark bg-white/85 p-5 shadow-sm">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-teal-dark">Recently ordered</p>
+            <p className="mt-2 text-[14px] text-charcoal/75 leading-relaxed">
+              {past.length > 0
+                ? `You have ${past.length} past visit${past.length === 1 ? "" : "s"} — jump down whenever you need a reminder.`
+                : "Coming soon — we’ll tuck quick links to your usual orders right here."}
+            </p>
+            {past.length > 0 ? (
+              <a
+                href="#past"
+                className="inline-flex mt-4 text-[13px] font-semibold text-red hover:text-red-dark transition-colors"
+              >
+                View past orders
+              </a>
+            ) : (
+              <Link
+                href="/order"
+                className="inline-flex mt-4 text-[13px] font-semibold text-red hover:text-red-dark transition-colors"
+              >
+                Browse the menu →
+              </Link>
+            )}
+          </div>
+          <div className="rounded-2xl border border-cream-dark bg-white/85 p-5 shadow-sm">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-teal-dark">Saved for later</p>
+            <p className="mt-2 text-[14px] text-charcoal/75 leading-relaxed">
+              Dishes you set aside in your bag while ordering stay there until you’re ready. We’ll mirror them here when
+              we can.
+            </p>
+            <Link
+              href="/order"
+              className="inline-flex mt-4 text-[13px] font-semibold text-teal-dark hover:underline underline-offset-2"
+            >
+              Open order pickup →
+            </Link>
+          </div>
+          <div className="rounded-2xl border border-dashed border-gold/45 bg-cream/40 p-5">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-teal-dark">Favorites</p>
+            <p className="mt-2 text-[14px] text-charcoal/65 leading-relaxed">
+              A little velvet-rope list for the dishes you love — quietly in the works.
+            </p>
+            <p className="mt-4 text-[12px] font-semibold uppercase tracking-[0.14em] text-charcoal/45">Coming soon</p>
+          </div>
+        </div>
+      </section>
 
       <section id="active" className="scroll-mt-28 mb-16">
         <div className="flex items-end justify-between gap-4 mb-5">
@@ -82,14 +136,13 @@ export default async function AccountDashboardPage() {
         {active.length === 0 ? (
           <div className="rounded-2xl border border-cream-dark bg-cream/35 px-6 py-12 text-center">
             <p className="text-[15px] text-charcoal/70 leading-relaxed max-w-md mx-auto">
-              No open orders tied to your account yet. Checkout while signed in — we&apos;ll attach each visit here
-              automatically.
+              Nothing in the works right now. Order while signed in — each visit shows up here automatically.
             </p>
             <Link
               href="/shop"
               className="inline-flex mt-6 rounded-xl bg-teal-dark text-cream px-5 py-2.5 text-sm font-semibold hover:opacity-95"
             >
-              Browse mercantile
+              Browse the shop
             </Link>
           </div>
         ) : (
@@ -108,7 +161,7 @@ export default async function AccountDashboardPage() {
       ) ||
         active.some((row) => row.fulfillmentGroups.some((g) => g.shipments.length > 0))) && (
         <section className="rounded-2xl border border-teal/20 bg-teal/5 px-6 py-7 mb-16">
-          <h3 className="text-[13px] font-semibold uppercase tracking-[0.2em] text-teal-dark">At-a-glance</h3>
+          <h3 className="text-[13px] font-semibold uppercase tracking-[0.2em] text-teal-dark">Right now</h3>
           <ul className="mt-4 space-y-3 text-[14px] text-charcoal/80 leading-relaxed">
             {active.flatMap((row) =>
               row.fulfillmentGroups.map((g) => (
@@ -128,7 +181,9 @@ export default async function AccountDashboardPage() {
       <section id="past" className="scroll-mt-28 mb-16">
         <h2 className="font-display text-2xl text-charcoal tracking-tight mb-5">Past orders</h2>
         {past.length === 0 ? (
-          <p className="text-sm text-charcoal/55 italic">Past visits will linger here.</p>
+          <p className="text-sm text-charcoal/55 leading-relaxed italic max-w-md">
+            Once you&apos;ve enjoyed a few runs with us, they&apos;ll rest here for reference.
+          </p>
         ) : (
           <div className="flex flex-col gap-5 md:gap-6 opacity-92">
             {past.map((row) => (
@@ -141,11 +196,11 @@ export default async function AccountDashboardPage() {
       <section id="catering" className="scroll-mt-28 mb-16">
         <h2 className="font-display text-2xl text-charcoal tracking-tight mb-2">Catering inquiries</h2>
         <p className="text-[13px] text-charcoal/60 mb-5 max-w-lg leading-relaxed">
-          Events you&apos;ve started with Momo&apos;s — our team replies directly from Vallejo warmth.
+          Events you&apos;ve started with Momo&apos;s — our team replies straight from the kitchen.
         </p>
         {inquiries.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-cream-dark bg-white px-6 py-10">
-            <p className="text-sm text-charcoal/55 mb-5">Nothing yet matching {session.email}.</p>
+            <p className="text-sm text-charcoal/55 mb-5">No notes on file for {session.email} yet.</p>
             <Link href="/catering" className="font-semibold text-teal-dark text-sm hover:underline underline-offset-2">
               Explore catering →
             </Link>
@@ -181,13 +236,15 @@ export default async function AccountDashboardPage() {
             <dt className="text-[10px] font-semibold uppercase tracking-wider text-teal-dark">
               Stored payment methods
             </dt>
-            <dd className="mt-1 text-charcoal/60">Hosted securely via Square checkout — saved cards arriving soon.</dd>
+            <dd className="mt-1 text-charcoal/60">
+              Cards stay with our secure checkout partner — saved cards are on the wishlist.
+            </dd>
           </div>
           <div>
             <dt className="text-[10px] font-semibold uppercase tracking-wider text-teal-dark">
               Loyalty &amp; preferences
             </dt>
-            <dd className="mt-1 text-charcoal/60">We&apos;ll weave these in thoughtfully — hospitality first.</dd>
+            <dd className="mt-1 text-charcoal/60">Little perks you pick up over time — we&apos;ll add them gently.</dd>
           </div>
         </dl>
         <div className="mt-10 pt-6 border-t border-cream-dark">

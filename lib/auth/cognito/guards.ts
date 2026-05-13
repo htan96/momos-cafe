@@ -5,17 +5,25 @@ import { getCognitoConfig, cognitoIssuer } from "@/lib/auth/cognito/config";
 import { COGNITO_ID_TOKEN_COOKIE } from "@/lib/auth/cognito/sessionCookies";
 import { issuerMatches, sessionUserFromIdTokenPayload } from "@/lib/auth/cognito/tokens";
 import type { CognitoGroup } from "@/lib/auth/cognito/types";
-import { hasRole } from "@/lib/auth/cognito/roles";
+import {
+  defaultRouteForGroups,
+  hasRole,
+  isAdmin,
+  isCustomer,
+  isSuperAdmin,
+} from "@/lib/auth/cognito/roles";
+import { CUSTOMER_SESSION_COOKIE, verifyCustomerSessionToken } from "@/lib/auth/customerSessionCrypto";
 
 /**
  * Comma-separated path prefixes protected by Cognito **in addition to** existing middleware gates.
- * Defaults to `/portal` as a sample employee-only subtree — adjust to match your routes.
+ * Defaults to `/account`, `/admin`, and `/super-admin` (plus any extra entries such as `/portal` from env).
  */
 export function cognitoProtectedPrefixes(): string[] {
   const raw = process.env.COGNITO_PROTECTED_PREFIXES;
   if (raw !== undefined && raw.trim() === "") return [];
   const trimmed = raw?.trim();
-  const parts = trimmed && trimmed.length > 0 ? trimmed.split(",") : ["/portal"];
+  const parts =
+    trimmed && trimmed.length > 0 ? trimmed.split(",") : ["/account", "/admin", "/super-admin"];
   return parts.map((p) => p.trim()).filter(Boolean);
 }
 
@@ -23,40 +31,108 @@ export function isCognitoProtectedPath(pathname: string): boolean {
   return cognitoProtectedPrefixes().some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
-function redirectToCognitoLogin(request: NextRequest): NextResponse {
-  const login = new URL("/auth/cognito/login", request.url);
+function redirectToLogin(request: NextRequest): NextResponse {
+  const login = new URL("/login", request.url);
   login.searchParams.set("next", `${request.nextUrl.pathname}${request.nextUrl.search}`);
   return NextResponse.redirect(login);
 }
 
+function redirectToRoleHome(request: NextRequest, groups: readonly string[]): NextResponse {
+  return NextResponse.redirect(new URL(defaultRouteForGroups(groups), request.url));
+}
+
+type DecodedCognito = { user: NonNullable<ReturnType<typeof sessionUserFromIdTokenPayload>> };
+
+function decodeRequestCognitoSession(
+  request: NextRequest,
+  cfg: NonNullable<ReturnType<typeof getCognitoConfig>>
+): DecodedCognito | null {
+  const token = request.cookies.get(COGNITO_ID_TOKEN_COOKIE)?.value;
+  if (!token) return null;
+  try {
+    const payload = decodeJwt(token);
+    if (!issuerMatches(cfg, payload.iss)) return null;
+    const now = Math.floor(Date.now() / 1000);
+    if (typeof payload.exp === "number" && payload.exp < now - 30) return null;
+    const user = sessionUserFromIdTokenPayload(payload);
+    if (!user) return null;
+    return { user };
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Lightweight Edge-safe gate: decode JWT from httpOnly id-token cookie, validate issuer + expiry.
- * Does **not** verify signatures — see `lib/auth/cognito/tokens.ts`.
+ * Cognito + legacy customer cookie gate. When Cognito env is missing, `/account` stays open for magic-link sessions
+ * only (server pages still enforce session). Other protected prefixes require Cognito configuration.
  */
-export function cognitoGate(request: NextRequest): NextResponse {
+export async function cognitoGate(request: NextRequest): Promise<NextResponse> {
+  const pathname = request.nextUrl.pathname;
   const cfg = getCognitoConfig();
+
   if (!cfg) {
+    if (pathname === "/account" || pathname.startsWith("/account/")) {
+      return NextResponse.next();
+    }
     return new NextResponse("Cognito auth is not configured (missing env).", { status: 503 });
   }
 
-  const token = request.cookies.get(COGNITO_ID_TOKEN_COOKIE)?.value;
-  if (!token) {
-    return redirectToCognitoLogin(request);
+  if (pathname === "/account" || pathname.startsWith("/account/")) {
+    const cognito = decodeRequestCognitoSession(request, cfg);
+    if (cognito) {
+      const { groups } = cognito.user;
+      if (isCustomer(groups)) {
+        return NextResponse.next();
+      }
+      if (isAdmin(groups)) {
+        return redirectToRoleHome(request, groups);
+      }
+      return redirectToLogin(request);
+    }
+    const legacy = await verifyCustomerSessionToken(request.cookies.get(CUSTOMER_SESSION_COOKIE)?.value);
+    if (legacy) {
+      return NextResponse.next();
+    }
+    return redirectToLogin(request);
   }
 
-  try {
-    const payload = decodeJwt(token);
-    if (!issuerMatches(cfg, payload.iss)) {
-      return redirectToCognitoLogin(request);
+  if (pathname === "/admin" || pathname.startsWith("/admin/")) {
+    const cognito = decodeRequestCognitoSession(request, cfg);
+    if (!cognito) {
+      return redirectToLogin(request);
     }
-    const now = Math.floor(Date.now() / 1000);
-    if (typeof payload.exp === "number" && payload.exp < now - 30) {
-      return redirectToCognitoLogin(request);
+    const { groups } = cognito.user;
+    if (isAdmin(groups)) {
+      return NextResponse.next();
     }
-  } catch {
-    return redirectToCognitoLogin(request);
+    if (isCustomer(groups)) {
+      return NextResponse.redirect(new URL("/account", request.url));
+    }
+    return redirectToLogin(request);
   }
 
+  if (pathname === "/super-admin" || pathname.startsWith("/super-admin/")) {
+    const cognito = decodeRequestCognitoSession(request, cfg);
+    if (!cognito) {
+      return redirectToLogin(request);
+    }
+    const { groups } = cognito.user;
+    if (isSuperAdmin(groups)) {
+      return NextResponse.next();
+    }
+    if (hasRole(groups, "admin")) {
+      return NextResponse.redirect(new URL("/admin", request.url));
+    }
+    if (isCustomer(groups)) {
+      return NextResponse.redirect(new URL("/account", request.url));
+    }
+    return redirectToLogin(request);
+  }
+
+  const cognito = decodeRequestCognitoSession(request, cfg);
+  if (!cognito) {
+    return redirectToLogin(request);
+  }
   return NextResponse.next();
 }
 

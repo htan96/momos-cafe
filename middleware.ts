@@ -33,7 +33,7 @@ async function opsGate(request: NextRequest): Promise<NextResponse> {
     if (pathname.startsWith("/api/ops")) {
       return NextResponse.json({ error: "ops_unauthorized", code: "OPS_AUTH_REQUIRED" }, { status: 401 });
     }
-    const login = new URL("/login", request.url);
+    const login = new URL("/ops/login", request.url);
     login.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
     return NextResponse.redirect(login);
   }
@@ -84,11 +84,11 @@ export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   /**
-   * Cognito-protected route subtree (additive layer). Does not replace `OPS_SESSION` or magic-link customer cookies.
-   * UI entry: `/auth/cognito/login` to avoid colliding with storefront `/login`.
+   * Cognito-protected routes (additive layer). Does not replace `OPS_SESSION` or legacy magic-link `MOMOS_CUSTOMER`.
+   * Unified sign-in UI: `/login` (see also `/auth/cognito/*` redirects for bookmarks).
    */
   if (isCognitoProtectedPath(pathname)) {
-    return cognitoGate(request);
+    return await cognitoGate(request);
   }
 
   if (pathname === "/ops/login" || pathname.startsWith("/ops/login/")) {
@@ -117,9 +117,12 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /**
-     * Cognito demo subtree — when changing `COGNITO_PROTECTED_PREFIXES`, add matching prefixes here so middleware runs
+     * Cognito-gated areas — when changing `COGNITO_PROTECTED_PREFIXES`, add matching prefixes here so middleware runs
      * before the internal orchestration secret gate (non-`/api` matcher paths return `NextResponse.next()`).
      */
+    "/account/:path*",
+    "/admin/:path*",
+    "/super-admin/:path*",
     "/portal/:path*",
     "/ops/:path*",
     "/api/ops/:path*",

@@ -116,11 +116,11 @@ export default function CheckoutOrderSummary({
       </div>
       <div className="px-4 py-3 border-t border-cream-dark bg-cream/80 text-sm space-y-1">
         <div className="flex justify-between font-display text-lg text-charcoal pt-1">
-          <span>Subtotal</span>
+          <span>Bag subtotal</span>
           <span>{formatMoney(subtotals.total)}</span>
         </div>
         <p className="text-[11px] text-charcoal/45 leading-snug pt-1">
-          Tax and final total are confirmed beside payment.
+          Tax and total appear next to payment.
         </p>
       </div>
     </>

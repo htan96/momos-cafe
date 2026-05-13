@@ -32,7 +32,7 @@ export default function CognitoSignupForm() {
         setError(data.detail ?? data.error ?? "Sign up failed.");
         return;
       }
-      setInfo("Check your inbox for the confirmation code, then verify on the confirmation step.");
+      setInfo("Peek your inbox — we sent a verification code.");
       setPassword("");
     } finally {
       setBusy(false);
@@ -41,8 +41,10 @@ export default function CognitoSignupForm() {
 
   return (
     <div className="w-full max-w-[420px] rounded-2xl border border-charcoal/10 bg-white px-8 py-10 shadow-[0_16px_64px_rgba(0,0,0,0.06)]">
-      <h1 className="text-center text-2xl font-semibold text-charcoal font-display">Sign up</h1>
-      <p className="mt-2 text-center text-[13px] text-charcoal/70">Pool must allow self sign-up.</p>
+      <h1 className="text-center text-2xl font-semibold text-charcoal font-display">Create account</h1>
+      <p className="mt-2 text-center text-[13px] text-charcoal/70">
+        We&apos;ll email a short code so you can finish — quick and human, no spam.
+      </p>
 
       <form onSubmit={(e) => void onSubmit(e)} className="mt-8 space-y-4">
         <label className="block">
@@ -89,7 +91,7 @@ export default function CognitoSignupForm() {
       </form>
 
       <p className="mt-6 text-center text-[13px]">
-        <Link href="/auth/cognito/login" className="text-teal-dark underline">
+        <Link href="/login" className="text-teal-dark underline">
           Back to sign in
         </Link>
       </p>

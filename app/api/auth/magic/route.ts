@@ -10,7 +10,7 @@ import { rateLimitHit, clientIp } from "@/lib/server/rateLimitMemory";
 
 function failRedirect(reqUrl: string, code: string): NextResponse {
   const u = new URL(reqUrl);
-  u.pathname = "/login";
+  u.pathname = "/login/email";
   u.search = "";
   u.searchParams.set("error", code);
   return NextResponse.redirect(u);

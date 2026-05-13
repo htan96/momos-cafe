@@ -17,10 +17,11 @@
  * - Flip `COGNITO_MFA_OPTIONAL=false` when you want builds to treat MFA challenges as blocking until implemented.
  *
  * ### Route protection
- * - `COGNITO_PROTECTED_PREFIXES` lists path prefixes gated in `middleware.ts` (default `/portal`).
+ * - `COGNITO_PROTECTED_PREFIXES` lists path prefixes gated in `middleware.ts` (default `/account,/admin,/super-admin`).
  * - When you change prefixes, **extend `middleware.ts` `config.matcher`** with matching patterns (matchers are static);
  *   non-`/api` matched paths skip the internal orchestration secret gate.
- * - Magic-link `/login` + `OPS_SESSION` flows remain untouched; Cognito UI lives under `/auth/cognito/*`.
+ * - Storefront **Cognito** sign-in UI is `/login`; `/auth/cognito/login` redirects there for bookmarks.
+ * - Magic-link guests use `/login/email` + `MOMOS_CUSTOMER`. **Ops** uses `OPS_SESSION` at `/ops/login` (unchanged).
  *
  * ### AWS console map for env values
  * - **COGNITO_REGION**: Cognito → User pools → your pool → **Pool overview** (ARN includes region) or top-right region.
@@ -32,7 +33,7 @@
  * - **COGNITO_OAUTH_REDIRECT_URI / LOGOUT**: App client → **Hosted UI** allowed callback / sign-out URLs.
  *
  * ### Groups
- * - Model roles with Cognito groups `super_admin`, `admin`, `employee`, `customer` and include them in the ID token.
+ * - Model roles with Cognito groups `super_admin`, `admin`, and `customer` only, and include them in the ID token.
  */
 
 export {};

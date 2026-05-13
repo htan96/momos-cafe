@@ -1,5 +1,5 @@
 export const metadata = {
-  title: "Cognito authentication",
+  title: "Account access",
 };
 
 export default function CognitoAuthLayout({ children }: { children: React.ReactNode }) {

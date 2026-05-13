@@ -32,8 +32,8 @@ export default function MerchFulfillmentSection() {
               Cooked to order for same-day pickup — typical quote appears at checkout on the menu flow.
             </p>
             <ul className="text-[12px] text-charcoal/65 space-y-1.5 list-disc pl-4">
-              <li>Kitchen &amp; POS workflows stay on Square</li>
-              <li>Best when you&apos;re hungry today</li>
+              <li>Warm plates, Vallejo pacing</li>
+              <li>Made for lunch today, not mailing tomorrow</li>
             </ul>
           </article>
 
@@ -52,15 +52,14 @@ export default function MerchFulfillmentSection() {
               You&apos;ll hear from us when your bag is ready.
             </p>
             <ul className="text-[12px] text-white/65 space-y-1.5 list-disc pl-4 marker:text-gold">
-              <li>Fulfillment tracked in Momo&apos;s Shop pipeline</li>
-              <li>Staff sees only merch tasks — kitchen stays focused on food</li>
+              <li>We prep and pack merch with intention</li>
+              <li>Expect a ping when your bag is ready for pickup</li>
             </ul>
           </article>
         </div>
 
         <p className="text-center text-[12px] text-charcoal/45 mt-8 max-w-lg mx-auto leading-relaxed">
-          One platform checkout is on the roadmap — today, keep timing expectations clear at checkout.
-          Inventory &amp; payments stay powered by Square behind the scenes.
+          One smooth bag for café and shop lives at checkout — timing always appears before you pay.
         </p>
       </div>
     </section>

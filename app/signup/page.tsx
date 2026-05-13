@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
-/** Historical path — unified Cognito UI is `/login`; bookmarks keep working via redirect. */
-export default async function CognitoAuthLoginAliasPage({
+/** Clean URL — composition lives under `/auth/cognito/signup`. */
+export default async function SignupAliasPage({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -15,5 +15,5 @@ export default async function CognitoAuthLoginAliasPage({
     }
   }
   const suffix = q.toString();
-  redirect(suffix ? `/login?${suffix}` : "/login");
+  redirect(suffix ? `/auth/cognito/signup?${suffix}` : "/auth/cognito/signup");
 }

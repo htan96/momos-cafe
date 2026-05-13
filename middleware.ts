@@ -61,6 +61,9 @@ export async function middleware(request: NextRequest) {
    * Cognito JWT cookie gate for `/account`, `/admin`, `/super-admin`, optional `/portal`, `/ops`, `/api/ops`, etc.
    */
   if (isCognitoProtectedPath(pathname)) {
+    if (process.env.COGNITO_GATE_DEBUG === "1") {
+      console.info("[cognito-gate] pathname", pathname);
+    }
     return await cognitoGate(request);
   }
 

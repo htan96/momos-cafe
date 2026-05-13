@@ -106,6 +106,9 @@
  * - **Customers**: Self-signup via **`/signup`** → confirm email if pool requires → **`/login`** with chosen password (no temp-password challenge).
  * - **Admin / super_admin (internal)**: Use **`AdminSetUserPassword`** with **`Permanent: true`** (CLI above) right after **`AdminCreateUser`** so **`NEW_PASSWORD_REQUIRED`** never triggers; legacy temp-password onboarding remains available for invites.
  * - **Optional future**: Enforce **TOTP** for **`super_admin`** via **`RespondToAuthChallenge`** (`mfa.ts`).
+ *
+ * ### CDN / deploy (stale `/_next/*` after releases)
+ * - Prefer invalidating or short-TTL cache rules for **`/_next/static`** and Flight/RSC paths so post-login hard navigation (`NEXT_PUBLIC_POST_LOGIN_HARD_NAV` in `CognitoLoginForm`) always pairs with a consistent asset set.
  */
 
 export {};

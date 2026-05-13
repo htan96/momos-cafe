@@ -15,6 +15,9 @@ import { commerceCheckoutShell } from "@/lib/commerce/tokens";
 import { resolvePostLoginRedirect } from "@/lib/auth/cognito/redirectByRole";
 import { readApiJson } from "@/lib/http/readApiJson";
 
+/** `NEXT_PUBLIC_POST_LOGIN_HARD_NAV` other than `'false'` (incl. unset) → hard navigation; set `'false'` for SPA `router.replace`. */
+const postLoginUseHardNavigation = process.env.NEXT_PUBLIC_POST_LOGIN_HARD_NAV !== "false";
+
 /** Messages from `readApiJson` when the body is not JSON (e.g. HTML gateway errors); snake_case stays for storefront copy. */
 function isLikelyTransportLayerMessage(msg: string): boolean {
   return msg.includes("HTTP") || /\s/.test(msg);
@@ -66,6 +69,17 @@ export default function CognitoLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { signIn, completeNewPassword } = useCognitoAuth();
+
+  function goPostLogin(destination: string) {
+    console.info("[post-login] redirect", destination);
+    if (postLoginUseHardNavigation) {
+      // Stale React Flight / CDN: `assign` forces a full document load. After deploys, purge or
+      // short-TTL `/_next/*` at the edge so HTML, JS chunks, and RSC payloads stay version-aligned.
+      window.location.assign(destination);
+      return;
+    }
+    router.replace(destination);
+  }
 
   const rawNext = searchParams.get("next");
 
@@ -120,8 +134,7 @@ export default function CognitoLoginForm() {
       return;
     }
     const destination = out.redirectTo ?? resolvePostLoginRedirect(out.groups ?? [], rawNext);
-    router.replace(destination);
-    router.refresh();
+    goPostLogin(destination);
   }
 
   async function onSubmitConfirmAccount(e: React.FormEvent) {
@@ -169,8 +182,7 @@ export default function CognitoLoginForm() {
         return;
       }
       const destination = out.redirectTo ?? resolvePostLoginRedirect(out.groups ?? [], rawNext);
-      router.replace(destination);
-      router.refresh();
+      goPostLogin(destination);
     } finally {
       setBusy(false);
     }
@@ -222,8 +234,7 @@ export default function CognitoLoginForm() {
         return;
       }
       const destination = out.redirectTo ?? resolvePostLoginRedirect(out.groups ?? [], rawNext);
-      router.replace(destination);
-      router.refresh();
+      goPostLogin(destination);
     } finally {
       newPasswordSubmitGuard.current = false;
       setBusy(false);

@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import AccountOrderCard from "@/components/account/AccountOrderCard";
-import SignOutButton from "@/app/account/SignOutButton";
 import { getCustomerSession } from "@/lib/auth/getCustomerSession";
 import {
   loadCateringByEmail,
@@ -33,7 +32,7 @@ export default async function AccountDashboardPage() {
   );
 
   return (
-    <div className="max-w-[880px] mx-auto px-5 md:px-8 lg:px-10 py-12 md:py-16 lg:pb-24">
+    <>
       <nav className="flex flex-wrap gap-2 mb-10 text-[11px] font-semibold uppercase tracking-[0.2em]">
         <a href="#extras" className="text-teal-dark hover:underline underline-offset-4">
           Shortcuts
@@ -247,10 +246,7 @@ export default async function AccountDashboardPage() {
             <dd className="mt-1 text-charcoal/60">Little perks you pick up over time — we&apos;ll add them gently.</dd>
           </div>
         </dl>
-        <div className="mt-10 pt-6 border-t border-cream-dark">
-          <SignOutButton />
-        </div>
       </section>
-    </div>
+    </>
   );
 }

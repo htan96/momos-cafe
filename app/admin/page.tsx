@@ -1,34 +1,50 @@
 import Link from "next/link";
-import { getCognitoServerSession } from "@/lib/auth/cognito/serverSession";
-import { isAdmin } from "@/lib/auth/cognito/roles";
 
 export default async function AdminHomePage() {
-  const session = await getCognitoServerSession();
+  const cards = [
+    {
+      title: "Catering & storefront orders",
+      href: "/admin/catering-orders",
+      description: "Coordinate trays, pickups, and order flows from one queue.",
+    },
+    {
+      title: "Customer lookup",
+      href: "/admin/customer-lookup",
+      description: "Search guests and profiles when you need to assist with an order.",
+    },
+    {
+      title: "Order lookup",
+      href: "/admin/order-lookup",
+      description: "Open a commerce order quickly by identifier or confirmation details.",
+    },
+  ] as const;
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-16 space-y-4">
-      <p className="text-[11px] uppercase tracking-[0.28em] text-teal-dark font-semibold">Admin</p>
-      <h1 className="text-3xl font-semibold font-display text-charcoal">Admin area</h1>
-      <p className="text-charcoal/70">
-        Cognito groups from your session (requires <span className="font-medium">admin</span> or{" "}
-        <span className="font-medium">super_admin</span>).
-      </p>
-      <pre className="rounded-xl border border-charcoal/10 bg-white p-4 text-sm overflow-auto">
-        {JSON.stringify(session, null, 2)}
-      </pre>
-      <p className="text-sm text-charcoal/60">
-        Admin access: <span className="font-semibold">{isAdmin(session?.groups ?? []) ? "yes" : "no"}</span>
-      </p>
-      <div className="flex gap-4 text-sm">
-        <Link href="/account" className="text-teal-dark underline">
-          Customer account
-        </Link>
-        <Link href="/login" className="text-teal-dark underline">
-          Sign in
-        </Link>
-        <Link href="/" className="text-teal-dark underline">
-          Site home
-        </Link>
+    <div className="space-y-10">
+      <header className="space-y-3">
+        <p className="text-[11px] uppercase tracking-[0.26em] text-teal-dark font-semibold">
+          Operational dashboard
+        </p>
+        <h1 className="font-display text-3xl md:text-[clamp(28px,3.5vw,2.35rem)] text-charcoal tracking-tight">
+          Today on the floor
+        </h1>
+        <p className="text-[15px] text-charcoal/72 max-w-xl leading-relaxed">
+          Shortcuts below connect to placeholders—wire them into back-office tooling as workflows solidify.
+        </p>
+      </header>
+
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {cards.map((c) => (
+          <Link
+            key={c.href}
+            href={c.href}
+            className="group rounded-2xl border border-cream-dark bg-white/90 p-6 shadow-sm transition-shadow hover:shadow-md"
+          >
+            <h2 className="font-display text-lg text-charcoal group-hover:text-red transition-colors">{c.title}</h2>
+            <p className="mt-3 text-[14px] text-charcoal/70 leading-relaxed">{c.description}</p>
+            <p className="mt-5 text-[12px] font-semibold uppercase tracking-[0.16em] text-teal-dark">Open →</p>
+          </Link>
+        ))}
       </div>
     </div>
   );

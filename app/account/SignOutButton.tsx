@@ -3,7 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-export default function SignOutButton() {
+type Props = {
+  /** Merges onto the button — defaults to subdued charcoal styling. */
+  className?: string;
+};
+
+export default function SignOutButton({ className }: Props) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
 
@@ -22,7 +27,10 @@ export default function SignOutButton() {
       type="button"
       disabled={busy}
       onClick={onSignOut}
-      className="text-[13px] font-semibold text-charcoal/55 hover:text-charcoal underline-offset-2 hover:underline disabled:opacity-50"
+      className={
+        className ??
+        "text-[13px] font-semibold text-charcoal/55 hover:text-charcoal underline-offset-2 hover:underline disabled:opacity-50"
+      }
     >
       {busy ? "Signing out…" : "Sign out"}
     </button>

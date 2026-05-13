@@ -29,7 +29,7 @@ export default async function AccountOrderDetailPage({ params }: PageProps) {
   const num = orderDisplayNumber(row.id);
 
   return (
-    <div className="max-w-[880px] mx-auto px-5 md:px-10 py-10 md:py-14 lg:pb-24">
+    <>
       <Link
         href="/account"
         className="text-[12px] font-semibold uppercase tracking-[0.2em] text-teal-dark hover:underline underline-offset-[6px]"
@@ -82,6 +82,6 @@ export default async function AccountOrderDetailPage({ params }: PageProps) {
           </aside>
         ) : null}
       </div>
-    </div>
+    </>
   );
 }

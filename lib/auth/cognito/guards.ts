@@ -41,6 +41,16 @@ function redirectToRoleHome(request: NextRequest, groups: readonly string[]): Ne
   return NextResponse.redirect(new URL(defaultRouteForGroups(groups), request.url));
 }
 
+/** For server layouts: safe internal path for `next` after login (defense in depth). */
+function nextWithForwardedPath(request: NextRequest): NextResponse {
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set(
+    "x-momos-pathname",
+    `${request.nextUrl.pathname}${request.nextUrl.search}`
+  );
+  return NextResponse.next({ request: { headers: requestHeaders } });
+}
+
 type DecodedCognito = { user: NonNullable<ReturnType<typeof sessionUserFromIdTokenPayload>> };
 
 /** Parses ID JWT from cookie; roles from **`cognito:groups`** (`tokens.sessionUserFromIdTokenPayload`). */
@@ -85,7 +95,7 @@ export async function cognitoGate(request: NextRequest): Promise<NextResponse> {
     if (!cognito || !isAdmin(cognito.user.groups)) {
       return isApiOps ? opsUnauthorizedApi() : redirectToLogin(request);
     }
-    return NextResponse.next();
+    return nextWithForwardedPath(request);
   }
 
   if (!cfg) {
@@ -97,7 +107,7 @@ export async function cognitoGate(request: NextRequest): Promise<NextResponse> {
     if (cognito) {
       const { groups } = cognito.user;
       if (isCustomer(groups)) {
-        return NextResponse.next();
+        return nextWithForwardedPath(request);
       }
       if (isAdmin(groups)) {
         return redirectToRoleHome(request, groups);
@@ -114,7 +124,7 @@ export async function cognitoGate(request: NextRequest): Promise<NextResponse> {
     }
     const { groups } = cognito.user;
     if (isAdmin(groups)) {
-      return NextResponse.next();
+      return nextWithForwardedPath(request);
     }
     if (isCustomer(groups)) {
       return NextResponse.redirect(new URL("/account", request.url));
@@ -129,7 +139,7 @@ export async function cognitoGate(request: NextRequest): Promise<NextResponse> {
     }
     const { groups } = cognito.user;
     if (isSuperAdmin(groups)) {
-      return NextResponse.next();
+      return nextWithForwardedPath(request);
     }
     if (hasRole(groups, "admin")) {
       return NextResponse.redirect(new URL("/admin", request.url));
@@ -144,7 +154,7 @@ export async function cognitoGate(request: NextRequest): Promise<NextResponse> {
   if (!cognito) {
     return redirectToLogin(request);
   }
-  return NextResponse.next();
+  return nextWithForwardedPath(request);
 }
 
 /**

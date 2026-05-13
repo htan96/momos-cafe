@@ -13,7 +13,7 @@ export const commerceSectionSpacing = {
   sectionMb: "mb-14",
 } as const;
 
-/** Header (64px) + category strip (~52px) + breathing room */
+/** Main header (64px) + sticky in-page category rail (~52px) + breathing room */
 export const commerceMenuScrollMargin = "scroll-mt-[128px]";
 
 /** Sticky collection / menu category chrome — pairs with `CollectionFilterBar` */

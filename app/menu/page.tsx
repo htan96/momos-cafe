@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { MenuCategory } from "@/types/menu";
 import { useCart, useCommerceCart } from "@/context/CartContext";
-import { useHeaderSubNav } from "@/context/HeaderSubNavContext";
 import { useAdminSettings, getOrderingStatus, DEFAULT_SETTINGS } from "@/lib/useAdminSettings";
 import OrderingNoticeBanner from "@/components/menu/OrderingNoticeBanner";
 import CategoryNav from "@/components/sections/menu/CategoryNav";
@@ -16,7 +15,7 @@ import ModifierModal from "@/components/sections/menu/ModifierModal";
 import MenuPickupContextStrip from "@/components/sections/menu/MenuPickupContextStrip";
 import type { MenuItem } from "@/types/menu";
 import type { SelectedModifier } from "@/types/ordering";
-import { commerceMenuScrollMargin } from "@/lib/commerce/tokens";
+import { commerceCheckoutShell, commerceMenuScrollMargin, commerceSectionSpacing } from "@/lib/commerce/tokens";
 
 export default function MenuPage() {
   const router = useRouter();
@@ -78,8 +77,6 @@ export default function MenuPage() {
     [addItem]
   );
 
-  const { setSubNav } = useHeaderSubNav() ?? { setSubNav: () => {} };
-
   const effectiveCategorySlug =
     activeCategorySlug && categories.some((c) => c.slug === activeCategorySlug)
       ? activeCategorySlug
@@ -97,18 +94,6 @@ export default function MenuPage() {
       });
     });
   }, []);
-
-  useEffect(() => {
-    setSubNav(
-      <CategoryNav
-        categories={categories}
-        activeSlug={effectiveCategorySlug}
-        onSelect={selectMenuCategory}
-        embeddedInHeader
-      />
-    );
-    return () => setSubNav(null);
-  }, [categories, effectiveCategorySlug, selectMenuCategory, setSubNav]);
 
   const orderingStatus = getOrderingStatus(settings ?? DEFAULT_SETTINGS);
 
@@ -129,43 +114,57 @@ export default function MenuPage() {
   }
 
   return (
-    <div className="min-h-screen bg-cream text-charcoal overflow-x-clip pb-28 md:pb-16">
+    <div className={`${commerceCheckoutShell.page} overflow-x-clip pb-28 md:pb-16`}>
       {orderingStatus.scheduleNote ? (
         <OrderingNoticeBanner tone="schedule" message={orderingStatus.scheduleNote} />
       ) : null}
 
-      <div className="container max-w-[1200px] mx-auto px-4 md:px-5 pt-6 md:pt-10 pb-4">
-        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-2">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-teal-dark mb-1">
-              Order pickup
-            </p>
-            <h1 className="font-display text-2xl md:text-[clamp(28px,4vw,40px)] text-charcoal leading-tight">
-              Momo&apos;s kitchen menu
-            </h1>
-            <p className="text-[13px] text-charcoal/55 mt-2 max-w-xl leading-relaxed">
-              One category at a time — same cart as Shop for one calm checkout.
-            </p>
-          </div>
-          <Link
-            href="/shop"
-            className="text-xs font-semibold uppercase tracking-wider text-teal-dark hover:text-charcoal shrink-0 transition-colors self-start md:self-auto"
+      <section aria-label="Menu introduction" className="pt-6 md:pt-10 pb-0">
+        <div className="container max-w-[1200px] mx-auto px-4 md:px-5">
+          <div
+            className={`flex flex-col md:flex-row md:items-end md:justify-between ${commerceSectionSpacing.gap} mb-2`}
           >
-            Visit retail shop →
-          </Link>
-        </div>
+            <div>
+              <p className={`${commerceCheckoutShell.sectionLabel} mb-1`}>Order pickup</p>
+              <h1 className="font-display text-2xl md:text-[clamp(28px,4vw,40px)] text-charcoal leading-tight">
+                Momo&apos;s kitchen menu
+              </h1>
+              <p className="text-[13px] text-charcoal/55 mt-2 max-w-xl leading-relaxed">
+                One category at a time — same cart as Shop for one calm checkout.
+              </p>
+              {categories.length > 0 ? (
+                <p className="text-[11px] text-charcoal/45 mt-1.5">
+                  {categories.length} categor{categories.length === 1 ? "y" : "ies"}
+                </p>
+              ) : null}
+            </div>
+            <Link
+              href="/shop"
+              className="text-xs font-semibold uppercase tracking-wider text-teal-dark hover:text-charcoal shrink-0 transition-colors self-start md:self-auto"
+            >
+              Visit retail shop →
+            </Link>
+          </div>
 
-        <MenuPickupContextStrip />
-      </div>
+          <MenuPickupContextStrip />
+        </div>
+      </section>
+
+      {categories.length > 0 ? (
+        <CategoryNav
+          categories={categories}
+          activeSlug={effectiveCategorySlug}
+          onSelect={selectMenuCategory}
+          stickyTopClass="top-[64px]"
+        />
+      ) : null}
 
       <div className="max-w-[1200px] mx-auto px-4 md:px-5 pb-32 lg:pb-10 grid grid-cols-1 lg:grid-cols-[1fr_minmax(300px,360px)] gap-8 lg:gap-10 items-start">
         <main className="min-w-0">
           {categories.length === 0 ? (
             <div className="rounded-xl border border-dashed border-cream-dark bg-white py-16 text-center px-4">
               <p className="font-semibold text-charcoal">Nothing on the menu yet.</p>
-              <p className="text-sm text-charcoal/55 mt-1">
-                Check back soon — or say hello at the café.
-              </p>
+              <p className="text-sm text-charcoal/55 mt-1">Check back soon — or say hello at the café.</p>
               <button
                 type="button"
                 onClick={() => router.push("/")}

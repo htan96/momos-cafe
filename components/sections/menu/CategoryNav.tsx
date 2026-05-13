@@ -14,6 +14,11 @@ interface CategoryNavProps {
   /** Rendered inside site header — outer chrome is provided by `Header`. */
   embeddedInHeader?: boolean;
   /**
+   * Sticky offset when rendered in page body (not in header). Default assumes
+   * header + legacy 52px sub-nav; use `top-[64px]` when the main nav is the only chrome.
+   */
+  stickyTopClass?: string;
+  /**
    * Filter mode (Shop-style): parent owns selection; scroll-spy disabled.
    * Pass with `onSelect` — mirrors `CollectionFilterBar` + `activeId`.
    */
@@ -25,6 +30,7 @@ export default function CategoryNav({
   categories,
   onScrollTo,
   embeddedInHeader = false,
+  stickyTopClass = "top-[116px] md:top-[118px]",
   activeSlug: activeSlugProp,
   onSelect,
 }: CategoryNavProps) {
@@ -126,14 +132,14 @@ export default function CategoryNav({
 
   const outerClass = embeddedInHeader
     ? "w-full"
-    : `sticky top-[116px] md:top-[118px] z-30 ${commerceCategoryStripShell}`;
+    : `sticky ${stickyTopClass} z-30 ${commerceCategoryStripShell}`;
 
   return (
     <nav id="cat-nav" className={outerClass} aria-label="Menu categories">
       <div className="container max-w-[1200px] mx-auto px-4 py-2.5">
         <div
           ref={scrollRef}
-          className="flex gap-2 overflow-x-auto pb-1 md:flex-wrap md:overflow-visible scrollbar-none snap-x snap-mandatory min-h-[40px] items-center"
+          className="flex flex-nowrap gap-2 overflow-x-auto pb-1 scrollbar-none snap-x snap-mandatory min-h-[40px] items-center"
           role="tablist"
           aria-label="Menu categories"
         >

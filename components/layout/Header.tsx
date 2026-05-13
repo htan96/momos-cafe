@@ -70,7 +70,7 @@ export default function Header() {
       {subNav && (
         <div
           className={
-            pathname === "/menu" || pathname === "/order"
+            pathname === "/order"
               ? "h-[52px] border-t border-cream-dark/70 bg-cream/95 backdrop-blur-md shadow-[0_8px_20px_-12px_rgba(44,44,44,0.14)]"
               : "h-[52px] border-t border-gold/30 bg-teal-dark"
           }

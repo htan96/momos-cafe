@@ -9,6 +9,10 @@ export type CognitoAuthChallengePayload = {
   session?: string | null;
   mfaOptional?: boolean;
   requiresPasswordChange?: boolean;
+  mfaSetupPending?: boolean;
+  softwareTokenMfaPending?: boolean;
+  smsMfaPending?: boolean;
+  selectMfaTypePending?: boolean;
 };
 
 export type CognitoAuthContextValue = {
@@ -21,7 +25,7 @@ export type CognitoAuthContextValue = {
     nextParam?: string | null
   ) => Promise<
     | { ok: true; redirectTo?: string; groups?: string[] }
-    | { ok: false; error: string; challenge?: CognitoAuthChallengePayload }
+    | { ok: false; error: string; code?: string; challenge?: CognitoAuthChallengePayload }
   >;
   completeNewPassword: (
     username: string,
@@ -30,7 +34,7 @@ export type CognitoAuthContextValue = {
     nextParam?: string | null
   ) => Promise<
     | { ok: true; redirectTo?: string; groups?: string[] }
-    | { ok: false; error: string; challenge?: CognitoAuthChallengePayload }
+    | { ok: false; error: string; code?: string; challenge?: CognitoAuthChallengePayload }
   >;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -64,24 +68,40 @@ export function CognitoAuthProvider({ children }: { children: React.ReactNode })
   }, [bootstrap]);
 
   const signIn = useCallback(async (username: string, password: string, nextParam?: string | null) => {
-    const res = await fetch("/api/auth/cognito/login", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password, next: nextParam ?? undefined }),
-    });
+    let res: Response;
+    try {
+      res = await fetch("/api/auth/cognito/login", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password, next: nextParam ?? undefined }),
+      });
+    } catch {
+      return {
+        ok: false as const,
+        error: "We could not reach the sign-in service. Check your connection and try again.",
+        code: "NETWORK",
+      };
+    }
+
     const parsed = await readApiJson<{
       ok?: boolean;
       user?: AuthUser;
       redirectTo?: string;
       error?: string;
+      code?: string;
       challengeName?: string;
       session?: string | null;
       mfaOptional?: boolean;
       requiresPasswordChange?: boolean;
+      mfaSetupPending?: boolean;
+      softwareTokenMfaPending?: boolean;
+      smsMfaPending?: boolean;
+      selectMfaTypePending?: boolean;
+      mfaRelated?: boolean;
     }>(res);
     if (!parsed.ok) {
-      return { ok: false as const, error: parsed.error };
+      return { ok: false as const, error: parsed.error, code: "PARSE" };
     }
     const { data, status } = parsed;
 
@@ -93,17 +113,27 @@ export function CognitoAuthProvider({ children }: { children: React.ReactNode })
       return {
         ok: false as const,
         error: "auth_challenge",
+        code: typeof data.code === "string" ? data.code : "AUTH_CHALLENGE",
         challenge: {
           challengeName: data.challengeName,
           session: data.session ?? null,
           mfaOptional: data.mfaOptional,
           requiresPasswordChange: data.requiresPasswordChange === true,
+          mfaSetupPending: data.mfaSetupPending === true,
+          softwareTokenMfaPending: data.softwareTokenMfaPending === true,
+          smsMfaPending: data.smsMfaPending === true,
+          selectMfaTypePending: data.selectMfaTypePending === true,
         },
       };
     }
 
     if (status < 200 || status >= 400 || !data.user) {
-      return { ok: false as const, error: data.error ?? "sign_in_failed" };
+      const code = typeof data.code === "string" ? data.code : undefined;
+      return {
+        ok: false as const,
+        error: data.error ?? "sign_in_failed",
+        ...(code ? { code } : {}),
+      };
     }
 
     setUser(data.user);
@@ -116,29 +146,44 @@ export function CognitoAuthProvider({ children }: { children: React.ReactNode })
 
   const completeNewPassword = useCallback(
     async (username: string, session: string, newPassword: string, nextParam?: string | null) => {
-      const res = await fetch("/api/auth/cognito/new-password", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: username.trim(),
-          session,
-          newPassword,
-          next: nextParam ?? undefined,
-        }),
-      });
+      let res: Response;
+      try {
+        res = await fetch("/api/auth/cognito/new-password", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            username: username.trim(),
+            session,
+            newPassword,
+            next: nextParam ?? undefined,
+          }),
+        });
+      } catch {
+        return {
+          ok: false as const,
+          error: "We could not reach the server. Check your connection and try again.",
+          code: "NETWORK",
+        };
+      }
+
       const parsed = await readApiJson<{
         ok?: boolean;
         user?: AuthUser;
         redirectTo?: string;
         error?: string;
+        code?: string;
         challengeName?: string;
         session?: string | null;
         mfaOptional?: boolean;
         requiresPasswordChange?: boolean;
+        mfaSetupPending?: boolean;
+        softwareTokenMfaPending?: boolean;
+        smsMfaPending?: boolean;
+        selectMfaTypePending?: boolean;
       }>(res);
       if (!parsed.ok) {
-        return { ok: false as const, error: parsed.error };
+        return { ok: false as const, error: parsed.error, code: "PARSE" };
       }
       const { data, status } = parsed;
 
@@ -147,17 +192,27 @@ export function CognitoAuthProvider({ children }: { children: React.ReactNode })
         return {
           ok: false as const,
           error: "auth_challenge",
+          code: typeof data.code === "string" ? data.code : "AUTH_CHALLENGE",
           challenge: {
             challengeName: data.challengeName,
             session: data.session ?? null,
             mfaOptional: data.mfaOptional,
             requiresPasswordChange: data.requiresPasswordChange === true,
+            mfaSetupPending: data.mfaSetupPending === true,
+            softwareTokenMfaPending: data.softwareTokenMfaPending === true,
+            smsMfaPending: data.smsMfaPending === true,
+            selectMfaTypePending: data.selectMfaTypePending === true,
           },
         };
       }
 
       if (status < 200 || status >= 400 || !data.user) {
-        return { ok: false as const, error: data.error ?? "password_change_failed" };
+        const code = typeof data.code === "string" ? data.code : undefined;
+        return {
+          ok: false as const,
+          error: data.error ?? "password_change_failed",
+          ...(code ? { code } : {}),
+        };
       }
 
       setUser(data.user);
@@ -176,10 +231,16 @@ export function CognitoAuthProvider({ children }: { children: React.ReactNode })
   }, []);
 
   const refresh = useCallback(async () => {
-    const res = await fetch("/api/auth/cognito/refresh", {
-      method: "POST",
-      credentials: "include",
-    });
+    let res: Response;
+    try {
+      res = await fetch("/api/auth/cognito/refresh", {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch {
+      setUser(null);
+      return;
+    }
 
     const parsed = await readApiJson<{ user?: AuthUser | null }>(res);
     if (!parsed.ok || parsed.status < 200 || parsed.status >= 400) {

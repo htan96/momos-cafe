@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
+import type { AuthSignInResult } from "@/lib/auth/AuthProvider";
 import { createCognitoAuthProvider } from "@/lib/auth/cognito/cognitoAuthAdapter";
 import { validateAccessToken } from "@/lib/auth/cognito/cognitoClient";
 import { getCognitoConfig } from "@/lib/auth/cognito/config";
 import { applyCognitoTokenCookies } from "@/lib/auth/cognito/httpCookies";
+import { isMfaRelatedChallenge } from "@/lib/auth/cognito/mfa";
 import { resolvePostLoginRedirect } from "@/lib/auth/cognito/redirectByRole";
 import { clearCognitoCookieJar } from "@/lib/auth/cognito/sessionCookies";
-import { isMfaRelatedChallenge } from "@/lib/auth/cognito/mfa";
+import { cognitoChallengeJson } from "@/lib/auth/cognito/challengeResponse";
 
 export const runtime = "nodejs";
 
@@ -17,11 +19,40 @@ async function readBody(request: Request): Promise<Record<string, unknown>> {
   }
 }
 
+function signInFailureResponse(result: Extract<AuthSignInResult, { ok: false }>): NextResponse {
+  const status = result.extras?.status ?? 401;
+  const payload: Record<string, unknown> = {
+    error: result.error,
+    code: result.extras?.code ?? "SIGN_IN_FAILED",
+  };
+  if (result.extras?.unconfirmed === true) payload.unconfirmed = true;
+  if (result.extras?.passwordResetRequired === true) payload.passwordResetRequired = true;
+  if (result.extras?.transient === true) payload.transient = true;
+  if (result.extras?.cognitoErrorName) payload.cognitoErrorName = result.extras.cognitoErrorName;
+  if (result.extras?.cognitoErrorCode) payload.cognitoErrorCode = result.extras.cognitoErrorCode;
+
+  if (process.env.NODE_ENV === "development") {
+    payload.debug = { extras: result.extras ?? null };
+  }
+
+  console.warn("[cognito/login] sign_in_failed", {
+    status,
+    code: payload.code,
+    error: result.error,
+    cognitoErrorName: result.extras?.cognitoErrorName,
+    cognitoErrorCode: result.extras?.cognitoErrorCode,
+  });
+
+  const res = NextResponse.json(payload, { status });
+  clearCognitoCookieJar(res);
+  return res;
+}
+
 export async function POST(request: Request) {
   try {
     const cfg = getCognitoConfig();
     if (!cfg) {
-      return NextResponse.json({ error: "cognito_unconfigured" }, { status: 503 });
+      return NextResponse.json({ error: "cognito_unconfigured", code: "COGNITO_ENV_MISSING" }, { status: 503 });
     }
 
     const body = await readBody(request);
@@ -30,12 +61,13 @@ export async function POST(request: Request) {
     const nextRaw = typeof body.next === "string" ? body.next : null;
 
     if (!username || !password) {
-      return NextResponse.json({ error: "missing_credentials" }, { status: 400 });
+      return NextResponse.json({ error: "missing_credentials", code: "VALIDATION" }, { status: 400 });
     }
 
-    const provider = createCognitoAuthProvider(cfg);
     try {
+      const provider = createCognitoAuthProvider(cfg);
       const result = await provider.signInWithPassword({ username, password });
+
       if (!result.ok) {
         if (result.challenge) {
           const cn = result.challenge.name;
@@ -43,52 +75,88 @@ export async function POST(request: Request) {
             challengeName: cn,
             requiresPasswordChange: cn === "NEW_PASSWORD_REQUIRED",
             mfaRelated: isMfaRelatedChallenge(cn),
-            note:
-              cn === "NEW_PASSWORD_REQUIRED"
-                ? "Typical for AdminCreateUser / invited users until permanent password is set via RespondToAuthChallenge."
-                : undefined,
+            mfaSetupPending: cn === "MFA_SETUP",
+            softwareTokenMfaPending: cn === "SOFTWARE_TOKEN_MFA",
           });
-          // TODO(MFA): Surface RespondToAuthChallenge UX here when COGNITO_TEMP_DISABLE_USER_MFA_BEFORE_LOGIN is off.
-          return NextResponse.json(
-            {
-              error: "auth_challenge",
-              challengeName: cn,
-              session: result.challenge.session ?? null,
-              mfaOptional: cfg.mfaOptional,
-              requiresPasswordChange: cn === "NEW_PASSWORD_REQUIRED",
-            },
-            { status: 409 }
-          );
+          const json = cognitoChallengeJson(cn, result.challenge.session, cfg);
+
+          if (process.env.NODE_ENV === "development") {
+            json.debug = {
+              note:
+                cn === "NEW_PASSWORD_REQUIRED"
+                  ? "Typical for AdminCreateUser until permanent password via RespondToAuthChallenge."
+                  : undefined,
+            };
+          }
+
+          return NextResponse.json(json, { status: 409 });
         }
-        return NextResponse.json({ error: result.error }, { status: 401 });
+        return signInFailureResponse(result);
       }
 
       const bundle = result.sessionTokens;
       if (!bundle) {
-        return NextResponse.json({ error: "missing_tokens" }, { status: 502 });
-      }
-
-      const valid = await validateAccessToken(cfg, bundle.accessToken);
-      if (!valid) {
-        const res = NextResponse.json({ error: "token_validation_failed" }, { status: 502 });
+        console.error("[cognito/login] success path missing sessionTokens bundle");
+        const res = NextResponse.json(
+          { error: "missing_tokens", code: "TOKEN_BUNDLE_MISSING" },
+          { status: 500 }
+        );
         clearCognitoCookieJar(res);
         return res;
       }
 
-      const res = NextResponse.json({
-        ok: true,
-        user: result.user,
-        redirectTo: resolvePostLoginRedirect(result.user.groups, nextRaw),
-      });
-      applyCognitoTokenCookies(res, bundle);
+      const valid = await validateAccessToken(cfg, bundle.accessToken);
+      if (!valid) {
+        console.error("[cognito/login] token_validation_failed post GetUser");
+        const res = NextResponse.json(
+          { error: "token_validation_failed", code: "ACCESS_TOKEN_INVALID" },
+          { status: 500 }
+        );
+        clearCognitoCookieJar(res);
+        return res;
+      }
+
+      let res: NextResponse;
+      try {
+        res = NextResponse.json({
+          ok: true,
+          user: result.user,
+          redirectTo: resolvePostLoginRedirect(result.user.groups, nextRaw),
+          code: "OK",
+        });
+        applyCognitoTokenCookies(res, bundle);
+      } catch (cookieErr) {
+        console.error("[cognito/login] cookie/session apply failed", cookieErr);
+        res = NextResponse.json(
+          { error: "session_apply_failed", code: "COOKIE_APPLY" },
+          { status: 500 }
+        );
+        clearCognitoCookieJar(res);
+      }
       return res;
-    } catch {
-      const res = NextResponse.json({ error: "invalid_credentials" }, { status: 401 });
+    } catch (e) {
+      console.error("[cognito/login] handler_error", e);
+      const res = NextResponse.json(
+        { error: "login_internal_error", code: "HANDLER_EXCEPTION" },
+        { status: 500 }
+      );
       clearCognitoCookieJar(res);
       return res;
     }
-  } catch (e) {
-    console.error("[cognito/login] unexpected", e);
-    return NextResponse.json({ error: "login_unexpected_error" }, { status: 500 });
+  } catch (outer) {
+    console.error("[cognito/login] boundary_error", outer);
+    try {
+      const res = NextResponse.json(
+        { error: "login_unexpected_error", code: "UNHANDLED_BOUNDARY" },
+        { status: 500 }
+      );
+      clearCognitoCookieJar(res);
+      return res;
+    } catch {
+      return new NextResponse(JSON.stringify({ error: "login_fatal", code: "FATAL" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
   }
 }

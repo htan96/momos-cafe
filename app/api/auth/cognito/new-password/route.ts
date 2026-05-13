@@ -4,7 +4,9 @@ import {
   respondToNewPasswordChallenge,
   validateAccessToken,
 } from "@/lib/auth/cognito/cognitoClient";
+import { classifyCognitoAuthFailure, extractSafeCognitoSdkFields } from "@/lib/auth/cognito/cognitoSdkError";
 import { getCognitoConfig } from "@/lib/auth/cognito/config";
+import { cognitoChallengeJson } from "@/lib/auth/cognito/challengeResponse";
 import { applyCognitoTokenCookies } from "@/lib/auth/cognito/httpCookies";
 import { resolvePostLoginRedirect } from "@/lib/auth/cognito/redirectByRole";
 import { clearCognitoCookieJar } from "@/lib/auth/cognito/sessionCookies";
@@ -48,10 +50,24 @@ export async function POST(request: Request) {
         newPassword,
       });
     } catch (e) {
-      console.warn("[cognito/new-password] RespondToAuthChallenge failed", e);
+      const c = classifyCognitoAuthFailure(e);
+      const sdk = extractSafeCognitoSdkFields(e);
+      console.warn("[cognito/new-password] RespondToAuthChallenge failed", {
+        code: c.code,
+        cognitoErrorName: sdk.cognitoErrorName,
+        cognitoErrorCode: sdk.cognitoErrorCode,
+      });
       const res = NextResponse.json(
-        { error: "password_change_failed", code: "COGNITO_CHALLENGE" },
-        { status: 401 }
+        {
+          error: c.error,
+          code: c.code,
+          ...(c.unconfirmed === true ? { unconfirmed: true } : {}),
+          ...(c.passwordResetRequired === true ? { passwordResetRequired: true } : {}),
+          ...(c.transient === true ? { transient: true } : {}),
+          ...(sdk.cognitoErrorName ? { cognitoErrorName: sdk.cognitoErrorName } : {}),
+          ...(sdk.cognitoErrorCode ? { cognitoErrorCode: sdk.cognitoErrorCode } : {}),
+        },
+        { status: c.httpStatus >= 400 ? c.httpStatus : 401 }
       );
       clearCognitoCookieJar(res);
       return res;
@@ -62,14 +78,10 @@ export async function POST(request: Request) {
         challengeName: out.challengeName,
       });
       return NextResponse.json(
-        {
-          error: "auth_challenge",
-          code: "FOLLOW_ON_CHALLENGE",
-          challengeName: out.challengeName,
-          session: out.session ?? null,
-          mfaOptional: cfg.mfaOptional,
+        cognitoChallengeJson(out.challengeName, out.session, cfg, {
           requiresPasswordChange: false,
-        },
+          code: "FOLLOW_ON_CHALLENGE",
+        }),
         { status: 409 }
       );
     }

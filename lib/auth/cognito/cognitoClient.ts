@@ -11,6 +11,13 @@ import {
   SignUpCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
 import type { CognitoEnvConfig } from "@/lib/auth/cognito/config";
+import {
+  classifyCognitoAuthFailure,
+  extractSafeCognitoSdkFields,
+  unexpectedAuthResponseFailure,
+  type CognitoLoginFailureClassification,
+} from "@/lib/auth/cognito/cognitoSdkError";
+
 import { cognitoSecretHash } from "@/lib/auth/cognito/secretHash";
 import { decodeCognitoIdTokenUnsafe } from "@/lib/auth/cognito/tokens";
 import { isMfaRelatedChallenge } from "@/lib/auth/cognito/mfa";
@@ -47,7 +54,11 @@ export type PasswordAuthResult =
       kind: "challenge";
       challengeName: string;
       session?: string | null;
-    };
+    }
+  | { kind: "failure"; classification: CognitoLoginFailureClassification };
+
+/** Tokens or challenge — `{ kind: "failure" }` applies only to `signInWithPassword`. */
+export type PasswordAuthFlowResult = Extract<PasswordAuthResult, { kind: "tokens" } | { kind: "challenge" }>;
 
 export async function signInWithPassword(
   cfg: CognitoEnvConfig,
@@ -67,7 +78,19 @@ export async function signInWithPassword(
       })
     );
 
-  let resp = await initiate();
+  let resp: Awaited<ReturnType<typeof initiate>>;
+  try {
+    resp = await initiate();
+  } catch (e) {
+    const classification = classifyCognitoAuthFailure(e);
+    const sdk = extractSafeCognitoSdkFields(e);
+    console.warn("[cognito] InitiateAuth(USER_PASSWORD_AUTH) failed", {
+      code: classification.code,
+      cognitoErrorName: sdk.cognitoErrorName,
+      cognitoErrorCode: sdk.cognitoErrorCode,
+    });
+    return { kind: "failure", classification };
+  }
 
   function tokensFrom(
     r: Awaited<ReturnType<typeof initiate>>
@@ -102,7 +125,18 @@ export async function signInWithPassword(
           SoftwareTokenMfaSettings: { Enabled: false, PreferredMfa: false },
         })
       );
-      resp = await initiate();
+      try {
+        resp = await initiate();
+      } catch (e) {
+        const classification = classifyCognitoAuthFailure(e);
+        const sdk = extractSafeCognitoSdkFields(e);
+        console.warn("[cognito] InitiateAuth retry after MFA preference clear failed", {
+          code: classification.code,
+          cognitoErrorName: sdk.cognitoErrorName,
+          cognitoErrorCode: sdk.cognitoErrorCode,
+        });
+        return { kind: "failure", classification };
+      }
       const second = tokensFrom(resp);
       if (second) {
         console.warn(
@@ -111,7 +145,10 @@ export async function signInWithPassword(
         return second;
       }
     } catch (e) {
-      console.warn("[cognito] MFA bypass (AdminSetUserMFAPPreference) failed — ensure IAM cognito-idp:AdminSetUserMFAPPreference", e);
+      console.warn(
+        "[cognito] MFA bypass (AdminSetUserMFAPPreference) failed — ensure IAM cognito-idp:AdminSetUserMFAPPreference",
+        extractSafeCognitoSdkFields(e)
+      );
     }
   }
 
@@ -119,7 +156,8 @@ export async function signInWithPassword(
     return { kind: "challenge", challengeName: resp.ChallengeName, session: resp.Session };
   }
 
-  throw new Error("Unexpected InitiateAuth response");
+  console.error("[cognito] InitiateAuth returned neither AuthenticationResult nor ChallengeName");
+  return { kind: "failure", classification: unexpectedAuthResponseFailure() };
 }
 
 export async function refreshTokens(
@@ -242,7 +280,7 @@ export async function respondToNewPasswordChallenge(params: {
   session: string;
   username: string;
   newPassword: string;
-}): Promise<PasswordAuthResult> {
+}): Promise<PasswordAuthFlowResult> {
   const username = params.username.trim();
   const session = params.session.trim();
   if (!session || !username || !params.newPassword) {

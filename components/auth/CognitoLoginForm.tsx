@@ -19,6 +19,44 @@ function isLikelyTransportLayerMessage(msg: string): boolean {
   return msg.includes("HTTP") || /\s/.test(msg);
 }
 
+function signInErrorUserMessage(out: {
+  error: string;
+  code?: string;
+  challenge?: { mfaSetupPending?: boolean; softwareTokenMfaPending?: boolean };
+}): string {
+  if (out.code === "USER_NOT_CONFIRMED" || out.error === "user_not_confirmed") {
+    return "This account is not confirmed yet — check your email for a confirmation link.";
+  }
+  if (out.code === "PASSWORD_RESET_REQUIRED" || out.error === "password_reset_required") {
+    return "Your password must be reset — use Forgot password.";
+  }
+  if (out.code === "RATE_LIMITED" || out.error === "rate_limited") {
+    return "Too many sign-in attempts — wait a minute and try again.";
+  }
+  if (out.code === "COGNITO_ENV_MISSING" || out.error === "cognito_unconfigured") {
+    return "Sign-in is temporarily unavailable. Please try again later.";
+  }
+  if (
+    out.code === "POOL_OR_CLIENT_CONFIG" ||
+    out.error === "cognito_misconfigured" ||
+    out.code === "TRANSIENT" ||
+    out.error === "cognito_unavailable"
+  ) {
+    return "Sign-in is temporarily unavailable. Please try again in a moment.";
+  }
+  if (out.code === "NETWORK" || out.code === "PARSE") {
+    return out.error;
+  }
+  if (out.challenge?.mfaSetupPending || out.challenge?.softwareTokenMfaPending) {
+    return "We need you to finish multi-factor setup before you can sign in. Please contact support if this continues.";
+  }
+  if (out.error === "invalid_credentials") {
+    return "Invalid username/email or password.";
+  }
+  if (isLikelyTransportLayerMessage(out.error)) return out.error;
+  return "Could not sign in.";
+}
+
 export default function CognitoLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -60,11 +98,11 @@ export default function CognitoLoginForm() {
         return;
       }
       setError(
-        out.error === "invalid_credentials"
-          ? "Invalid username/email or password."
-          : isLikelyTransportLayerMessage(out.error)
-            ? out.error
-            : "Could not sign in."
+        signInErrorUserMessage({
+          error: out.error,
+          code: out.code,
+          challenge: out.challenge ?? undefined,
+        })
       );
       return;
     }

@@ -31,13 +31,18 @@ export default function CognitoSignupForm() {
     setError(null);
     setInfo(null);
     try {
+      const trimmedEmail = email.trim();
+      if (!trimmedEmail) {
+        setError("Please enter your email.");
+        return;
+      }
       const res = await fetch("/api/auth/cognito/signup", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           username: username.trim(),
-          email: email.trim() || undefined,
+          email: trimmedEmail,
           password,
         }),
       });
@@ -120,11 +125,12 @@ export default function CognitoSignupForm() {
               />
             </label>
             <label className="block">
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-charcoal/60">
-                Email (optional)
-              </span>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-charcoal/60">Email</span>
               <input
                 type="email"
+                required
+                autoComplete="email"
+                placeholder="you@example.com"
                 value={email}
                 onChange={(ev) => setEmail(ev.target.value)}
                 className={storefrontAuthInput}

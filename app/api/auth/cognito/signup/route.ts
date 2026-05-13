@@ -19,12 +19,17 @@ export async function POST(request: Request) {
   }
 
   const body = await readBody(request);
-  const username = typeof body.username === "string" ? body.username : "";
+  const username = typeof body.username === "string" ? body.username.trim() : "";
   const password = typeof body.password === "string" ? body.password : "";
-  const email = typeof body.email === "string" ? body.email : undefined;
+  const email =
+    typeof body.email === "string" ? body.email.trim() : "";
 
   if (!username || !password) {
     return NextResponse.json({ error: "missing_fields" }, { status: 400 });
+  }
+
+  if (!email) {
+    return NextResponse.json({ error: "missing_email", code: "VALIDATION" }, { status: 400 });
   }
 
   try {

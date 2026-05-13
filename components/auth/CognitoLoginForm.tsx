@@ -14,7 +14,7 @@ import {
 import { commerceCheckoutShell } from "@/lib/commerce/tokens";
 import { resolvePostLoginRedirect } from "@/lib/auth/cognito/redirectByRole";
 
-/** Full sentences from `readApiJson` (HTML/502 bodies); snake_case stays for storefront copy. */
+/** Messages from `readApiJson` when the body is not JSON (e.g. HTML gateway errors); snake_case stays for storefront copy. */
 function isLikelyTransportLayerMessage(msg: string): boolean {
   return msg.includes("HTTP") || /\s/.test(msg);
 }

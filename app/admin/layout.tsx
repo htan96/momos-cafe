@@ -9,12 +9,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <PlatformShell
       variant="admin"
+      environment="admin"
       areaEyebrow="Operations"
       areaTitle="Staff console"
       navItems={ADMIN_PLATFORM_NAV}
       userHint={userHint}
     >
-      <div className="max-w-[900px] mx-auto px-5 md:px-8 lg:px-10 py-10 md:py-14 lg:pb-24">{children}</div>
+      <div className="max-w-[1100px] mx-auto px-5 md:px-8 lg:px-10 py-10 md:py-14 lg:pb-24">{children}</div>
     </PlatformShell>
   );
 }

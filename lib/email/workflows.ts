@@ -1,8 +1,13 @@
+import type { WorkflowId } from "@/domains/communications/workflowIds";
+
 /**
  * Label-only registry for future email automation (no provider calls).
- * Maps workflow keys to human-readable descriptions for UI and orchestration planning.
+ * Keys are aligned with WorkflowId (@/domains/communications/workflowIds).
  */
-export const EMAIL_WORKFLOW_REGISTRY = {
+export const EMAIL_WORKFLOW_REGISTRY: Record<
+  WorkflowId,
+  Readonly<{ label: string }>
+> = {
   /** Order lifecycle, receipts, pickup ready, shipped */
   transactionalCommerce: { label: "Commerce transactional" },
   /** Catering proposal, confirmation, event reminders */

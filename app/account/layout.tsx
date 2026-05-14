@@ -8,6 +8,7 @@ export default async function AccountLayout({ children }: { children: React.Reac
   return (
     <PlatformShell
       variant="customer"
+      environment="customer"
       areaEyebrow="Signed in"
       areaTitle="Your account"
       navItems={ACCOUNT_PLATFORM_NAV}

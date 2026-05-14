@@ -13,6 +13,8 @@ export type PlatformNavItem = { href: string; label: string; section?: string };
 
 type Props = {
   variant: PlatformShellVariant;
+  /** Optional subdued surface label — pass when you want a visible environment hint (layouts may omit). */
+  environment?: PlatformShellVariant;
   areaEyebrow: string;
   areaTitle: string;
   navItems: PlatformNavItem[];
@@ -88,8 +90,21 @@ const shellTheme: Record<
   },
 };
 
+const environmentBadgeTone: Record<PlatformShellVariant, string> = {
+  customer: "bg-teal-dark/90 text-white",
+  admin: "bg-red text-white",
+  super_admin: "bg-gold/95 text-teal-dark",
+};
+
+function environmentBadgeLabel(surface: PlatformShellVariant): string {
+  if (surface === "super_admin") return "Platform";
+  if (surface === "admin") return "Admin";
+  return "Customer";
+}
+
 export default function PlatformShell({
   variant,
+  environment,
   areaEyebrow,
   areaTitle,
   navItems,
@@ -125,9 +140,18 @@ export default function PlatformShell({
               />
             </Link>
             <div className="hidden sm:flex flex-col min-w-0 border-l border-cream-dark/35 pl-3 ml-0.5">
-              <span className={`text-[10px] font-semibold uppercase tracking-[0.22em] ${theme.eyebrowClass}`}>
-                {areaEyebrow}
-              </span>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={`text-[10px] font-semibold uppercase tracking-[0.22em] ${theme.eyebrowClass}`}>
+                  {areaEyebrow}
+                </span>
+                {environment ? (
+                  <span
+                    className={`text-[9px] font-semibold uppercase tracking-[0.16em] px-2 py-[3px] rounded-md shadow-sm shrink-0 ${environmentBadgeTone[environment]}`}
+                  >
+                    {environmentBadgeLabel(environment)}
+                  </span>
+                ) : null}
+              </div>
               <span className={`text-[15px] truncate ${theme.titleClass}`}>{areaTitle}</span>
             </div>
           </div>

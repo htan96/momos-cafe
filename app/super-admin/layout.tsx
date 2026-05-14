@@ -9,12 +9,13 @@ export default async function SuperAdminLayout({ children }: { children: React.R
   return (
     <PlatformShell
       variant="super_admin"
+      environment="super_admin"
       areaEyebrow="Governance"
       areaTitle="Super admin"
       navItems={SUPER_ADMIN_PLATFORM_NAV}
       userHint={userHint}
     >
-      <div className="max-w-[900px] mx-auto px-5 md:px-8 lg:px-10 py-10 md:py-14 lg:pb-24">{children}</div>
+      <div className="max-w-[1100px] mx-auto px-5 md:px-8 lg:px-10 py-10 md:py-14 lg:pb-24">{children}</div>
     </PlatformShell>
   );
 }

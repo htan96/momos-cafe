@@ -13,6 +13,7 @@ export const ADMIN_PLATFORM_NAV: PlatformNavItem[] = [
   { href: "/admin/catering-orders", label: "Catering" },
   { href: "/admin/customer-lookup", label: "Customers" },
   { href: "/admin/order-lookup", label: "Orders" },
+  { href: "/admin/settings/maintenance", label: "Maintenance" },
 ];
 
 export const SUPER_ADMIN_PLATFORM_NAV: PlatformNavItem[] = [
@@ -22,6 +23,7 @@ export const SUPER_ADMIN_PLATFORM_NAV: PlatformNavItem[] = [
   { href: "/super-admin/customer-lookup", label: "Customers" },
   { href: "/super-admin/cognito-tools", label: "Cognito" },
   { href: "/super-admin/audit", label: "Systems" },
+  { href: "/admin/settings/maintenance", label: "Maintenance" },
 ];
 
 export const PORTAL_PLATFORM_NAV: PlatformNavItem[] = [{ href: "/portal", label: "Home" }];

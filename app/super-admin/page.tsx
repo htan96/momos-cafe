@@ -22,6 +22,11 @@ const cards = [
     description: "Safe helpers for resets, MFA posture, and user hygiene.",
   },
   {
+    title: "Maintenance mode",
+    href: "/admin/settings/maintenance",
+    description: "Same staff controls as Operations — pause shop or menu for customers site-wide.",
+  },
+  {
     title: "Systems & audit",
     href: "/super-admin/audit",
     description: "Trace changes, integrations, and health signals.",

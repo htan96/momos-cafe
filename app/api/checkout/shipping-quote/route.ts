@@ -6,6 +6,8 @@ import { getShippoRates } from "@/lib/shipping/shippoClient";
 import { getShippoOriginAddressFromSettings } from "@/lib/server/shippoOriginAddress";
 import type { UnifiedMerchLine } from "@/types/commerce";
 import type { AddressCreateRequest } from "shippo";
+import { getMaintenanceFlags } from "@/lib/app-settings/settings";
+import { maintenanceModeJsonResponse } from "@/lib/maintenance/unifiedCartMaintenance";
 
 function exposeShippingQuoteDetailToClient(): boolean {
   return (
@@ -34,6 +36,11 @@ export async function POST(req: Request) {
     const { lines, issues } = parseUnifiedCartLines(body.lines);
     if (issues.length > 0) {
       return NextResponse.json({ error: "invalid_cart", issues }, { status: 422 });
+    }
+
+    const flags = await getMaintenanceFlags();
+    if (lines.some((l) => l.kind === "merch") && !flags.shopEnabled) {
+      return maintenanceModeJsonResponse("SHOP_DISABLED");
     }
 
     const merchShippable = lines.filter(

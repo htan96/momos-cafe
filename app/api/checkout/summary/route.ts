@@ -4,11 +4,16 @@ import { partitionSubtotalsUsd, usdToCents } from "@/lib/commerce/orderMoney";
 import { parseUnifiedCartLines } from "@/lib/commerce/parseUnifiedCartLines";
 import { cartHasBlockingIssues, validateUnifiedCart } from "@/lib/commerce/cartValidation";
 import { summarizeFulfillmentEligibility } from "@/lib/commerce/fulfillmentEligibility";
+import { getMaintenanceFlags } from "@/lib/app-settings/settings";
+import { maintenanceBlockForUnifiedLines } from "@/lib/maintenance/unifiedCartMaintenance";
 
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as { lines?: unknown };
     const { lines, issues: parseIssues } = parseUnifiedCartLines(body.lines);
+
+    const maint = maintenanceBlockForUnifiedLines(lines, await getMaintenanceFlags());
+    if (maint) return maint;
 
     const fulfillment = buildFulfillmentSummary(lines);
     const { kitchenUsd, retailUsd, totalUsd } = partitionSubtotalsUsd(lines);

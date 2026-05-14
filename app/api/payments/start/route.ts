@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { jsonError } from "@/lib/server/apiErrors";
 import { rateLimitHit, clientIp } from "@/lib/server/rateLimitMemory";
 import { registerPendingCommercePayment } from "@/lib/payments/commercePaymentOrchestration";
+import { prisma } from "@/lib/prisma";
+import { getMaintenanceFlags } from "@/lib/app-settings/settings";
+import { maintenanceModeJsonResponse } from "@/lib/maintenance/unifiedCartMaintenance";
 
 /** Registers (idempotent) pending Square-backed payment shell for a commerce order */
 export async function POST(req: Request) {
@@ -24,6 +27,24 @@ export async function POST(req: Request) {
   }
 
   try {
+    const order = await prisma.commerceOrder.findUnique({
+      where: { id: commerceOrderId },
+      select: { id: true, items: { select: { fulfillmentPipeline: true } } },
+    });
+    if (!order) {
+      return jsonError(404, "ORDER_NOT_FOUND", "Order not found");
+    }
+
+    const flags = await getMaintenanceFlags();
+    const hasKitchen = order.items.some((i) => i.fulfillmentPipeline === "KITCHEN");
+    const hasRetail = order.items.some((i) => i.fulfillmentPipeline === "RETAIL");
+    if (hasRetail && !flags.shopEnabled) {
+      return maintenanceModeJsonResponse("SHOP_DISABLED");
+    }
+    if (hasKitchen && !flags.menuEnabled) {
+      return maintenanceModeJsonResponse("MENU_DISABLED");
+    }
+
     const result = await registerPendingCommercePayment({
       commerceOrderId,
       idempotencyKey,

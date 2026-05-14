@@ -17,6 +17,11 @@ export default async function AdminHomePage() {
       href: "/admin/order-lookup",
       description: "Open a commerce order quickly by identifier or confirmation details.",
     },
+    {
+      title: "Maintenance mode",
+      href: "/admin/settings/maintenance",
+      description: "Pause the retail shop or café menu for customers while keeping staff tools available.",
+    },
   ] as const;
 
   return (

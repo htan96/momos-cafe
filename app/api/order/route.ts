@@ -24,6 +24,8 @@ import { getCustomerSession } from "@/lib/auth/getCustomerSession";
 import { reconcileCommerceOrderAfterStorefrontPayment } from "@/lib/server/reconcileCommerceCheckout";
 import { persistStorefrontShipmentSelection } from "@/lib/server/persistStorefrontShipment";
 import type { UnifiedMerchLine } from "@/types/commerce";
+import { getMaintenanceFlags } from "@/lib/app-settings/settings";
+import { maintenanceModeJsonResponse } from "@/lib/maintenance/unifiedCartMaintenance";
 
 const TAX_RATE = 0.0925;
 
@@ -337,6 +339,14 @@ export async function POST(request: Request) {
     if (cart.length === 0 && merchLines.length === 0) {
       console.warn("[Order] 400: Empty cart");
       return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
+    }
+
+    const maintenanceFlags = await getMaintenanceFlags();
+    if (merchLines.length > 0 && !maintenanceFlags.shopEnabled) {
+      return maintenanceModeJsonResponse("SHOP_DISABLED");
+    }
+    if (cart.length > 0 && !maintenanceFlags.menuEnabled) {
+      return maintenanceModeJsonResponse("MENU_DISABLED");
     }
 
     const name = customer?.name?.trim() ?? "";

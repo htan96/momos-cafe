@@ -7,6 +7,8 @@ import { createCommerceOrderWithGroups } from "@/lib/server/commerceOrderCreate"
 import { loadAdminSettingsFromDb } from "@/lib/server/loadAdminSettings";
 import { validateCartEligibilityFromAdminSettings } from "@/lib/ordering/validateCartEligibility";
 import { verifyInternalSecretFromRequest } from "@/lib/server/internalAuth";
+import { getMaintenanceFlags } from "@/lib/app-settings/settings";
+import { maintenanceBlockForUnifiedLines } from "@/lib/maintenance/unifiedCartMaintenance";
 
 /** Draft commerce order + fulfillment groups — validates payload strictly */
 export async function POST(req: Request) {
@@ -20,6 +22,9 @@ export async function POST(req: Request) {
     if (lines.length === 0) {
       return NextResponse.json({ error: "lines required" }, { status: 400 });
     }
+
+    const maint = maintenanceBlockForUnifiedLines(lines, await getMaintenanceFlags());
+    if (maint) return maint;
 
     const adminSettings = await loadAdminSettingsFromDb();
     const kitchenElig = validateCartEligibilityFromAdminSettings(

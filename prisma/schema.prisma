@@ -15,6 +15,24 @@ model AdminSettings {
   @@map("admin_settings")
 }
 
+/**
+ * Centralized storefront availability flags.
+ *
+ * **`enabled: true`** ⇒ surface is **open** (browse + guarded checkout APIs allowed).
+ * **`enabled: false`** ⇒ **maintenance** (overlay + 403 on matching cart/order flows).
+ * This deliberately inverts confusing PowerApps-style “Yes = maintenance on” toggles: the row id describes
+ * the feature (`ShopEnabled`, `MenuEnabled`) and the column means that feature is available.
+ */
+model AppSetting {
+  settingId   String   @id @map("setting_id")
+  enabled     Boolean
+  description String?
+  lastUpdated DateTime @updatedAt @map("last_updated") @db.Timestamptz(6)
+  updatedBy   String?  @map("updated_by")
+
+  @@map("app_settings")
+}
+
 model CafeOrder {
   id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)

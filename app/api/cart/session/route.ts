@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getGuestCartSession, upsertGuestCartSession } from "@/lib/server/cartSession";
 import { parseUnifiedCartLines } from "@/lib/commerce/parseUnifiedCartLines";
 import { cartHasBlockingIssues, validateUnifiedCart } from "@/lib/commerce/cartValidation";
+import { getMaintenanceFlags } from "@/lib/app-settings/settings";
+import { maintenanceBlockForUnifiedLines } from "@/lib/maintenance/unifiedCartMaintenance";
 
 export async function POST(req: Request) {
   try {
@@ -18,6 +20,9 @@ export async function POST(req: Request) {
         { status: 422 }
       );
     }
+
+    const maint = maintenanceBlockForUnifiedLines(lines, await getMaintenanceFlags());
+    if (maint) return maint;
 
     const validationIssues = validateUnifiedCart(lines);
     if (cartHasBlockingIssues(validationIssues)) {

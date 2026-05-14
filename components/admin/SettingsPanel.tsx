@@ -12,7 +12,17 @@ import {
 const inputClass =
   "px-3.5 py-2.5 rounded-lg border-2 border-cream-dark bg-cream text-charcoal placeholder:text-charcoal/35 focus:outline-none focus:border-teal";
 
-export default function SettingsPanel() {
+export type SettingsPanelProps = {
+  /** Overrides the card title (e.g. when embedded under a governance page header). */
+  panelTitle?: string;
+  /** Overrides the lead sentence under the title. */
+  panelDescription?: string;
+};
+
+export default function SettingsPanel({
+  panelTitle = "Site Settings",
+  panelDescription = "Changes save automatically and apply across the site.",
+}: SettingsPanelProps = {}) {
   const { settings, updateSettings } = useAdminSettings();
 
   const handleChange = <K extends keyof AdminSettings>(
@@ -54,10 +64,8 @@ export default function SettingsPanel() {
 
   return (
     <div className="bg-white border-2 border-cream-dark rounded-2xl p-6 shadow-[0_4px_20px_rgba(0,0,0,0.08)] mb-8">
-      <h2 className="font-display text-xl text-charcoal mb-4">Site Settings</h2>
-      <p className="text-sm text-gray-mid mb-6">
-        Changes save automatically and apply across the site.
-      </p>
+      <h2 className="font-display text-xl text-charcoal mb-4">{panelTitle}</h2>
+      <p className="text-sm text-gray-mid mb-6">{panelDescription}</p>
 
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-cream-dark bg-cream px-4 py-3 mb-6">
         <span className="text-sm font-medium text-charcoal">

@@ -22,7 +22,7 @@ export default function MobileNavMoreSheet({ open, onClose, title, links }: Prop
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[850] flex justify-center items-end lg:hidden">
+    <div className="fixed inset-0 z-[1200] flex justify-center items-end lg:hidden">
       <button
         type="button"
         aria-label="Close menu"
@@ -30,7 +30,7 @@ export default function MobileNavMoreSheet({ open, onClose, title, links }: Prop
         onClick={onClose}
       />
       <aside
-        className="relative z-[851] w-full max-w-lg bg-cream rounded-t-2xl border border-cream-dark shadow-2xl max-h-[min(78vh,560px)] flex flex-col pb-[env(safe-area-inset-bottom)]"
+        className="relative z-[1201] w-full max-w-lg bg-cream rounded-t-2xl border border-cream-dark shadow-2xl max-h-[min(78vh,560px)] flex flex-col pb-[env(safe-area-inset-bottom)]"
         role="dialog"
         aria-modal="true"
         aria-label={title}

@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { Fragment } from "react";
 import { usePathname } from "next/navigation";
 import SignOutButton from "@/app/account/SignOutButton";
+import { pathMatchesNav } from "@/lib/navigation/pathMatchesNav";
 
 export type PlatformShellVariant = "customer" | "admin" | "super_admin";
 
@@ -22,15 +22,6 @@ type Props = {
   userHint?: string | null;
 };
 
-/** Exact match only for dashboard roots — subpages highlight their own link only. */
-function pathMatchesNav(pathname: string, href: string): boolean {
-  if (pathname === href) return true;
-  if (href === "/account" || href === "/admin" || href === "/super-admin") {
-    return false;
-  }
-  return pathname.startsWith(`${href}/`);
-}
-
 const shellTheme: Record<
   PlatformShellVariant,
   {
@@ -42,9 +33,6 @@ const shellTheme: Record<
     userHintClass: string;
     sidebarActive: string;
     sidebarIdle: string;
-    mobileStrip: string;
-    mobileActive: string;
-    mobileIdle: string;
   }
 > = {
   customer: {
@@ -56,9 +44,6 @@ const shellTheme: Record<
     userHintClass: "text-charcoal/55",
     sidebarActive: "bg-teal/12 text-teal-dark font-semibold",
     sidebarIdle: "text-charcoal/65 hover:bg-cream-dark/35 hover:text-charcoal",
-    mobileStrip: "border-t border-gold/30 bg-cream/95 backdrop-blur-sm",
-    mobileActive: "bg-teal/12 text-teal-dark font-semibold",
-    mobileIdle: "text-charcoal/65 hover:bg-cream-dark/30 hover:text-charcoal",
   },
   admin: {
     topBar: "bg-cream border-b-[3px] border-gold",
@@ -69,9 +54,6 @@ const shellTheme: Record<
     userHintClass: "text-charcoal/55",
     sidebarActive: "bg-red/10 text-red font-semibold",
     sidebarIdle: "text-charcoal/65 hover:bg-cream-dark/40 hover:text-charcoal",
-    mobileStrip: "border-t border-gold/30 bg-cream/95 backdrop-blur-sm",
-    mobileActive: "bg-red/10 text-red font-semibold",
-    mobileIdle: "text-charcoal/65 hover:bg-cream-dark/35 hover:text-charcoal",
   },
   super_admin: {
     topBar: "bg-teal-dark border-b-[3px] border-gold/90",
@@ -84,9 +66,6 @@ const shellTheme: Record<
     userHintClass: "text-cream/70",
     sidebarActive: "bg-teal/14 text-teal-dark font-semibold border border-teal/25",
     sidebarIdle: "text-charcoal/65 hover:bg-cream-dark/45 hover:text-charcoal",
-    mobileStrip: "border-t border-teal-dark/35 bg-teal-dark/96 backdrop-blur-sm",
-    mobileActive: "bg-white/22 text-cream font-semibold border border-white/35",
-    mobileIdle: "text-cream/80 hover:bg-white/10 hover:text-cream",
   },
 };
 
@@ -120,26 +99,12 @@ export default function PlatformShell({
     return `${base} ${pathMatchesNav(pathname, href) ? theme.sidebarActive : theme.sidebarIdle}`;
   }
 
-  function mobileNavClass(href: string) {
-    const base = "shrink-0 rounded-lg px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em]";
-    return `${base} ${pathMatchesNav(pathname, href) ? theme.mobileActive : theme.mobileIdle}`;
-  }
-
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-gold/[0.08] via-cream-dark/40 to-cream-dark/20 border-t-[3px] border-gold/65">
-      <header className={`sticky top-0 z-[800] shrink-0 ${theme.topBar}`}>
+      <header className={`sticky top-16 z-[800] shrink-0 ${theme.topBar}`}>
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 h-[4.25rem] flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 min-w-0">
-            <Link href="/" className="flex items-center shrink-0 hover:opacity-90 transition-opacity">
-              <Image
-                src="/images/logo.png"
-                alt="Momo's Café"
-                width={120}
-                height={56}
-                className={`h-9 w-auto md:h-10 ${variant === "super_admin" ? "brightness-[1.06] contrast-[0.96]" : ""}`}
-              />
-            </Link>
-            <div className="hidden sm:flex flex-col min-w-0 border-l border-cream-dark/35 pl-3 ml-0.5">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="flex flex-col min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className={`text-[10px] font-semibold uppercase tracking-[0.22em] ${theme.eyebrowClass}`}>
                   {areaEyebrow}
@@ -156,8 +121,8 @@ export default function PlatformShell({
             </div>
           </div>
           <div className="flex items-center gap-4 md:gap-5 shrink-0">
-            <Link href="/" className={theme.storefrontClass} title="Return to Momo’s Café storefront">
-              Back to site
+            <Link href="/" className={theme.storefrontClass} title="Momo’s Café storefront">
+              Storefront
             </Link>
             {userHint ? (
               <span
@@ -170,17 +135,6 @@ export default function PlatformShell({
             <SignOutButton className={theme.signOutButtonClass} />
           </div>
         </div>
-
-        <nav
-          className={`lg:hidden px-3 py-2 flex gap-1 overflow-x-auto scrollbar-hide ${theme.mobileStrip}`}
-          aria-label="Section"
-        >
-          {navItems.map((item) => (
-            <Link key={item.href} href={item.href} className={mobileNavClass(item.href)}>
-              {item.label}
-            </Link>
-          ))}
-        </nav>
       </header>
 
       <div className="flex flex-1 min-w-0 max-w-[1200px] w-full mx-auto">

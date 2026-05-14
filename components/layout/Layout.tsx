@@ -15,8 +15,28 @@ import { HeaderSubNavProvider } from "@/context/HeaderSubNavContext";
 export default function Layout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
-  if (pathname.startsWith("/ops") || isPlatformPath(pathname)) {
+  if (pathname.startsWith("/ops")) {
     return <>{children}</>;
+  }
+
+  if (isPlatformPath(pathname)) {
+    return (
+      <CartProvider>
+        <ToastProvider>
+          <CartNavProvider>
+            <HeaderSubNavProvider>
+              <div className="flex flex-col min-h-screen bg-cream text-charcoal">
+                <Header />
+                <div className="flex-1 min-w-0 min-h-0">{children}</div>
+                <BottomNav />
+                <UnifiedCartDrawer />
+                <div className="lg:hidden h-16" aria-hidden="true" />
+              </div>
+            </HeaderSubNavProvider>
+          </CartNavProvider>
+        </ToastProvider>
+      </CartProvider>
+    );
   }
 
   if (

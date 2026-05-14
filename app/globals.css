@@ -162,3 +162,31 @@ html {
   transform: translateY(-2px) !important;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08) !important;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Global header: visibility fallbacks (768px matches Tailwind `md`)          */
+/* Primary desktop nav uses `hidden md:flex`; if utilities do not apply,    */
+/* anchors can appear inline on phones. These rules mirror that breakpoint. */
+/* -------------------------------------------------------------------------- */
+@media (max-width: 767.98px) {
+  nav.momos-header-desktop-nav {
+    display: none !important;
+  }
+
+  .momos-header-mobile-only {
+    display: flex;
+  }
+}
+
+@media (min-width: 768px) {
+  nav.momos-header-desktop-nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
+  .momos-header-mobile-only {
+    display: none !important;
+  }
+}

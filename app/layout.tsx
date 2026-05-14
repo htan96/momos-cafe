@@ -1,4 +1,5 @@
 import "./globals.css";
+import { Suspense } from "react";
 import { AppProviders } from "@/app/providers";
 import Layout from "@/components/layout/Layout";
 import {
@@ -77,7 +78,9 @@ export default function RootLayout({
     >
       <body className="font-sans">
         <AppProviders>
-          <Layout>{children}</Layout>
+          <Suspense fallback={<div className="min-h-screen bg-cream text-charcoal" aria-busy="true" />}>
+            <Layout>{children}</Layout>
+          </Suspense>
         </AppProviders>
       </body>
     </html>

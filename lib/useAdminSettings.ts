@@ -54,7 +54,7 @@ export function useAdminSettings() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/admin/settings")
+    fetch("/api/admin/settings", { credentials: "include" })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (cancelled) return;
@@ -98,6 +98,7 @@ export function useAdminSettings() {
         window.dispatchEvent(new CustomEvent("admin_settings_updated", { detail: next }));
         fetch("/api/admin/settings", {
           method: "PUT",
+          credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(next),
         }).catch(() => {});

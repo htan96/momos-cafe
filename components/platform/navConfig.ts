@@ -34,6 +34,7 @@ export const ADMIN_PLATFORM_NAV: PlatformNavItem[] = [
 export const SUPER_ADMIN_PLATFORM_NAV: PlatformNavItem[] = [
   { section: "Platform", href: "/super-admin", label: "Dashboard" },
   { href: "/super-admin/settings/platform", label: "Global settings" },
+  { href: "/super-admin/settings/restaurant", label: "Restaurant hours" },
   { section: "Access", href: "/super-admin/roles", label: "Roles" },
   { href: "/super-admin/admins", label: "Admins" },
   { href: "/super-admin/cognito-tools", label: "Cognito" },

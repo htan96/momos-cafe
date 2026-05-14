@@ -5,6 +5,7 @@ import Footer from "./Footer";
 import BottomNav from "@/components/ordering/BottomNav";
 import ShopStickyMerchCart from "@/components/sections/shop/ShopStickyMerchCart";
 import UnifiedCartDrawer from "@/components/commerce/UnifiedCartDrawer";
+import { isPlatformPath } from "@/lib/navigation/platformPaths";
 import { usePathname } from "next/navigation";
 import { CartProvider } from "@/context/CartContext";
 import { CartNavProvider } from "@/context/CartNavContext";
@@ -14,7 +15,7 @@ import { HeaderSubNavProvider } from "@/context/HeaderSubNavContext";
 export default function Layout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
-  if (pathname.startsWith("/ops")) {
+  if (pathname.startsWith("/ops") || isPlatformPath(pathname)) {
     return <>{children}</>;
   }
 

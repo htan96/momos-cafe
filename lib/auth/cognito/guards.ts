@@ -1,7 +1,13 @@
 import { decodeJwt } from "jose";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { getCognitoConfig, cognitoIssuer } from "@/lib/auth/cognito/config";
+import {
+  cookieHeaderIncludesRefreshToken,
+  getCookieValueFromHeader,
+  getSetCookieListFromHeaders,
+  mergeCognitoCookiesFromSetCookie,
+} from "@/lib/auth/cognito/cookieHeader";
+import { cognitoIssuer, getCognitoConfig } from "@/lib/auth/cognito/config";
 import { COGNITO_ID_TOKEN_COOKIE } from "@/lib/auth/cognito/sessionCookies";
 import { issuerMatches, sessionUserFromIdTokenPayload } from "@/lib/auth/cognito/tokens";
 import type { CognitoGroup } from "@/lib/auth/cognito/types";
@@ -53,12 +59,10 @@ function nextWithForwardedPath(request: NextRequest): NextResponse {
 
 type DecodedCognito = { user: NonNullable<ReturnType<typeof sessionUserFromIdTokenPayload>> };
 
-/** Parses ID JWT from cookie; roles from **`cognito:groups`** (`tokens.sessionUserFromIdTokenPayload`). */
-function decodeRequestCognitoSession(
-  request: NextRequest,
+function decodeCognitoSessionFromIdToken(
+  token: string | null | undefined,
   cfg: NonNullable<ReturnType<typeof getCognitoConfig>>
 ): DecodedCognito | null {
-  const token = request.cookies.get(COGNITO_ID_TOKEN_COOKIE)?.value;
   if (!token) return null;
   try {
     const payload = decodeJwt(token);
@@ -71,6 +75,66 @@ function decodeRequestCognitoSession(
   } catch {
     return null;
   }
+}
+
+/** Parses ID JWT from cookie; roles from **`cognito:groups`** (`tokens.sessionUserFromIdTokenPayload`). */
+function decodeRequestCognitoSession(
+  request: NextRequest,
+  cfg: NonNullable<ReturnType<typeof getCognitoConfig>>
+): DecodedCognito | null {
+  const token = request.cookies.get(COGNITO_ID_TOKEN_COOKIE)?.value;
+  return decodeCognitoSessionFromIdToken(token, cfg);
+}
+
+function withRenewalHeaders(res: NextResponse, renewalCookies: string[]): NextResponse {
+  for (const c of renewalCookies) {
+    res.headers.append("Set-Cookie", c);
+  }
+  return res;
+}
+
+/**
+ * When the ID token is expired but the refresh cookie is still valid, call the Node refresh route from the edge
+ * middleware, then decode the rotated ID token. Response `Set-Cookie` headers are forwarded to the browser on the
+ * outer `NextResponse` (`withRenewalHeaders`).
+ */
+async function resolveCognitoForMiddleware(
+  request: NextRequest,
+  cfg: NonNullable<ReturnType<typeof getCognitoConfig>>
+): Promise<{ cognito: DecodedCognito | null; renewalCookies: string[] }> {
+  let cognito = decodeRequestCognitoSession(request, cfg);
+  if (cognito) {
+    return { cognito, renewalCookies: [] };
+  }
+
+  const existingCookie = request.headers.get("cookie");
+  if (!cookieHeaderIncludesRefreshToken(existingCookie)) {
+    return { cognito: null, renewalCookies: [] };
+  }
+
+  const refreshUrl = new URL("/api/auth/cognito/refresh", request.nextUrl.origin);
+  let refreshRes: Response;
+  try {
+    refreshRes = await fetch(refreshUrl, {
+      method: "POST",
+      headers: { cookie: existingCookie ?? "" },
+    });
+  } catch {
+    return { cognito: null, renewalCookies: [] };
+  }
+
+  if (!refreshRes.ok) {
+    return { cognito: null, renewalCookies: [] };
+  }
+
+  const setCookies = getSetCookieListFromHeaders(refreshRes.headers);
+  const mergedCookieHeader = mergeCognitoCookiesFromSetCookie(existingCookie, setCookies);
+  const idToken = getCookieValueFromHeader(mergedCookieHeader, COGNITO_ID_TOKEN_COOKIE);
+  cognito = decodeCognitoSessionFromIdToken(idToken, cfg);
+  if (!cognito) {
+    return { cognito: null, renewalCookies: [] };
+  }
+  return { cognito, renewalCookies: setCookies };
 }
 
 function opsUnauthorizedApi(): NextResponse {
@@ -91,70 +155,68 @@ export async function cognitoGate(request: NextRequest): Promise<NextResponse> {
     if (!cfg) {
       return isApiOps ? cognitoUnconfiguredApi() : new NextResponse("Cognito auth is not configured.", { status: 503 });
     }
-    const cognito = decodeRequestCognitoSession(request, cfg);
+    const { cognito, renewalCookies } = await resolveCognitoForMiddleware(request, cfg);
     if (!cognito || !isAdmin(cognito.user.groups)) {
-      return isApiOps ? opsUnauthorizedApi() : redirectToLogin(request);
+      return withRenewalHeaders(isApiOps ? opsUnauthorizedApi() : redirectToLogin(request), renewalCookies);
     }
-    return nextWithForwardedPath(request);
+    return withRenewalHeaders(nextWithForwardedPath(request), renewalCookies);
   }
 
   if (!cfg) {
     return new NextResponse("Cognito auth is not configured (missing env).", { status: 503 });
   }
 
+  const { cognito, renewalCookies } = await resolveCognitoForMiddleware(request, cfg);
+
   if (pathname === "/account" || pathname.startsWith("/account/")) {
-    const cognito = decodeRequestCognitoSession(request, cfg);
     if (cognito) {
       const { groups } = cognito.user;
       if (isCustomer(groups)) {
-        return nextWithForwardedPath(request);
+        return withRenewalHeaders(nextWithForwardedPath(request), renewalCookies);
       }
       if (isAdmin(groups)) {
-        return redirectToRoleHome(request, groups);
+        return withRenewalHeaders(redirectToRoleHome(request, groups), renewalCookies);
       }
-      return redirectToLogin(request);
+      return withRenewalHeaders(redirectToLogin(request), renewalCookies);
     }
-    return redirectToLogin(request);
+    return withRenewalHeaders(redirectToLogin(request), renewalCookies);
   }
 
   if (pathname === "/admin" || pathname.startsWith("/admin/")) {
-    const cognito = decodeRequestCognitoSession(request, cfg);
     if (!cognito) {
-      return redirectToLogin(request);
+      return withRenewalHeaders(redirectToLogin(request), renewalCookies);
     }
     const { groups } = cognito.user;
     if (isAdmin(groups)) {
-      return nextWithForwardedPath(request);
+      return withRenewalHeaders(nextWithForwardedPath(request), renewalCookies);
     }
     if (isCustomer(groups)) {
-      return NextResponse.redirect(new URL("/account", request.url));
+      return withRenewalHeaders(NextResponse.redirect(new URL("/account", request.url)), renewalCookies);
     }
-    return redirectToLogin(request);
+    return withRenewalHeaders(redirectToLogin(request), renewalCookies);
   }
 
   if (pathname === "/super-admin" || pathname.startsWith("/super-admin/")) {
-    const cognito = decodeRequestCognitoSession(request, cfg);
     if (!cognito) {
-      return redirectToLogin(request);
+      return withRenewalHeaders(redirectToLogin(request), renewalCookies);
     }
     const { groups } = cognito.user;
     if (isSuperAdmin(groups)) {
-      return nextWithForwardedPath(request);
+      return withRenewalHeaders(nextWithForwardedPath(request), renewalCookies);
     }
     if (hasRole(groups, "admin")) {
-      return NextResponse.redirect(new URL("/admin", request.url));
+      return withRenewalHeaders(NextResponse.redirect(new URL("/admin", request.url)), renewalCookies);
     }
     if (isCustomer(groups)) {
-      return NextResponse.redirect(new URL("/account", request.url));
+      return withRenewalHeaders(NextResponse.redirect(new URL("/account", request.url)), renewalCookies);
     }
-    return redirectToLogin(request);
+    return withRenewalHeaders(redirectToLogin(request), renewalCookies);
   }
 
-  const cognito = decodeRequestCognitoSession(request, cfg);
   if (!cognito) {
-    return redirectToLogin(request);
+    return withRenewalHeaders(redirectToLogin(request), renewalCookies);
   }
-  return nextWithForwardedPath(request);
+  return withRenewalHeaders(nextWithForwardedPath(request), renewalCookies);
 }
 
 /**

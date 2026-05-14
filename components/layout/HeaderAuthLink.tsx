@@ -3,27 +3,52 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { readApiJson } from "@/lib/http/readApiJson";
+import { isTransientHttpStatus } from "@/lib/http/transientHttp";
+
+type FetchState = "in" | "out" | "transient_fail";
+
+async function fetchSessionState(): Promise<FetchState> {
+  let res: Response;
+  try {
+    res = await fetch("/api/auth/cognito/session", { credentials: "include" });
+  } catch {
+    return "transient_fail";
+  }
+  const parsed = await readApiJson<{ authenticated?: boolean; user?: { groups?: string[] } | null }>(res);
+  if (!parsed.ok) {
+    return isTransientHttpStatus(parsed.status) ? "transient_fail" : "out";
+  }
+  const d = parsed.data;
+  const customer = Boolean(d.authenticated && d.user?.groups?.includes("customer"));
+  return customer ? "in" : "out";
+}
 
 export default function HeaderAuthLink() {
   const [phase, setPhase] = useState<"loading" | "in" | "out">("loading");
 
   useEffect(() => {
-    fetch("/api/auth/cognito/session", { credentials: "include" })
-      .then((r) => readApiJson<{ authenticated?: boolean; user?: { groups?: string[] } | null }>(r))
-      .then((parsed) => {
-        if (!parsed.ok) {
-          setPhase("out");
-          return;
+    let cancelled = false;
+    void (async () => {
+      let state = await fetchSessionState();
+      if (!cancelled && state === "transient_fail") {
+        await new Promise((r) => setTimeout(r, 450));
+        if (!cancelled) {
+          state = await fetchSessionState();
         }
-        const d = parsed.data;
-        const customer = Boolean(d.authenticated && d.user?.groups?.includes("customer"));
-        setPhase(customer ? "in" : "out");
-      })
-      .catch(() => setPhase("out"));
+      }
+      if (!cancelled) {
+        setPhase(state === "in" ? "in" : "out");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (phase === "loading") {
-    return <span className="inline-block w-[4.5rem] h-4 rounded bg-cream-dark/40 animate-pulse" aria-hidden />;
+    return (
+      <span className="inline-block w-[4.5rem] h-4 rounded bg-cream-dark/40 animate-pulse" aria-hidden />
+    );
   }
 
   if (phase === "in") {

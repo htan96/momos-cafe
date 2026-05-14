@@ -3,6 +3,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { AuthUser } from "@/lib/auth/AuthProvider";
 import { readApiJson } from "@/lib/http/readApiJson";
+import { isTransientHttpStatus } from "@/lib/http/transientHttp";
 
 export type CognitoAuthChallengePayload = {
   challengeName: string;
@@ -51,9 +52,20 @@ export function CognitoAuthProvider({ children }: { children: React.ReactNode })
   const [loading, setLoading] = useState(true);
 
   const bootstrap = useCallback(async () => {
-    const res = await fetch("/api/auth/cognito/session", { credentials: "include" });
+    let res: Response;
+    try {
+      res = await fetch("/api/auth/cognito/session", { credentials: "include" });
+    } catch {
+      return;
+    }
     const parsed = await readApiJson<{ authenticated?: boolean; user?: AuthUser | null }>(res);
     if (!parsed.ok) {
+      if (!isTransientHttpStatus(parsed.status)) {
+        setUser(null);
+      }
+      return;
+    }
+    if (!parsed.data.authenticated) {
       setUser(null);
       return;
     }
@@ -248,13 +260,20 @@ export function CognitoAuthProvider({ children }: { children: React.ReactNode })
         credentials: "include",
       });
     } catch {
-      setUser(null);
       return;
     }
 
-    const parsed = await readApiJson<{ user?: AuthUser | null }>(res);
-    if (!parsed.ok || parsed.status < 200 || parsed.status >= 400) {
-      setUser(null);
+    const parsed = await readApiJson<{ user?: AuthUser | null; ok?: boolean }>(res);
+    if (!parsed.ok) {
+      if (!isTransientHttpStatus(parsed.status)) {
+        setUser(null);
+      }
+      return;
+    }
+    if (parsed.status < 200 || parsed.status >= 400) {
+      if (!isTransientHttpStatus(parsed.status)) {
+        setUser(null);
+      }
       return;
     }
 

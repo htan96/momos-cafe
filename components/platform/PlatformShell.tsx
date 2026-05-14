@@ -2,12 +2,14 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { Fragment } from "react";
 import { usePathname } from "next/navigation";
 import SignOutButton from "@/app/account/SignOutButton";
 
 export type PlatformShellVariant = "customer" | "admin" | "super_admin";
 
-export type PlatformNavItem = { href: string; label: string };
+/** `section` groups items in the desktop sidebar (aside is `lg+` only). */
+export type PlatformNavItem = { href: string; label: string; section?: string };
 
 type Props = {
   variant: PlatformShellVariant;
@@ -130,8 +132,8 @@ export default function PlatformShell({
             </div>
           </div>
           <div className="flex items-center gap-4 md:gap-5 shrink-0">
-            <Link href="/" className={`hidden md:inline ${theme.storefrontClass}`}>
-              Storefront
+            <Link href="/" className={theme.storefrontClass} title="Return to Momo’s Café storefront">
+              Back to site
             </Link>
             {userHint ? (
               <span
@@ -163,11 +165,22 @@ export default function PlatformShell({
           aria-label="Section navigation"
         >
           <nav className="flex flex-col gap-0.5">
-            {navItems.map((item) => (
-              <Link key={item.href} href={item.href} className={sidebarNavClass(item.href)}>
-                {item.label}
-              </Link>
-            ))}
+            {navItems.map((item, i) => {
+              const prev = i > 0 ? navItems[i - 1] : undefined;
+              const showHeading = item.section && item.section !== prev?.section;
+              return (
+                <Fragment key={item.href}>
+                  {showHeading ? (
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-charcoal/45 pt-3 pb-1 first:pt-0">
+                      {item.section}
+                    </p>
+                  ) : null}
+                  <Link href={item.href} className={sidebarNavClass(item.href)}>
+                    {item.label}
+                  </Link>
+                </Fragment>
+              );
+            })}
           </nav>
         </aside>
         <div className="flex-1 min-w-0">{children}</div>

@@ -1,31 +1,32 @@
 import GovPageHeader from "@/components/governance/GovPageHeader";
 import OperationalCard from "@/components/governance/OperationalCard";
-import { maskedCognitoEnvHints } from "@/lib/governance/mockSuperAdmin";
+import { getCognitoEnvHintLines } from "@/lib/governance/cognitoEnvHints";
 
 export default function SuperAdminCognitoToolsPage() {
+  const hints = getCognitoEnvHintLines();
+
   return (
     <div className="space-y-8">
       <GovPageHeader
         eyebrow="Identity utilities"
         title="Cognito tools"
-        subtitle="Operational shell for posture reviews. No outbound calls — search and actions stay disabled."
+        subtitle="Server-only configuration hints from `process.env`. No AWS console chrome — this route never calls Cognito from the browser."
         actions={
           <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-charcoal/45 rounded-lg border border-cream-dark px-3 py-1.5 bg-cream-mid/30">
-            Dry run
+            Read-only
           </span>
         }
       />
 
-      <OperationalCard title="Environment hints (masked)" meta="Never paste real secrets">
-        <ul className="font-mono text-[12px] space-y-2 text-charcoal/70">
-          {maskedCognitoEnvHints.map((line) => (
-            <li key={line} className="truncate" title={line}>
-              {line}
-            </li>
+      <OperationalCard title="Environment shape (masked)" meta="No secrets printed">
+        <ul className="font-mono text-[12px] space-y-2 text-charcoal/70 break-all">
+          {hints.map((line) => (
+            <li key={line}>{line}</li>
           ))}
         </ul>
         <p className="mt-3 text-[11px] text-charcoal/45 leading-relaxed">
-          Values resemble production shape only — rotate through your secret manager workflows, not the browser.
+          Pool, client id, and region come from the same variables as{" "}
+          <code className="text-[11px]">lib/auth/cognito/config</code>. Rotate credentials out of band — nothing here is writable.
         </p>
       </OperationalCard>
 
@@ -37,28 +38,35 @@ export default function SuperAdminCognitoToolsPage() {
           id="cognito-search-mock"
           type="search"
           disabled
-          placeholder="Disabled until API wiring"
+          placeholder="Requires Cognito admin API wiring from server actions"
           className="w-full rounded-xl border border-cream-dark bg-cream-mid/25 px-4 py-3 text-[14px] text-charcoal/50 cursor-not-allowed"
           aria-disabled="true"
         />
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        <OperationalCard title="MFA posture" footer={<span className="text-[11px] text-charcoal/45">TOTP preference · SMS fallback audit trail</span>}>
+      <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3">
+        <OperationalCard title="Group names to expect in tokens">
           <p className="text-[13px] text-charcoal/70 leading-relaxed">
-            Inspect device registration drift, suppressed challenges, and admin-group enforcement deltas.
+            JWT claim <code className="text-[12px]">cognito:groups</code> includes literal strings{" "}
+            <code className="text-[12px]">customer</code>, <code className="text-[12px]">admin</code>, and{" "}
+            <code className="text-[12px]">super_admin</code>. Middleware and layouts branch on those values — keep pool assignments
+            aligned when onboarding operators.
           </p>
         </OperationalCard>
 
-        <OperationalCard title="Session envelope" footer={<span className="text-[11px] text-charcoal/45">Refresh token rotation posture</span>}>
+        <OperationalCard title="Protected path prefixes">
           <p className="text-[13px] text-charcoal/70 leading-relaxed">
-            Idle versus absolute timeouts, remember-device toggles, and risk-based step-up placeholders.
+            <code className="text-[12px]">COGNITO_PROTECTED_PREFIXES</code> overrides the default comma list (
+            <code className="text-[12px]">/account</code>, <code className="text-[12px]">/admin</code>,{" "}
+            <code className="text-[12px]">/super-admin</code>). Extra matchers (for example <code className="text-[12px]">/portal</code>)
+            must stay synchronized with <code className="text-[12px]">middleware.ts</code> so the gate runs before internal API secrets.
           </p>
         </OperationalCard>
 
-        <OperationalCard title="Group lattice" footer={<span className="text-[11px] text-charcoal/45">Diff against expected IAM mirrors</span>}>
+        <OperationalCard title="Super-admin break glass">
           <p className="text-[13px] text-charcoal/70 leading-relaxed">
-            Cognito groups mapped to storefront, admin, super_admin scopes — compare with policy registry when connected.
+            Impersonation requires <code className="text-[12px]">IMPERSONATION_SECRET</code> (or the unsafe dev flag) and writes to{" "}
+            <code className="text-[12px]">GovernanceAuditEvent</code>. It is API-driven — there is no button on this placeholder surface yet.
           </p>
         </OperationalCard>
       </div>

@@ -1,109 +1,155 @@
+import Link from "next/link";
 import AuditTimeline from "@/components/governance/AuditTimeline";
 import GovPageHeader from "@/components/governance/GovPageHeader";
-import IntegrationTile from "@/components/governance/IntegrationTile";
 import OperationalCard from "@/components/governance/OperationalCard";
-import QueueHealthRow from "@/components/governance/QueueHealthRow";
-import SecurityHighlight from "@/components/governance/SecurityHighlight";
 import StatusPill from "@/components/governance/StatusPill";
 import {
-  mockActiveAlerts,
-  mockAuditTimelineFull,
-  mockIntegrations,
-  mockQueueHealthRows,
-  mockRecentAdminActions,
-  mockSecurityHighlights,
-  mockSystemStatusChips,
-} from "@/lib/governance/mockSuperAdmin";
+  countGovernanceEventsToday,
+  loadRecentGovernanceAuditRows,
+} from "@/lib/governance/governanceAuditDisplay";
+import { getMaintenanceFlags } from "@/lib/app-settings/settings";
+import { PLATFORM_FEATURE_DEFINITIONS, PLATFORM_FEATURE_KEYS } from "@/lib/platform/governanceFeatures";
+import { getPlatformFeatureState } from "@/lib/platform/platformFeatureState";
 
-export default function SuperAdminHomePage() {
-  const recentAudit = mockAuditTimelineFull.slice(0, 5);
+function attentionItems(args: {
+  features: Awaited<ReturnType<typeof getPlatformFeatureState>>;
+  shopEnabled: boolean;
+  menuEnabled: boolean;
+}): string[] {
+  const bullets: string[] = [];
+  if (!args.features.customer_platform.enabled) {
+    bullets.push(
+      "Customer account platform is off — signed-in `/account` experiences and external copy that promise the hub should stay quiet for non–super-admin users."
+    );
+  }
+  if (!args.shopEnabled) {
+    bullets.push("Shop catalog gate (AppSetting) is closed — retail `/shop` maintenance is active.");
+  }
+  if (!args.menuEnabled) {
+    bullets.push("Menu gate (AppSetting) is closed — café `/menu` and `/order` flows are blocked.");
+  }
+  return bullets;
+}
+
+export default async function SuperAdminHomePage() {
+  const [featureState, maintenance, auditRows, impersonationStartsToday] = await Promise.all([
+    getPlatformFeatureState(),
+    getMaintenanceFlags(),
+    loadRecentGovernanceAuditRows(25),
+    countGovernanceEventsToday({ type: "impersonation_start" }),
+  ]);
+
+  const attention = attentionItems({
+    features: featureState,
+    shopEnabled: maintenance.shopEnabled,
+    menuEnabled: maintenance.menuEnabled,
+  });
+  const recentAudit = auditRows.slice(0, 5);
 
   return (
     <div className="space-y-10">
       <GovPageHeader
         eyebrow="Operations"
         title="Control center"
-        subtitle="Operational posture across integrations, queues, and privileged activity—mocked telemetry for shell review."
+        subtitle="Live platform governance from Postgres — feature toggles, commerce gates, and the append-only audit stream. No synthetic latency or queue telemetry."
       />
 
-      <div className="grid gap-8 lg:grid-cols-12 lg:gap-10 items-start">
-        <div className="lg:col-span-7 space-y-6">
-          <OperationalCard title="System status" meta="Synthetic summary">
-            <p className="text-[13px] text-charcoal/65 mb-4 leading-relaxed">
-              Services reflect placeholder health. When wired, degraded paths surface here without alarmist KPI tiles.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {mockSystemStatusChips.map((s) => (
-                <span
-                  key={s.id}
-                  className="inline-flex items-center gap-2 rounded-lg border border-cream-dark/60 bg-cream-mid/25 px-3 py-1.5"
-                >
-                  <span className="text-[12px] font-medium text-charcoal/85">{s.label}</span>
-                  <StatusPill variant={s.variant}>{s.pillLabel}</StatusPill>
-                </span>
-              ))}
-            </div>
-          </OperationalCard>
-
-          <OperationalCard title="Integration strip" meta="Read-only overview">
-            <div className="flex flex-wrap gap-3">{mockIntegrations.map((i) => (
-              <IntegrationTile key={`${i.name}-${i.envLabel}`} {...i} />
-            ))}</div>
-          </OperationalCard>
-
-          <OperationalCard title="Queue health" footer={<p className="text-[11px] text-charcoal/45">Depth and age placeholders — hook to observability stacks next.</p>}>
-            <div>{mockQueueHealthRows.map((q) => (
-              <QueueHealthRow key={q.name} {...q} />
-            ))}</div>
-          </OperationalCard>
+      <OperationalCard
+        title="Governance-controlled surfaces"
+        meta={
+          <Link href="/super-admin/settings/platform" className="text-[12px] font-semibold text-teal-dark underline-offset-2 hover:underline">
+            Open platform settings
+          </Link>
+        }
+      >
+        <p className="text-[13px] text-charcoal/65 mb-4 leading-relaxed">
+          Values mirror `PlatformFeatureToggle` rows (cached ~45s). Updates persist through the super-admin API and appear in the audit feed.
+        </p>
+        <div className="overflow-x-auto rounded-xl border border-cream-dark/55">
+          <table className="min-w-full text-left text-[13px]">
+            <thead className="bg-cream-mid/35 text-[11px] font-semibold uppercase tracking-[0.12em] text-charcoal/50">
+              <tr>
+                <th className="px-4 py-3">Feature</th>
+                <th className="px-4 py-3">State</th>
+                <th className="px-4 py-3 hidden sm:table-cell">Last change</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-cream-dark/45">
+              {PLATFORM_FEATURE_KEYS.map((key) => {
+                const def = PLATFORM_FEATURE_DEFINITIONS[key];
+                const row = featureState[key];
+                const on = row.enabled;
+                return (
+                  <tr key={key} className="bg-white/[0.92]">
+                    <td className="px-4 py-3">
+                      <p className="font-medium text-charcoal">{def.title}</p>
+                      <p className="text-[12px] text-charcoal/55 mt-1 leading-snug">{def.description}</p>
+                    </td>
+                    <td className="px-4 py-3 align-top">
+                      <StatusPill variant={on ? "ok" : "neutral"}>{on ? "On" : "Off"}</StatusPill>
+                    </td>
+                    <td className="px-4 py-3 align-top text-charcoal/60 hidden sm:table-cell tabular-nums">
+                      {row.updatedAt.getTime() > 0 ? row.updatedAt.toLocaleString() : "—"}
+                      {row.updatedBy ? (
+                        <span className="block text-[11px] text-charcoal/45 mt-1">by {row.updatedBy}</span>
+                      ) : null}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
+      </OperationalCard>
 
-        <div className="lg:col-span-5 space-y-6">
-          <OperationalCard title="Active alerts">
-            <ul className="space-y-4">
-              {mockActiveAlerts.map((a) => (
-                <li key={a.id} className="rounded-xl border border-cream-dark/55 bg-cream-mid/20 px-4 py-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="font-display text-[16px] text-teal-dark leading-tight">{a.title}</p>
-                      <p className="mt-1.5 text-[13px] text-charcoal/65 leading-snug">{a.detail}</p>
-                    </div>
-                    <StatusPill variant={a.variant}>{a.badge}</StatusPill>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </OperationalCard>
+      <OperationalCard title="Commerce maintenance gates" meta="AppSetting · ShopEnabled / MenuEnabled">
+        <ul className="space-y-3 text-[13px] text-charcoal/75 leading-relaxed">
+          <li>
+            <span className="font-semibold text-charcoal">Retail shop catalog — </span>
+            {maintenance.shopEnabled ? (
+              <span>Open for normal traffic.</span>
+            ) : (
+              <span className="text-red-dark">Closed — shop surfaces should show maintenance treatment.</span>
+            )}
+          </li>
+          <li>
+            <span className="font-semibold text-charcoal">Café menu & ordering — </span>
+            {maintenance.menuEnabled ? (
+              <span>Open for normal traffic.</span>
+            ) : (
+              <span className="text-red-dark">Closed — menu and order routes should stay blocked.</span>
+            )}
+          </li>
+        </ul>
+      </OperationalCard>
 
-          <OperationalCard title="Recent audit" meta={`${recentAudit.length} events`}>
-            <AuditTimeline rows={recentAudit} />
-          </OperationalCard>
-
-          <OperationalCard title="Recent admin actions">
-            <ul className="space-y-3" role="list">
-              {mockRecentAdminActions.map((r) => (
-                <li key={r.id} className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-1 py-2 border-b border-cream-dark/40 last:border-0">
-                  <div>
-                    <p className="text-[13px] text-charcoal">
-                      <span className="font-semibold">{r.actor}</span>
-                      <span className="text-charcoal/60"> · {r.action}</span>
-                    </p>
-                  </div>
-                  <p className="text-[11px] uppercase tracking-[0.12em] text-charcoal/45 shrink-0">{r.relativeTime}</p>
-                </li>
-              ))}
-            </ul>
-          </OperationalCard>
-
-          <div className="space-y-3">
-            {mockSecurityHighlights.map((s) => (
-              <SecurityHighlight key={s.title} title={s.title}>
-                {s.body}
-              </SecurityHighlight>
+      {attention.length > 0 ? (
+        <OperationalCard title="Requires attention" meta="Derived from live flags">
+          <ul className="list-disc pl-5 space-y-3 text-[13px] text-charcoal/75 leading-relaxed">
+            {attention.map((line) => (
+              <li key={line}>{line}</li>
             ))}
-          </div>
-        </div>
-      </div>
+          </ul>
+        </OperationalCard>
+      ) : null}
+
+      <OperationalCard
+        title="Recent governance audit"
+        meta={`${recentAudit.length} of ${auditRows.length} loaded · impersonation starts today: ${impersonationStartsToday}`}
+        footer={
+          <Link href="/super-admin/audit" className="text-[12px] font-semibold text-teal-dark underline-offset-2 hover:underline">
+            View full audit stream
+          </Link>
+        }
+      >
+        {recentAudit.length ? (
+          <AuditTimeline rows={recentAudit} />
+        ) : (
+          <p className="text-[13px] text-charcoal/60 leading-relaxed">
+            No governance events recorded yet — impersonation, perspective changes, and platform patches will appear here automatically.
+          </p>
+        )}
+      </OperationalCard>
     </div>
   );
 }

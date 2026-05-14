@@ -1,6 +1,6 @@
+import Link from "next/link";
 import GovPageHeader from "@/components/governance/GovPageHeader";
-import StatusPill from "@/components/governance/StatusPill";
-import { mockAdminDirectory } from "@/lib/governance/mockSuperAdmin";
+import OperationalCard from "@/components/governance/OperationalCard";
 
 export default function SuperAdminAdminsPage() {
   return (
@@ -8,65 +8,40 @@ export default function SuperAdminAdminsPage() {
       <GovPageHeader
         eyebrow="Directory"
         title="Privileged operators"
-        subtitle="Console roster placeholders — invitation and activity columns scaffold compliance reviews."
+        subtitle="Admin and super-admin memberships live in the Cognito user pool — this app does not mirror a full roster in Postgres."
       />
 
-      <div className="rounded-2xl border border-cream-dark/70 bg-white/[0.94] shadow-sm overflow-hidden">
-        <div
-          className="hidden md:grid md:grid-cols-12 md:gap-4 px-5 py-3 border-b border-cream-dark/60 bg-cream-mid/30 text-[11px] font-semibold uppercase tracking-[0.14em] text-charcoal/50"
-          role="rowgroup"
-        >
-          <div className="md:col-span-3">Name</div>
-          <div className="md:col-span-3">Email</div>
-          <div className="md:col-span-2">Roles</div>
-          <div className="md:col-span-2">Last activity</div>
-          <div className="md:col-span-2 text-right md:text-left">Status</div>
+      <OperationalCard title="Where the roster actually lives" meta="Cognito · AWS console or API">
+        <p className="text-[13px] text-charcoal/70 leading-relaxed">
+          Assign users to the <code className="rounded border border-cream-dark/60 bg-cream-mid/25 px-1">admin</code> or{" "}
+          <code className="rounded border border-cream-dark/60 bg-cream-mid/25 px-1">super_admin</code> group in Cognito. Session
+          claims drive access to `/admin` and `/super-admin`; there is no replicated operator table here to sort or filter.
+        </p>
+        <div className="mt-5 flex flex-wrap gap-3">
+          <Link
+            href="/super-admin/customer-lookup"
+            className="rounded-xl border border-teal-dark/35 bg-teal/[0.08] px-4 py-2 text-[13px] font-semibold text-teal-dark hover:bg-teal/[0.12]"
+          >
+            Customer lookup
+          </Link>
+          <Link
+            href="/super-admin/cognito-tools"
+            className="rounded-xl border border-cream-dark/70 px-4 py-2 text-[13px] font-semibold text-charcoal/80 hover:bg-cream-mid/35"
+          >
+            Cognito environment hints
+          </Link>
         </div>
+      </OperationalCard>
 
-        <div className="divide-y divide-cream-dark/45">
-          {mockAdminDirectory.map((row) => (
-            <div
-              key={row.id}
-              className="grid grid-cols-1 gap-3 px-5 py-4 md:grid-cols-12 md:gap-4 md:items-center"
-              role="row"
-            >
-              <div className="md:col-span-3">
-                <p className="font-display text-[16px] text-teal-dark md:hidden">Name</p>
-                <p className="text-[14px] font-semibold text-charcoal">{row.name}</p>
-                {row.invitationPending ? (
-                  <p className="text-[11px] text-charcoal/50 mt-0.5">Invitation pending · token issued</p>
-                ) : null}
-              </div>
-              <div className="md:col-span-3">
-                <p className="font-display text-[14px] text-teal-dark/80 md:hidden">Email</p>
-                <p className="text-[13px] text-charcoal/75 break-all">{row.email}</p>
-              </div>
-              <div className="md:col-span-2">
-                <p className="font-display text-[14px] text-teal-dark/80 md:hidden">Roles</p>
-                <div className="flex flex-wrap gap-1">
-                  {row.roles.length ? (
-                    row.roles.map((r) => (
-                      <span key={r} className="text-[11px] font-semibold uppercase tracking-[0.1em] rounded-md border border-cream-dark bg-cream-mid/40 px-2 py-0.5 text-charcoal/75">
-                        {r}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="text-[12px] text-charcoal/45">Awaiting acceptance</span>
-                  )}
-                </div>
-              </div>
-              <div className="md:col-span-2">
-                <p className="font-display text-[14px] text-teal-dark/80 md:hidden">Last activity</p>
-                <p className="text-[13px] text-charcoal/70 tabular-nums">{row.lastActivity}</p>
-              </div>
-              <div className="md:col-span-2 flex md:justify-start gap-2 items-center flex-wrap">
-                <span className="font-display text-[14px] text-teal-dark/80 md:hidden">Status</span>
-                <StatusPill variant={row.status}>{row.statusLabel}</StatusPill>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      <OperationalCard title="Audit visibility" meta="GovernanceAuditEvent">
+        <p className="text-[13px] text-charcoal/70 leading-relaxed">
+          Impersonation starts/ends, perspective switches, and platform feature patches emit append-only audit rows with actor email
+          — useful for proving who exercised super-admin tools even without a directory grid.
+        </p>
+        <Link href="/super-admin/audit" className="mt-3 inline-block text-[13px] font-semibold text-teal-dark underline-offset-2 hover:underline">
+          Open audit stream
+        </Link>
+      </OperationalCard>
     </div>
   );
 }

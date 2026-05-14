@@ -1,55 +1,75 @@
 import GovPageHeader from "@/components/governance/GovPageHeader";
+import OperationalCard from "@/components/governance/OperationalCard";
 import StatusPill from "@/components/governance/StatusPill";
-import { mockServiceHealthCards } from "@/lib/governance/mockSuperAdmin";
-
-function LatencySpark({ values }: { values: readonly number[] }) {
-  const max = Math.max(...values, 1);
-  return (
-    <div className="flex items-end gap-px h-9 mt-4" aria-hidden="true">
-      {values.map((v, i) => {
-        const h = Math.round((v / max) * 100);
-        return (
-          <div
-            key={i}
-            className="w-[5px] rounded-[1px] bg-gradient-to-t from-teal/[0.12] to-teal-dark/35"
-            style={{ height: `${Math.max(h, 8)}%` }}
-          />
-        );
-      })}
-    </div>
-  );
-}
+import {
+  getPublicClientIntegrationEnvRows,
+  getImpersonationEnvRows,
+} from "@/lib/governance/integrationEnvSnapshot";
 
 export default function SuperAdminSettingsHealthPage() {
+  const publicRows = getPublicClientIntegrationEnvRows();
+  const impersonationRows = getImpersonationEnvRows();
+  const nodeEnv = process.env.NODE_ENV ?? "(unknown)";
+
   return (
     <div className="space-y-8">
       <GovPageHeader
         eyebrow="Settings · Health"
-        title="Service mesh snapshot"
-        subtitle="Muted cards with synthetic latency sparklines — replaces loud uptime widgets."
+        title="Runtime visibility"
+        subtitle="No synthetic mesh probes ship here yet — this page stays descriptive until real monitoring lands."
       />
 
-      <div className="grid gap-6 sm:grid-cols-2">
-        {mockServiceHealthCards.map((svc) => (
-          <article
-            key={svc.id}
-            className="rounded-2xl border border-cream-dark/70 bg-white/[0.94] px-5 py-5 md:px-6 shadow-[0_1px_0_rgba(45,107,107,0.05),0_8px_26px_-14px_rgba(46,42,37,0.14)] flex flex-col"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h2 className="font-display text-xl text-teal-dark tracking-tight">{svc.name}</h2>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-charcoal/45 mt-1">{svc.region}</p>
+      <OperationalCard title="Service status" meta="Honest default">
+        <p className="text-[13px] text-charcoal/70 leading-relaxed">
+          Live uptime, queue depth, and latency tiles require an observability integration (metrics + health checks). Until that
+          ships, avoid interpreting any green/red chart in screenshots — there is no background ping in this route.
+        </p>
+        <p className="mt-4 text-[12px] text-charcoal/50 leading-relaxed border border-dashed border-cream-dark rounded-xl px-4 py-3 bg-cream-mid/15">
+          Status unavailable until monitoring ships — keep on-call playbooks in your external dashboard, not this UI shell.
+        </p>
+      </OperationalCard>
+
+      <OperationalCard title="Runtime shell" meta="Non-secret signals">
+        <div className="flex flex-wrap gap-2 items-center text-[13px] text-charcoal/75">
+          <span className="font-medium">NODE_ENV</span>
+          <code className="rounded-md border border-cream-dark/70 bg-cream-mid/25 px-2 py-0.5 text-[12px]">{nodeEnv}</code>
+        </div>
+        <p className="mt-4 text-[12px] text-charcoal/50 leading-relaxed">
+          Database connectivity, worker pools, and CDN health are not probed from this page.
+        </p>
+      </OperationalCard>
+
+      <OperationalCard title="Public build knobs (presence only)" meta="NEXT_PUBLIC_* · never shows values">
+        <ul className="space-y-3">
+          {publicRows.map((row) => (
+            <li key={row.envKey} className="flex flex-wrap items-start justify-between gap-3 border-b border-cream-dark/35 pb-3 last:border-0 last:pb-0">
+              <div className="min-w-0">
+                <p className="text-[13px] font-medium text-charcoal">{row.label}</p>
+                <p className="text-[11px] text-charcoal/45 mt-1 font-mono truncate" title={row.envKey}>
+                  {row.envKey}
+                </p>
+                {row.note ? <p className="text-[11px] text-charcoal/50 mt-1">{row.note}</p> : null}
               </div>
-              <StatusPill variant={svc.variant}>{svc.statusLabel}</StatusPill>
-            </div>
-            <div className="mt-5 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-charcoal/60">
-              <span>{svc.latencyLabel}</span>
-            </div>
-            <LatencySpark values={svc.spark} />
-            <p className="mt-4 text-[12px] text-charcoal/50 leading-relaxed">CSS-only shimmer — aligns with hospitable understatement.</p>
-          </article>
-        ))}
-      </div>
+              <StatusPill variant={row.configured ? "ok" : "neutral"}>{row.configured ? "Set" : "Unset"}</StatusPill>
+            </li>
+          ))}
+        </ul>
+      </OperationalCard>
+
+      <OperationalCard title="Impersonation gate" meta="Super-admin tooling">
+        <ul className="space-y-3">
+          {impersonationRows.map((row) => (
+            <li key={row.envKey} className="flex flex-wrap items-start justify-between gap-3 border-b border-cream-dark/35 pb-3 last:border-0 last:pb-0">
+              <div className="min-w-0">
+                <p className="text-[13px] font-medium text-charcoal">{row.label}</p>
+                <p className="text-[11px] text-charcoal/45 mt-1 font-mono">{row.envKey}</p>
+                {row.note ? <p className="text-[11px] text-charcoal/50 mt-1">{row.note}</p> : null}
+              </div>
+              <StatusPill variant={row.configured ? "ok" : "neutral"}>{row.configured ? "Ready" : "Missing"}</StatusPill>
+            </li>
+          ))}
+        </ul>
+      </OperationalCard>
     </div>
   );
 }

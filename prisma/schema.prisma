@@ -33,6 +33,16 @@ model AppSetting {
   @@map("app_settings")
 }
 
+/** Governance-visible platform switches; keyed by definitions in `lib/platform/governanceFeatures`. */
+model PlatformFeatureToggle {
+  key       String   @id
+  enabled   Boolean
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedBy String?  @map("updated_by")
+
+  @@map("platform_feature_toggles")
+}
+
 model CafeOrder {
   id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -403,4 +413,19 @@ model NotificationEvent {
   @@index([createdAt(sort: Desc)])
   @@index([type])
   @@map("notification_events")
+}
+
+/** Append-only governance / impersonation audit stream (super-admin operations). */
+model GovernanceAuditEvent {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  type        String   @map("type")
+  actorSub    String   @map("actor_sub")
+  actorEmail  String   @map("actor_email")
+  targetEmail String?  @map("target_email")
+  meta        Json?    @map("meta")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([createdAt(sort: Desc)])
+  @@index([type])
+  @@map("governance_audit_events")
 }

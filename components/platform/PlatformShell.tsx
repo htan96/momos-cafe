@@ -20,6 +20,10 @@ type Props = {
   navItems: PlatformNavItem[];
   children: React.ReactNode;
   userHint?: string | null;
+  /** Super-admin: perspective switcher (or other inline governance controls). */
+  headerAddon?: React.ReactNode;
+  /** Full-width strip under the platform header (e.g. impersonation banner). */
+  belowHeader?: React.ReactNode;
 };
 
 const shellTheme: Record<
@@ -89,6 +93,8 @@ export default function PlatformShell({
   navItems,
   children,
   userHint,
+  headerAddon,
+  belowHeader,
 }: Props) {
   const pathname = usePathname() ?? "";
   const theme = shellTheme[variant];
@@ -100,7 +106,7 @@ export default function PlatformShell({
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-gold/[0.08] via-cream-dark/40 to-cream-dark/20 border-t-[3px] border-gold/65">
+    <div className="flex flex-1 flex-col min-h-0 min-w-0 w-full bg-gradient-to-b from-gold/[0.08] via-cream-dark/40 to-cream-dark/20 border-t-[3px] border-gold/65">
       <header className={`sticky top-16 z-[800] shrink-0 ${theme.topBar}`}>
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 h-[4.25rem] flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -121,6 +127,7 @@ export default function PlatformShell({
             </div>
           </div>
           <div className="flex items-center gap-4 md:gap-5 shrink-0">
+            {headerAddon ? <div className="shrink min-w-0 max-w-[min(100%,280px)]">{headerAddon}</div> : null}
             <Link href="/" className={theme.storefrontClass} title="Momo’s Café storefront">
               Storefront
             </Link>
@@ -137,7 +144,11 @@ export default function PlatformShell({
         </div>
       </header>
 
-      <div className="flex flex-1 min-w-0 max-w-[1200px] w-full mx-auto">
+      {belowHeader ? (
+        <div className="shrink-0 z-[750] max-w-[1200px] w-full mx-auto px-4 sm:px-6">{belowHeader}</div>
+      ) : null}
+
+      <div className="flex flex-1 min-h-0 min-w-0 w-full max-w-[1200px] mx-auto">
         <aside
           className="hidden lg:flex w-[236px] shrink-0 flex-col border-r border-cream-dark/50 bg-cream/75 backdrop-blur-[2px] py-10 px-4"
           aria-label="Section navigation"
@@ -161,7 +172,7 @@ export default function PlatformShell({
             })}
           </nav>
         </aside>
-        <div className="flex-1 min-w-0">{children}</div>
+        <div className="flex flex-1 flex-col min-h-0 min-w-0 w-full">{children}</div>
       </div>
     </div>
   );

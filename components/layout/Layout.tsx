@@ -27,7 +27,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <HeaderSubNavProvider>
               <div className="flex flex-col min-h-screen bg-cream text-charcoal">
                 <Header />
-                <div className="flex-1 min-w-0 min-h-0">{children}</div>
+                <div className="flex flex-1 flex-col min-h-0 min-w-0 w-full">{children}</div>
                 <BottomNav />
                 <UnifiedCartDrawer />
                 <div className="lg:hidden h-16" aria-hidden="true" />
@@ -74,7 +74,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <div className="flex flex-col min-h-screen bg-cream text-charcoal">
               <Header />
 
-              <main className={`flex-1 pt-0 ${isFullWidth ? "" : "px-6 md:px-12 lg:px-20"}`}>
+              <main
+                className={`flex flex-1 flex-col min-h-0 w-full pt-0 ${isFullWidth ? "" : "px-6 md:px-12 lg:px-20"}`}
+              >
                 {children}
               </main>
 

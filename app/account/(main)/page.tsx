@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import AccountOrderCard from "@/components/account/AccountOrderCard";
 import CommerceOrderCustomerCard from "@/components/customer/CommerceOrderCustomerCard";
 import CommunicationRow from "@/components/customer/CommunicationRow";
@@ -8,7 +7,8 @@ import CustomerPageHeader from "@/components/customer/CustomerPageHeader";
 import CustomerPanel from "@/components/customer/CustomerPanel";
 import CustomerShipmentCard from "@/components/customer/CustomerShipmentCard";
 import RewardsSummaryCard from "@/components/customer/RewardsSummaryCard";
-import { getCustomerSession } from "@/lib/auth/getCustomerSession";
+import { assertCustomerPlatformLayout } from "@/lib/auth/cognito/assertRoleInLayout";
+import { resolveCommerceCustomerId } from "@/lib/account/effectiveAccountContext";
 import {
   loadCateringByEmail,
   loadCustomerCommerceOrders,
@@ -41,11 +41,15 @@ function teaserTimeline(
 }
 
 export default async function AccountDashboardPage() {
-  const session = await getCustomerSession();
-  if (!session) redirect("/login?next=/account");
+  const session = await assertCustomerPlatformLayout();
+
+  const customerRowId = await resolveCommerceCustomerId({
+    cognitoSub: session.sub,
+    email: session.email,
+  });
 
   const [ordersRaw, inquiries] = await Promise.all([
-    loadCustomerCommerceOrders(session.sub),
+    customerRowId ? loadCustomerCommerceOrders(customerRowId) : Promise.resolve([]),
     loadCateringByEmail(session.email),
   ]);
 

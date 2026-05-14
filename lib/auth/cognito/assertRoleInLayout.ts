@@ -9,6 +9,7 @@ import {
 } from "@/lib/auth/cognito/roles";
 import type { CognitoSessionUser } from "@/lib/auth/cognito/types";
 import { getCustomerSession } from "@/lib/auth/getCustomerSession";
+import type { CustomerSessionPayload } from "@/lib/auth/getCustomerSession";
 import { getCognitoServerSession } from "@/lib/auth/cognito/serverSession";
 
 const PATH_HEADER = "x-momos-pathname";
@@ -21,12 +22,24 @@ function forwardedLoginHref(fallbackInternalPath: string): Promise<string> {
   });
 }
 
-/** Mirrors middleware: `/account` is customer-only. */
-export async function assertCustomerPlatformLayout(): Promise<{ email: string; sub: string }> {
+/** Mirrors middleware: `/account` is customer territory; `super_admin` may enter read-only preview (empty commerce rows). */
+export async function assertCustomerPlatformLayout(): Promise<CustomerSessionPayload> {
   const session = await getCustomerSession();
   if (session) {
     return session;
   }
+
+  const operator = await getCognitoServerSession();
+  if (operator && isSuperAdmin(operator.groups)) {
+    return {
+      typ: "customer",
+      sub: "governance-preview",
+      email: operator.email ?? operator.username ?? "",
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      governance: { preview: true },
+    };
+  }
+
   redirect(await forwardedLoginHref("/account"));
 }
 

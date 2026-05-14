@@ -1,5 +1,6 @@
 import GovPageHeader from "@/components/governance/GovPageHeader";
 import OperationalCard from "@/components/governance/OperationalCard";
+import StartCustomerImpersonation from "@/components/governance/StartCustomerImpersonation";
 import StatusPill from "@/components/governance/StatusPill";
 
 export default function SuperAdminCustomerLookupPage() {
@@ -10,6 +11,14 @@ export default function SuperAdminCustomerLookupPage() {
         title="Customer lookup"
         subtitle="Governance-first framing for cross-checking guests during escalations. Query remains local-only."
       />
+
+      <OperationalCard title="Customer impersonation (MVP)" meta="Scoped session · audit logged">
+        <p className="text-[13px] text-charcoal/65 leading-relaxed mb-1">
+          Starts a signed, HttpOnly impersonation cookie (customer scope). You stay signed in as super-admin; the
+          account surface loads the target diner&apos;s commerce context when linked in Prisma.
+        </p>
+        <StartCustomerImpersonation />
+      </OperationalCard>
 
       <label className="block">
         <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-charcoal/45">Search diner</span>

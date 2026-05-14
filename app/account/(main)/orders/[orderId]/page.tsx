@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import CustomerOrderTimeline from "@/components/account/CustomerOrderTimeline";
 import OrderFulfillmentTree from "@/components/account/OrderFulfillmentTree";
 import CommunicationRow from "@/components/customer/CommunicationRow";
@@ -7,7 +7,8 @@ import CustomerPageHeader from "@/components/customer/CustomerPageHeader";
 import CustomerPanel from "@/components/customer/CustomerPanel";
 import CustomerShipmentCard from "@/components/customer/CustomerShipmentCard";
 import { formatMoney } from "@/lib/commerce/fulfillmentPreview";
-import { getCustomerSession } from "@/lib/auth/getCustomerSession";
+import { assertCustomerPlatformLayout } from "@/lib/auth/cognito/assertRoleInLayout";
+import { resolveCommerceCustomerId } from "@/lib/account/effectiveAccountContext";
 import { loadCustomerCommerceOrder, mapToDashboardBrief } from "@/lib/account/dashboardData";
 import {
   buildCustomerOrderTimeline,
@@ -73,14 +74,19 @@ function shipmentTimelineSteps(args: {
 }
 
 export default async function AccountOrderDetailPage({ params }: PageProps) {
-  const session = await getCustomerSession();
+  const session = await assertCustomerPlatformLayout();
   const { orderId } = await params;
 
-  if (!session) {
-    redirect(`/login?next=${encodeURIComponent(`/account/orders/${orderId}`)}`);
+  const customerRowId = await resolveCommerceCustomerId({
+    cognitoSub: session.sub,
+    email: session.email,
+  });
+
+  if (!customerRowId) {
+    notFound();
   }
 
-  const row = await loadCustomerCommerceOrder(session.sub, orderId);
+  const row = await loadCustomerCommerceOrder(customerRowId, orderId);
   if (!row) notFound();
 
   const brief = mapToDashboardBrief(row);

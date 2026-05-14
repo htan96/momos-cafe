@@ -1,43 +1,61 @@
 import GovPageHeader from "@/components/governance/GovPageHeader";
-import IntegrationTile from "@/components/governance/IntegrationTile";
 import OperationalCard from "@/components/governance/OperationalCard";
-import MetricQuiet from "@/components/governance/MetricQuiet";
-import { mockOutboundEmailLanes, mockWebhookDeliveryStats } from "@/lib/governance/mockSuperAdmin";
+import StatusPill from "@/components/governance/StatusPill";
+import {
+  getPublicClientIntegrationEnvRows,
+  getShippoEnvRows,
+  getImpersonationEnvRows,
+} from "@/lib/governance/integrationEnvSnapshot";
+
+function EnvBoolList({ rows }: { rows: ReturnType<typeof getShippoEnvRows> }) {
+  return (
+    <ul className="space-y-3">
+      {rows.map((row) => (
+        <li key={row.envKey} className="flex flex-wrap items-start justify-between gap-3 border-b border-cream-dark/35 pb-3 last:border-0 last:pb-0">
+          <div className="min-w-0">
+            <p className="text-[13px] font-medium text-charcoal">{row.label}</p>
+            <p className="text-[11px] text-charcoal/45 mt-1 font-mono">{row.envKey}</p>
+            {row.note ? <p className="text-[11px] text-charcoal/50 mt-1">{row.note}</p> : null}
+          </div>
+          <StatusPill variant={row.configured ? "ok" : "neutral"}>{row.configured ? "Present" : "Missing"}</StatusPill>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 export default function SuperAdminSettingsIntegrationsPage() {
+  const shippo = getShippoEnvRows();
+  const publicClient = getPublicClientIntegrationEnvRows();
+  const impersonation = getImpersonationEnvRows();
+
   return (
     <div className="space-y-10">
       <GovPageHeader
         eyebrow="Settings · Integrations"
-        title="Connectivity fabric"
-        subtitle="Outbound carriers, relays, and webhooks anchored to audited credentials — presentation only."
+        title="Configuration visibility"
+        subtitle="Environment presence checks only — no webhook percentiles, fabricated retries, or carrier uptime."
       />
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <IntegrationTile name="Shippo" envLabel="Primary · labels" status="ok" statusLabel="Live" lastSyncLine="Negotiated rates + batch manifest export healthy." />
-        <IntegrationTile name="SMTP relay" envLabel="Marketing + tx" status="degraded" statusLabel="Backoff" lastSyncLine="Burst queue shedding · receipts still SLA-green." />
-        <IntegrationTile name="Webhooks" envLabel="HMAC-signed" status="ok" statusLabel="Stable" lastSyncLine="Listener regions iad · backup ord standby." />
-      </div>
-
-      <OperationalCard title="Outbound email lanes" meta="Abstraction placeholders">
-        <div className="grid sm:grid-cols-3 gap-4">
-          {mockOutboundEmailLanes.map((lane) => (
-            <div key={lane.name} className="rounded-xl border border-cream-dark/60 bg-cream-mid/20 p-4">
-              <p className="font-display text-[17px] text-teal-dark">{lane.name}</p>
-              <p className="text-[12px] text-charcoal/62 mt-2 leading-relaxed">{lane.detail}</p>
-            </div>
-          ))}
-        </div>
+      <OperationalCard title="Shippo" meta="Server credentials · not executed here">
+        <EnvBoolList rows={shippo} />
+        <p className="mt-4 text-[12px] text-charcoal/50 leading-relaxed">
+          This page does not call Shippo. Shipping quotes at runtime use the same env vars; readiness belongs in external monitors.
+        </p>
       </OperationalCard>
 
-      <OperationalCard title="Webhook delivery (24h window)" footer={<p className="text-[11px] text-charcoal/45">Stats mimic observability dashboards without external calls.</p>}>
-        <div className="max-w-md">
-          {mockWebhookDeliveryStats.map((row) => (
-            <MetricQuiet key={row.label} label={row.label} value={row.value} />
-          ))}
-        </div>
-        <p className="mt-4 text-[13px] text-charcoal/60 leading-relaxed">
-          Replay controls, signing secret fingerprints, and per-endpoint backoff curves land in the drawer pattern next pass.
+      <OperationalCard title="Client-exposed integrations" meta="NEXT_PUBLIC_* · Square / defaults">
+        <EnvBoolList rows={publicClient} />
+      </OperationalCard>
+
+      <OperationalCard title="Super-admin impersonation" meta="Audited operations prerequisite">
+        <EnvBoolList rows={impersonation} />
+      </OperationalCard>
+
+      <OperationalCard title="Outbound email & webhooks" meta="Not inferred">
+        <p className="text-[13px] text-charcoal/70 leading-relaxed">
+          SMTP relays, marketing ESPs, and per-tenant webhook endpoints are not modeled in this codebase snapshot. When connectors
+          register their env contracts, list them here as honest presence rows — not fabricated 24-hour delivery counters.
         </p>
       </OperationalCard>
     </div>

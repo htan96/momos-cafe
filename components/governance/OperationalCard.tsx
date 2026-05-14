@@ -1,6 +1,6 @@
 type Props = {
   title: string;
-  meta?: string;
+  meta?: React.ReactNode;
   children: React.ReactNode;
   footer?: React.ReactNode;
   className?: string;
@@ -14,7 +14,11 @@ export default function OperationalCard({ title, meta, children, footer, classNa
       <header className="border-b border-cream-dark/55 px-5 py-4 md:px-6">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="font-display text-lg text-teal-dark tracking-tight">{title}</h2>
-          {meta ? <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-charcoal/45">{meta}</p> : null}
+          {meta ? (
+            <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-charcoal/45 [&_a]:normal-case [&_a]:tracking-normal">
+              {meta}
+            </div>
+          ) : null}
         </div>
       </header>
       <div className="px-5 py-4 md:px-6 md:py-5">{children}</div>

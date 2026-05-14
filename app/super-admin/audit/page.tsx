@@ -3,26 +3,28 @@ import GovPageHeader from "@/components/governance/GovPageHeader";
 import OperationalCard from "@/components/governance/OperationalCard";
 import StatusPill, { type StatusPillVariant } from "@/components/governance/StatusPill";
 import EmptyGovState from "@/components/governance/EmptyGovState";
-import { mockAuditTimelineFull } from "@/lib/governance/mockSuperAdmin";
+import { loadRecentGovernanceAuditRows } from "@/lib/governance/governanceAuditDisplay";
 
 const filterChipLabels = ["Actor", "Verb", "Target", "Severity", "Last 24h"] as const;
 
 const legendEntries: { variant: StatusPillVariant; label: string }[] = [
-  { variant: "ok", label: "Routine / policy" },
-  { variant: "neutral", label: "Informational" },
-  { variant: "warning", label: "Change / elevated" },
-  { variant: "critical", label: "Export · break-glass" },
-  { variant: "degraded", label: "Dependency strain" },
-  { variant: "down", label: "Unavailable" },
+  { variant: "ok", label: "Routine / session cleared" },
+  { variant: "neutral", label: "Informational perspective" },
+  { variant: "warning", label: "Impersonation · feature edits" },
+  { variant: "critical", label: "Reserved" },
+  { variant: "degraded", label: "Reserved" },
+  { variant: "down", label: "Reserved" },
 ];
 
-export default function SuperAdminAuditPage() {
+export default async function SuperAdminAuditPage() {
+  const rows = await loadRecentGovernanceAuditRows(25);
+
   return (
     <div className="space-y-8">
       <GovPageHeader
         eyebrow="Evidence"
         title="Audit stream"
-        subtitle="Synthetic timeline demonstrating density and hierarchy. Filters are visual only in this pass."
+        subtitle="Latest 25 rows from `GovernanceAuditEvent`, newest first. Filter chips are visual placeholders only in this pass."
         actions={
           <button
             type="button"
@@ -41,15 +43,16 @@ export default function SuperAdminAuditPage() {
           <button
             key={label}
             type="button"
-            className="rounded-full border border-cream-dark bg-cream-mid/35 px-3 py-1.5 text-[12px] font-medium text-charcoal/65 hover:bg-cream-mid/55 transition-colors cursor-default"
-            aria-pressed={false}
+            disabled
+            className="rounded-full border border-cream-dark bg-cream-mid/35 px-3 py-1.5 text-[12px] font-medium text-charcoal/55 opacity-70 cursor-not-allowed"
+            aria-disabled="true"
           >
             {label}
           </button>
         ))}
       </div>
 
-      <OperationalCard title="Severity legend" meta="Subdued cues">
+      <OperationalCard title="Severity legend" meta="How rows are colored today">
         <div className="flex flex-wrap gap-2">
           {legendEntries.map((entry) => (
             <StatusPill key={`${entry.variant}-${entry.label}`} variant={entry.variant}>
@@ -59,13 +62,22 @@ export default function SuperAdminAuditPage() {
         </div>
       </OperationalCard>
 
-      <OperationalCard title="Governance timeline" footer={<p className="text-[11px] text-charcoal/45">End of synthetic slice — paging hooks later.</p>}>
-        <AuditTimeline rows={mockAuditTimelineFull} />
+      <OperationalCard
+        title="Governance timeline"
+        footer={<p className="text-[11px] text-charcoal/45">Impersonation, perspective changes, and platform feature patches append here.</p>}
+      >
+        {rows.length ? (
+          <AuditTimeline rows={rows} />
+        ) : (
+          <p className="text-[13px] text-charcoal/60 leading-relaxed">
+            The audit table is empty — trigger a perspective switch or platform toggle to seed the stream.
+          </p>
+        )}
       </OperationalCard>
 
       <EmptyGovState
-        title="No export in this preview"
-        description="When connectors land, CSV exports respect scope and watermarking. Chips above are placeholders for parity with ops tooling."
+        title="CSV export not wired"
+        description="Export will honor scoped governance reviews once the backend job lands. Until then, use a read-only SQL slice if policy requires a snapshot."
       />
     </div>
   );

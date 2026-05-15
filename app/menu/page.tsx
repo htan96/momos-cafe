@@ -16,6 +16,8 @@ import MenuPickupContextStrip from "@/components/sections/menu/MenuPickupContext
 import type { MenuItem } from "@/types/menu";
 import type { SelectedModifier } from "@/types/ordering";
 import { commerceCheckoutShell, commerceMenuScrollMargin, commerceSectionSpacing } from "@/lib/commerce/tokens";
+import PageLoadBoundary, { type PageLoadPhase } from "@/components/ui/PageLoadBoundary";
+import { fetchWithTimeout } from "@/lib/http/fetchWithTimeout";
 
 export default function MenuPage() {
   const router = useRouter();
@@ -23,28 +25,30 @@ export default function MenuPage() {
   const { addItem } = useCart();
   const { totalCount, grandTotal, setDrawerOpen } = useCommerceCart();
   const [categories, setCategories] = useState<MenuCategory[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadPhase, setLoadPhase] = useState<PageLoadPhase>("loading");
   const [modifierItem, setModifierItem] = useState<MenuItem | null>(null);
   const [activeCategorySlug, setActiveCategorySlug] = useState<string | null>(null);
 
   const orderingDisabled = settings ? !settings.isOrderingOpen : false;
 
-  useEffect(() => {
-    async function loadMenu() {
-      try {
-        const res = await fetch("/api/menu", { cache: "no-store" });
-        if (!res.ok) throw new Error("Failed to fetch menu");
-        const data = await res.json();
-        setCategories(data || []);
-      } catch (error) {
-        console.error("Error fetching menu:", error);
-      } finally {
-        setLoading(false);
-      }
+  const loadMenu = useCallback(async () => {
+    setLoadPhase("loading");
+    try {
+      const res = await fetchWithTimeout("/api/menu", { cache: "no-store", timeoutMs: 22_000 });
+      if (!res.ok) throw new Error("Failed to fetch menu");
+      const data: unknown = await res.json();
+      setCategories(Array.isArray(data) ? (data as MenuCategory[]) : []);
+      setLoadPhase("ready");
+    } catch (error) {
+      console.error("Error fetching menu:", error);
+      setCategories([]);
+      setLoadPhase("error");
     }
-
-    loadMenu();
   }, []);
+
+  useEffect(() => {
+    void loadMenu();
+  }, [loadMenu]);
 
   const addToCart = useCallback(
     (item: MenuItem, qty = 1, modifiers?: SelectedModifier[]) => {
@@ -101,23 +105,28 @@ export default function MenuPage() {
 
   const orderingStatus = getOrderingStatus(settings ?? DEFAULT_SETTINGS);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-cream flex flex-col items-center justify-center px-6 py-20">
-        <div className="w-full max-w-sm rounded-2xl border border-cream-dark bg-white p-8 shadow-sm space-y-4">
-          <div className="h-3 w-24 rounded-full bg-cream-dark animate-pulse" />
-          <div className="h-8 w-full rounded-lg bg-cream-dark/80 animate-pulse" />
-          <div className="h-3 w-full rounded-full bg-cream-dark/60 animate-pulse" />
-          <div className="h-3 w-4/5 rounded-full bg-cream-dark/50 animate-pulse" />
-          <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-teal-dark text-center pt-2">
-            Loading menu
-          </p>
-        </div>
+  const menuSkeleton = (
+    <div className="min-h-dvh bg-cream flex flex-col items-center justify-center px-6 py-20">
+      <div className="w-full max-w-sm rounded-2xl border border-cream-dark bg-white p-8 shadow-sm space-y-4">
+        <div className="h-3 w-24 rounded-full bg-cream-dark/90 animate-pulse" />
+        <div className="h-8 w-full rounded-lg bg-cream-dark/70 animate-pulse" />
+        <div className="h-3 w-full rounded-full bg-cream-dark/55 animate-pulse" />
+        <div className="h-3 w-4/5 rounded-full bg-cream-dark/45 animate-pulse" />
+        <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-teal-dark text-center pt-2">
+          Loading menu
+        </p>
       </div>
-    );
-  }
+    </div>
+  );
 
   return (
+    <PageLoadBoundary
+      phase={loadPhase}
+      onRetry={() => void loadMenu()}
+      errorMessage="We couldn’t load the menu."
+      stallHintAfterMs={10_000}
+      skeleton={menuSkeleton}
+    >
     <div className={`${commerceCheckoutShell.page} overflow-x-clip pb-28 md:pb-16`}>
       {orderingStatus.scheduleNote ? (
         <OrderingNoticeBanner tone="schedule" message={orderingStatus.scheduleNote} />
@@ -208,5 +217,6 @@ export default function MenuPage() {
 
       <div className={`lg:hidden ${totalCount > 0 ? "h-28" : "h-16"}`} aria-hidden="true" />
     </div>
+    </PageLoadBoundary>
   );
 }

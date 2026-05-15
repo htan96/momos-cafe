@@ -3,7 +3,10 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { AuthUser } from "@/lib/auth/AuthProvider";
 import { readApiJson } from "@/lib/http/readApiJson";
+import { fetchWithTimeout } from "@/lib/http/fetchWithTimeout";
 import { isTransientHttpStatus } from "@/lib/http/transientHttp";
+
+const AUTH_FETCH_TIMEOUT_MS = 12_000;
 
 export type CognitoAuthChallengePayload = {
   challengeName: string;
@@ -54,7 +57,10 @@ export function CognitoAuthProvider({ children }: { children: React.ReactNode })
   const bootstrap = useCallback(async () => {
     let res: Response;
     try {
-      res = await fetch("/api/auth/cognito/session", { credentials: "include" });
+      res = await fetchWithTimeout("/api/auth/cognito/session", {
+        credentials: "include",
+        timeoutMs: AUTH_FETCH_TIMEOUT_MS,
+      });
     } catch {
       return;
     }
@@ -255,9 +261,10 @@ export function CognitoAuthProvider({ children }: { children: React.ReactNode })
   const refresh = useCallback(async () => {
     let res: Response;
     try {
-      res = await fetch("/api/auth/cognito/refresh", {
+      res = await fetchWithTimeout("/api/auth/cognito/refresh", {
         method: "POST",
         credentials: "include",
+        timeoutMs: AUTH_FETCH_TIMEOUT_MS,
       });
     } catch {
       return;

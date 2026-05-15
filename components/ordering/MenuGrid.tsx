@@ -8,6 +8,7 @@ import ItemModal from "./ItemModal";
 import CategoryNav from "@/components/sections/menu/CategoryNav";
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/context/ToastContext";
+import { fetchWithTimeout } from "@/lib/http/fetchWithTimeout";
 
 interface MenuGridProps {
   /** When provided, use these instead of fetching */
@@ -54,7 +55,7 @@ export default function MenuGrid({
   useEffect(() => {
     if (categoriesProp) return;
     let cancelled = false;
-    fetch("/api/menu", { cache: "no-store" })
+    fetchWithTimeout("/api/menu", { cache: "no-store", timeoutMs: 22_000 })
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => !cancelled && setCategoriesState(data || []))
       .catch(() => !cancelled && setCategoriesState([]))

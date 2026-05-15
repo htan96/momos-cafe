@@ -2,14 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { readApiJson } from "@/lib/http/readApiJson";
+import { fetchWithTimeout } from "@/lib/http/fetchWithTimeout";
 import { isTransientHttpStatus } from "@/lib/http/transientHttp";
 
 export type CustomerSessionPhase = "loading" | "in" | "out";
 
+const SESSION_FETCH_TIMEOUT_MS = 12_000;
+
 async function fetchCustomerSessionState(): Promise<"in" | "out" | "transient_fail"> {
   let res: Response;
   try {
-    res = await fetch("/api/auth/cognito/session", { credentials: "include" });
+    res = await fetchWithTimeout("/api/auth/cognito/session", {
+      credentials: "include",
+      timeoutMs: SESSION_FETCH_TIMEOUT_MS,
+    });
   } catch {
     return "transient_fail";
   }

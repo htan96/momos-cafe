@@ -35,7 +35,7 @@ export default function MaintenanceSurfaceOverlay(props: {
   const Icon = surface === "shop" ? ShoppingBag : UtensilsCrossed;
 
   return (
-    <div className="relative min-h-screen">
+    <div className="relative min-h-dvh">
       <div aria-hidden="true" className="pointer-events-none select-none opacity-40">
         {children}
       </div>

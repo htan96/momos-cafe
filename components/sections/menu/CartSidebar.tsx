@@ -156,7 +156,7 @@ export default function CartSidebar({
   const checkoutDisabled = orderingDisabled && merchCount === 0 && payableFoodLines.length === 0;
 
   const stickyTop = headerOffset + 52 + 16;
-  const stickyMaxH = `calc(100vh - ${headerOffset + 52 + 40}px)`;
+  const stickyMaxH = `calc(100dvh - ${headerOffset + 52 + 40}px)`;
 
   return (
     <aside

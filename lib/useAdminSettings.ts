@@ -13,6 +13,7 @@ import {
   resolveOrderingRules,
   DEFAULT_ORDERING_RULES,
 } from "@/lib/adminSettings.model";
+import { fetchWithTimeout } from "@/lib/http/fetchWithTimeout";
 import {
   buildScheduleBanner,
   getOrderingStatus,
@@ -54,7 +55,7 @@ export function useAdminSettings() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/admin/settings", { credentials: "include" })
+    fetchWithTimeout("/api/admin/settings", { credentials: "include", timeoutMs: 12_000 })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (cancelled) return;

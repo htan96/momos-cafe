@@ -78,7 +78,7 @@ export default function RootLayout({
     >
       <body className="font-sans">
         <AppProviders>
-          <Suspense fallback={<div className="min-h-screen bg-cream text-charcoal" aria-busy="true" />}>
+          <Suspense fallback={<div className="min-h-dvh bg-cream text-charcoal" aria-busy="true" />}>
             <Layout>{children}</Layout>
           </Suspense>
         </AppProviders>

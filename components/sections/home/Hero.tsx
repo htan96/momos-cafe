@@ -17,7 +17,7 @@ export default function Hero() {
   return (
     <section
       id="hero"
-      className="relative bg-teal min-h-[92vh] flex items-center overflow-hidden"
+      className="relative bg-teal min-h-dvh flex items-center overflow-hidden"
     >
       {/* Background gradient */}
       <div
@@ -165,9 +165,9 @@ export default function Hero() {
 
       <div className="container max-w-[1140px] mx-auto px-5 relative z-10">
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
+          initial={false}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
+          transition={{ duration: 0.35 }}
           className="relative z-[2] w-full pt-20 pb-28 md:pt-24 md:pb-32"
         >
           <div className="flex flex-wrap items-center gap-2 mb-7">

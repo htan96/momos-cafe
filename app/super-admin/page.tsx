@@ -49,17 +49,25 @@ export default async function SuperAdminHomePage() {
   return (
     <div className="space-y-10">
       <GovPageHeader
-        eyebrow="Operations"
-        title="Control center"
-        subtitle="Live platform governance from Postgres — feature toggles, commerce gates, and the append-only audit stream. No synthetic latency or queue telemetry."
+        eyebrow="Platform"
+        title="Overview"
+        subtitle="Governance home — Postgres-backed feature toggles, commerce gates, and the append-only audit stream. For real-time posture, pair with Live Operations once queues land."
       />
 
       <OperationalCard
         title="Governance-controlled surfaces"
         meta={
-          <Link href="/super-admin/settings/platform" className="text-[12px] font-semibold text-teal-dark underline-offset-2 hover:underline">
-            Open platform settings
-          </Link>
+          <div className="flex flex-wrap gap-x-4 gap-y-1">
+            <Link
+              href="/super-admin/live-operations"
+              className="text-[12px] font-semibold text-teal-dark underline-offset-2 hover:underline"
+            >
+              Live operations
+            </Link>
+            <Link href="/super-admin/settings/platform" className="text-[12px] font-semibold text-teal-dark underline-offset-2 hover:underline">
+              Platform settings
+            </Link>
+          </div>
         }
       >
         <p className="text-[13px] text-charcoal/65 mb-4 leading-relaxed">

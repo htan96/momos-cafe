@@ -1,12 +1,8 @@
 import { SUPER_ADMIN_PLATFORM_NAV } from "@/components/platform/navConfig";
 import type { StorefrontNavIconId } from "@/lib/navigation/storefrontMobileNav";
 
-export const SUPER_ADMIN_MOBILE_PRIMARY_HREFS = [
-  "/super-admin",
-  "/super-admin/audit",
-  "/super-admin/settings/security",
-  "/super-admin/settings/health",
-] as const;
+/** Primary bottom tabs — rest of IA is under More. */
+export const SUPER_ADMIN_MOBILE_PRIMARY_HREFS = ["/super-admin", "/super-admin/live-operations"] as const;
 
 export type SuperAdminMobileTab =
   | {
@@ -14,7 +10,14 @@ export type SuperAdminMobileTab =
       type: "link";
       href: string;
       label: string;
-      icon: StorefrontNavIconId | "governance" | "security" | "health" | "orders" | "more";
+      icon:
+        | StorefrontNavIconId
+        | "governance"
+        | "security"
+        | "health"
+        | "orders"
+        | "queues"
+        | "more";
     }
   | {
       id: "more";
@@ -24,21 +27,13 @@ export type SuperAdminMobileTab =
     };
 
 export const SUPER_ADMIN_MOBILE_PRIMARY_TABS: SuperAdminMobileTab[] = [
-  { id: "gov", type: "link", href: "/super-admin", label: "Gov", icon: "governance" },
-  { id: "audit", type: "link", href: "/super-admin/audit", label: "Audit", icon: "orders" },
+  { id: "overview", type: "link", href: "/super-admin", label: "Overview", icon: "governance" },
   {
-    id: "security",
+    id: "live_ops",
     type: "link",
-    href: "/super-admin/settings/security",
-    label: "Security",
-    icon: "security",
-  },
-  {
-    id: "health",
-    type: "link",
-    href: "/super-admin/settings/health",
-    label: "Health",
-    icon: "health",
+    href: "/super-admin/live-operations",
+    label: "Live Ops",
+    icon: "queues",
   },
   { id: "more", type: "more", label: "More", icon: "more" },
 ];

@@ -4,12 +4,22 @@ import Link from "next/link";
 import { Fragment } from "react";
 import { usePathname } from "next/navigation";
 import SignOutButton from "@/app/account/SignOutButton";
+import {
+  SUPER_ADMIN_SECTION_LABEL,
+  type SuperAdminNavSection,
+} from "@/components/platform/superAdminNavMeta";
 import { pathMatchesNav } from "@/lib/navigation/pathMatchesNav";
 
 export type PlatformShellVariant = "customer" | "admin" | "super_admin";
 
-/** `section` groups items in the desktop sidebar (aside is `lg+` only). */
-export type PlatformNavItem = { href: string; label: string; section?: string };
+/** `section` groups items in the desktop sidebar (aside is `lg+` only). Super-admin uses {@link SuperAdminNavSection} keys. */
+export type PlatformNavItem = {
+  href: string;
+  label: string;
+  section?: string;
+  /** Shown under the label for cross-area entries (e.g. maintenance in admin settings). */
+  navHelperText?: string;
+};
 
 type Props = {
   variant: PlatformShellVariant;
@@ -68,7 +78,8 @@ const shellTheme: Record<
     signOutButtonClass:
       "text-[13px] font-semibold text-cream/80 hover:text-cream underline-offset-2 hover:underline disabled:opacity-50",
     userHintClass: "text-cream/70",
-    sidebarActive: "bg-teal/14 text-teal-dark font-semibold border border-teal/25",
+    sidebarActive:
+      "bg-teal/18 text-teal-dark font-semibold border border-teal/35 shadow-sm ring-1 ring-teal/15 aria-[current=page]:border-teal/50",
     sidebarIdle: "text-charcoal/65 hover:bg-cream-dark/45 hover:text-charcoal",
   },
 };
@@ -101,8 +112,18 @@ export default function PlatformShell({
 
   function sidebarNavClass(href: string) {
     const base =
-      "rounded-lg px-3 py-2 text-[13px] uppercase tracking-[0.12em] transition-colors duration-150";
+      "rounded-lg px-3 py-2 text-[13px] uppercase tracking-[0.12em] transition-colors duration-150 block";
     return `${base} ${pathMatchesNav(pathname, href) ? theme.sidebarActive : theme.sidebarIdle}`;
+  }
+
+  function sectionHeadingText(section: string): string {
+    if (
+      variant === "super_admin" &&
+      Object.prototype.hasOwnProperty.call(SUPER_ADMIN_SECTION_LABEL, section)
+    ) {
+      return SUPER_ADMIN_SECTION_LABEL[section as SuperAdminNavSection];
+    }
+    return section;
   }
 
   return (
@@ -157,15 +178,26 @@ export default function PlatformShell({
             {navItems.map((item, i) => {
               const prev = i > 0 ? navItems[i - 1] : undefined;
               const showHeading = item.section && item.section !== prev?.section;
+              const headingClass =
+                variant === "super_admin"
+                  ? "text-[11px] font-semibold uppercase tracking-[0.2em] text-teal-dark/60 pt-4 pb-2 first:pt-0 border-b border-cream-dark/45 mb-1"
+                  : "text-[10px] font-semibold uppercase tracking-[0.18em] text-charcoal/45 pt-3 pb-1 first:pt-0";
+              const isActive = pathMatchesNav(pathname, item.href);
               return (
                 <Fragment key={item.href}>
-                  {showHeading ? (
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-charcoal/45 pt-3 pb-1 first:pt-0">
-                      {item.section}
-                    </p>
-                  ) : null}
-                  <Link href={item.href} className={sidebarNavClass(item.href)}>
-                    {item.label}
+                  {showHeading ? <p className={headingClass}>{sectionHeadingText(item.section!)}</p> : null}
+                  <Link
+                    href={item.href}
+                    className={sidebarNavClass(item.href)}
+                    aria-current={isActive ? "page" : undefined}
+                    title={item.navHelperText}
+                  >
+                    <span className="block leading-snug">{item.label}</span>
+                    {item.navHelperText ? (
+                      <span className="mt-1 block text-[10px] font-normal normal-case tracking-normal text-charcoal/45 leading-snug">
+                        {item.navHelperText}
+                      </span>
+                    ) : null}
                   </Link>
                 </Fragment>
               );

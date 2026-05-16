@@ -19,6 +19,12 @@ export default function SuperAdminAdminsPage() {
         </p>
         <div className="mt-5 flex flex-wrap gap-3">
           <Link
+            href="/admin/accounts"
+            className="rounded-xl border border-teal-dark/35 bg-teal/[0.08] px-4 py-2 text-[13px] font-semibold text-teal-dark hover:bg-teal/[0.12]"
+          >
+            Account directory
+          </Link>
+          <Link
             href="/super-admin/customer-lookup"
             className="rounded-xl border border-teal-dark/35 bg-teal/[0.08] px-4 py-2 text-[13px] font-semibold text-teal-dark hover:bg-teal/[0.12]"
           >

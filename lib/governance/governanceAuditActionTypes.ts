@@ -7,6 +7,9 @@ export const GOVERNANCE_AUDIT_ACTION_TYPES = [
   "IMPERSONATION_ENDED",
   "PERSPECTIVE_CHANGED",
   "SESSION_TERMINATED",
+  "USER_ROLE_CHANGED",
+  "ADMIN_PROMOTED",
+  "ADMIN_DEMOTED",
 ] as const;
 
 export type GovernanceAuditActionType = (typeof GOVERNANCE_AUDIT_ACTION_TYPES)[number];

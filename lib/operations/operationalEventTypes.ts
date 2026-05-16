@@ -15,6 +15,9 @@ export const OPERATIONAL_EVENT_TYPES = {
   PRESENCE_IMPERSONATION_ENDED: "presence.impersonation_ended",
   /** Catering form / persistence pipeline failed after client submit (see `submissionError` on row when stored). */
   CATERING_INQUIRY_FAILED: "catering.inquiry_failed",
+  USER_ROLE_CHANGED: "user.role_changed",
+  ADMIN_PROMOTED: "access.admin_promoted",
+  ADMIN_DEMOTED: "access.admin_demoted",
 } as const;
 
 export type OperationalEventType = (typeof OPERATIONAL_EVENT_TYPES)[keyof typeof OPERATIONAL_EVENT_TYPES];

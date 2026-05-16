@@ -178,6 +178,27 @@ export function governanceEventToTimelineRow(event: {
     };
   }
 
+  if (
+    t === "USER_ROLE_CHANGED" ||
+    t === "ADMIN_PROMOTED" ||
+    t === "ADMIN_DEMOTED" ||
+    t === "user.role_patch"
+  ) {
+    const meta = isRecord(event.metadata) ? event.metadata : {};
+    const fromRole = typeof meta.fromRole === "string" ? meta.fromRole : "unknown";
+    const toRole = typeof meta.toRole === "string" ? meta.toRole : "unknown";
+    const who = typeof meta.cognitoUsername === "string" ? meta.cognitoUsername : event.targetName ?? "profile";
+    return {
+      id: event.id,
+      actor,
+      verb: t === "ADMIN_PROMOTED" ? "promoted" : t === "ADMIN_DEMOTED" ? "demoted" : "changed role for",
+      target: `${who} (${fromRole} → ${toRole})`,
+      relativeTime: when,
+      severity: t === "ADMIN_DEMOTED" ? "warning" : "neutral",
+      severityLabel: "Access",
+    };
+  }
+
   if (t === "SESSION_TERMINATED") {
     const reason =
       isRecord(event.metadata) && typeof event.metadata.terminationReason === "string"

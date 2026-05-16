@@ -1,4 +1,5 @@
 import PlatformShell from "@/components/platform/PlatformShell";
+import PresenceHeartbeat from "@/components/presence/PresenceHeartbeat";
 import { ADMIN_PLATFORM_NAV } from "@/components/platform/navConfig";
 import { assertAdminPlatformLayout } from "@/lib/auth/cognito/assertRoleInLayout";
 
@@ -15,6 +16,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       navItems={ADMIN_PLATFORM_NAV}
       userHint={userHint}
     >
+      <PresenceHeartbeat />
       <div className="max-w-[1100px] mx-auto px-5 md:px-8 lg:px-10 py-10 md:py-14 lg:pb-24">{children}</div>
     </PlatformShell>
   );

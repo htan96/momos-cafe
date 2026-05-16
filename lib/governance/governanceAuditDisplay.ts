@@ -1,6 +1,7 @@
 import type { AuditTimelineRow } from "@/components/governance/AuditTimeline";
-import type { GovernanceAuditType } from "@/lib/governance/governanceAudit";
+import type { GovernanceAuditActionType } from "@/lib/governance/governanceAuditActionTypes";
 import { PLATFORM_FEATURE_DEFINITIONS, type PlatformFeatureKey } from "@/lib/platform/governanceFeatures";
+import { GOVERNANCE_CONTROL_DEFINITIONS, type GovernanceControlKey } from "@/lib/governance/controlKeys";
 import { prisma } from "@/lib/prisma";
 
 function formatRelativeTimeShort(input: Date, now = new Date()): string {
@@ -23,6 +24,25 @@ function featureTitle(key: string): string {
   return PLATFORM_FEATURE_DEFINITIONS[k]?.title ?? key;
 }
 
+function controlTitle(key: string): string {
+  const k = key as GovernanceControlKey;
+  return GOVERNANCE_CONTROL_DEFINITIONS[k]?.title ?? key;
+}
+
+function describeGovernanceControlChanges(meta: unknown): string {
+  if (!isRecord(meta) || !Array.isArray(meta.changes)) return "governance controls";
+  const parts = meta.changes
+    .map((c) => {
+      if (!isRecord(c)) return null;
+      const key = typeof c.key === "string" ? c.key : "";
+      const enabled = c.enabled === true;
+      if (!key) return null;
+      return `${controlTitle(key)} (${enabled ? "on" : "off"})`;
+    })
+    .filter(Boolean) as string[];
+  return parts.length ? parts.join(" · ") : "governance controls";
+}
+
 function describePlatformFeatureChanges(meta: unknown): string {
   if (!isRecord(meta) || !Array.isArray(meta.changes)) return "platform features";
   const parts = meta.changes
@@ -37,21 +57,29 @@ function describePlatformFeatureChanges(meta: unknown): string {
   return parts.length ? parts.join(" · ") : "platform features";
 }
 
+function describeMaintenanceKeys(meta: unknown): string {
+  if (!isRecord(meta) || !Array.isArray(meta.keysChanged)) return "maintenance flags";
+  const keys = meta.keysChanged.filter((k) => typeof k === "string") as string[];
+  return keys.length ? keys.join(" · ") : "maintenance flags";
+}
+
 export function governanceEventToTimelineRow(event: {
   id: string;
-  type: string;
-  actorEmail: string;
-  targetEmail: string | null;
-  meta: unknown;
+  actionType: string;
+  actorName: string;
+  targetName: string | null;
+  metadata: unknown;
+  description: string | null;
   createdAt: Date;
 }): AuditTimelineRow {
-  const actor = event.actorEmail || "Unknown actor";
+  const actor = event.actorName || "Unknown actor";
   const when = formatRelativeTimeShort(event.createdAt);
-  const t = event.type as GovernanceAuditType | string;
+  const t = event.actionType as GovernanceAuditActionType | string;
 
-  if (t === "impersonation_start") {
-    const scope = isRecord(event.meta) && typeof event.meta.scope === "string" ? event.meta.scope : "unknown scope";
-    const target = event.targetEmail ? `${event.targetEmail} · scope ${scope}` : `scope ${scope}`;
+  if (t === "IMPERSONATION_STARTED" || t === "impersonation_start") {
+    const scope =
+      isRecord(event.metadata) && typeof event.metadata.scope === "string" ? event.metadata.scope : "unknown scope";
+    const target = event.targetName ? `${event.targetName} · scope ${scope}` : `scope ${scope}`;
     return {
       id: event.id,
       actor,
@@ -63,7 +91,7 @@ export function governanceEventToTimelineRow(event: {
     };
   }
 
-  if (t === "impersonation_end") {
+  if (t === "IMPERSONATION_ENDED" || t === "impersonation_end") {
     return {
       id: event.id,
       actor,
@@ -75,8 +103,11 @@ export function governanceEventToTimelineRow(event: {
     };
   }
 
-  if (t === "perspective_change") {
-    const perspective = isRecord(event.meta) && typeof event.meta.perspective === "string" ? event.meta.perspective : "unknown";
+  if (t === "PERSPECTIVE_CHANGED" || t === "perspective_change") {
+    const perspective =
+      isRecord(event.metadata) && typeof event.metadata.perspective === "string"
+        ? event.metadata.perspective
+        : "unknown";
     return {
       id: event.id,
       actor,
@@ -88,15 +119,78 @@ export function governanceEventToTimelineRow(event: {
     };
   }
 
-  if (t === "platform_feature_patch") {
+  if (t === "PLATFORM_FEATURE_UPDATED" || t === "platform_feature_patch") {
     return {
       id: event.id,
       actor,
       verb: "updated",
-      target: describePlatformFeatureChanges(event.meta),
+      target: describePlatformFeatureChanges(event.metadata),
       relativeTime: when,
       severity: "warning",
       severityLabel: "Features",
+    };
+  }
+
+  if (t === "GOVERNANCE_CONTROL_UPDATED" || t === "governance_control_patch") {
+    if (isRecord(event.metadata) && typeof event.metadata.key === "string") {
+      const en = event.metadata.enabled === true;
+      return {
+        id: event.id,
+        actor,
+        verb: en ? "enabled restriction" : "disabled restriction",
+        target: controlTitle(event.metadata.key),
+        relativeTime: when,
+        severity: "warning",
+        severityLabel: "Control",
+      };
+    }
+    if (isRecord(event.metadata) && Array.isArray(event.metadata.changes)) {
+      return {
+        id: event.id,
+        actor,
+        verb: "updated governance controls",
+        target: describeGovernanceControlChanges({ changes: event.metadata.changes }),
+        relativeTime: when,
+        severity: "warning",
+        severityLabel: "Control",
+      };
+    }
+    return {
+      id: event.id,
+      actor,
+      verb: "updated",
+      target: "governance control",
+      relativeTime: when,
+      severity: "warning",
+      severityLabel: "Control",
+    };
+  }
+
+  if (t === "MAINTENANCE_UPDATED") {
+    return {
+      id: event.id,
+      actor,
+      verb: "updated maintenance gates",
+      target: describeMaintenanceKeys(event.metadata),
+      relativeTime: when,
+      severity: "warning",
+      severityLabel: "Maintenance",
+    };
+  }
+
+  if (t === "SESSION_TERMINATED") {
+    const reason =
+      isRecord(event.metadata) && typeof event.metadata.terminationReason === "string"
+        ? event.metadata.terminationReason
+        : "session_end";
+    return {
+      id: event.id,
+      actor,
+      verb: "ended staff presence",
+      target: reason.replace(/_/g, " "),
+      relativeTime: when,
+      severity: "ok",
+      severityLabel: "Session",
     };
   }
 
@@ -104,7 +198,7 @@ export function governanceEventToTimelineRow(event: {
     id: event.id,
     actor,
     verb: "recorded",
-    target: event.type,
+    target: event.description ?? event.actionType,
     relativeTime: when,
     severity: "neutral",
     severityLabel: "Event",
@@ -117,10 +211,11 @@ export async function loadRecentGovernanceAuditRows(limit: number): Promise<Audi
     take: limit,
     select: {
       id: true,
-      type: true,
-      actorEmail: true,
-      targetEmail: true,
-      meta: true,
+      actionType: true,
+      actorName: true,
+      targetName: true,
+      metadata: true,
+      description: true,
       createdAt: true,
     },
   });
@@ -128,7 +223,7 @@ export async function loadRecentGovernanceAuditRows(limit: number): Promise<Audi
 }
 
 export async function countGovernanceEventsToday(args: {
-  type: GovernanceAuditType | string;
+  actionType: GovernanceAuditActionType | string;
   startOfDayUtc?: Date;
 }): Promise<number> {
   const start =
@@ -139,7 +234,7 @@ export async function countGovernanceEventsToday(args: {
     })();
   return prisma.governanceAuditEvent.count({
     where: {
-      type: args.type,
+      actionType: args.actionType,
       createdAt: { gte: start },
     },
   });

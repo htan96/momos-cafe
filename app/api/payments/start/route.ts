@@ -5,6 +5,7 @@ import { registerPendingCommercePayment } from "@/lib/payments/commercePaymentOr
 import { prisma } from "@/lib/prisma";
 import { getMaintenanceFlags } from "@/lib/app-settings/settings";
 import { maintenanceModeJsonResponse } from "@/lib/maintenance/unifiedCartMaintenance";
+import { governanceBlockCheckout } from "@/lib/governance/governanceControls";
 
 /** Registers (idempotent) pending Square-backed payment shell for a commerce order */
 export async function POST(req: Request) {
@@ -34,6 +35,9 @@ export async function POST(req: Request) {
     if (!order) {
       return jsonError(404, "ORDER_NOT_FOUND", "Order not found");
     }
+
+    const gov = await governanceBlockCheckout();
+    if (gov) return gov;
 
     const flags = await getMaintenanceFlags();
     const hasKitchen = order.items.some((i) => i.fulfillmentPipeline === "KITCHEN");

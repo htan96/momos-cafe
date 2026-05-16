@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { provisionCustomerGroupBestEffort, signUpEmailOrUsername } from "@/lib/auth/cognito/cognitoClient";
 import { getCognitoConfig } from "@/lib/auth/cognito/config";
+import { governanceJsonResponse, isControlEnabled } from "@/lib/governance/governanceControls";
 
 export const runtime = "nodejs";
 
@@ -30,6 +31,10 @@ export async function POST(request: Request) {
 
   if (!email) {
     return NextResponse.json({ error: "missing_email", code: "VALIDATION" }, { status: 400 });
+  }
+
+  if (await isControlEnabled("registrations_disabled")) {
+    return governanceJsonResponse("REGISTRATIONS_DISABLED");
   }
 
   try {

@@ -4,6 +4,7 @@ import { parseUnifiedCartLines } from "@/lib/commerce/parseUnifiedCartLines";
 import { cartHasBlockingIssues, validateUnifiedCart } from "@/lib/commerce/cartValidation";
 import { getMaintenanceFlags } from "@/lib/app-settings/settings";
 import { maintenanceBlockForUnifiedLines } from "@/lib/maintenance/unifiedCartMaintenance";
+import { governanceBlockStorefrontMutations } from "@/lib/governance/governanceControls";
 
 export async function POST(req: Request) {
   try {
@@ -20,6 +21,9 @@ export async function POST(req: Request) {
         { status: 422 }
       );
     }
+
+    const mutBlock = await governanceBlockStorefrontMutations();
+    if (mutBlock) return mutBlock;
 
     const maint = maintenanceBlockForUnifiedLines(lines, await getMaintenanceFlags());
     if (maint) return maint;

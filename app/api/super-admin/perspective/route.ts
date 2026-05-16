@@ -8,7 +8,7 @@ import {
   OperationalPerspective,
   parseOperationalPerspective,
 } from "@/lib/governance/perspective";
-import { writeGovernanceAudit } from "@/lib/governance/governanceAudit";
+import { recordGovernanceAuditEntry } from "@/lib/governance/governanceAuditRecord";
 
 function cookieOpts(maxAge: number) {
   const secure = process.env.NODE_ENV === "production";
@@ -56,11 +56,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "invalid_perspective" }, { status: 400 });
   }
 
-  await writeGovernanceAudit({
-    type: "perspective_change",
-    actorSub: user.sub,
-    actorEmail: user.email ?? user.username ?? "",
-    meta: { perspective: parsed },
+  await recordGovernanceAuditEntry({
+    actionType: "PERSPECTIVE_CHANGED",
+    category: "operations",
+    actorId: user.sub,
+    actorName: user.email ?? user.username ?? "",
+    actorRole: "super_admin",
+    description: "Operational perspective updated",
+    metadata: { perspective: parsed, source: "api.super-admin.perspective" },
   });
 
   const res = NextResponse.json({

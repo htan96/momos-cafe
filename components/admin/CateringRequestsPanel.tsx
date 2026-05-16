@@ -12,6 +12,9 @@ type CateringInquiry = {
   event_type: string | null;
   details: string | null;
   created_at?: string;
+  status?: string;
+  assigned_to?: string | null;
+  submission_error?: string | null;
 };
 
 function formatDate(iso: string | undefined): string {
@@ -151,6 +154,11 @@ export default function CateringRequestsPanel() {
                       {inq.event_type}
                     </p>
                   )}
+                  {inq.status ? (
+                    <p className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-teal-dark/90">
+                      {inq.status.replace(/_/g, " ")}
+                    </p>
+                  ) : null}
                 </button>
                 {inq.id && (
                   <button

@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { validateOrderStatusTransition } from "@/lib/commerce/orderLifecycle";
 import { appendNotificationEvent } from "@/lib/notifications/notificationEvents";
+import { emitPaymentTerminalEvent } from "@/lib/operations/emitOperationalEvent";
 
 export async function registerPendingCommercePayment(input: {
   commerceOrderId: string;
@@ -133,6 +134,17 @@ export async function reconcileSquarePaymentWebhook(rawBody: Record<string, unkn
 
   const { squarePaymentId, status, referenceId } = extracted;
 
+  type PendingTerminal = {
+    kind: "succeeded" | "failed";
+    commerceOrderId: string | null;
+    paymentRecordId: string;
+    squarePaymentId: string;
+    squareStatus: string;
+    amountCents: number;
+  };
+
+  let pendingTerminalEmit: PendingTerminal | undefined;
+
   await prisma.$transaction(async (tx) => {
     let record =
       (await tx.paymentRecord.findFirst({
@@ -159,6 +171,7 @@ export async function reconcileSquarePaymentWebhook(rawBody: Record<string, unkn
       return;
     }
 
+    const prevStatus = record.status;
     const mapped = paymentRecordSquareStatus(status);
 
     await tx.paymentRecord.update({
@@ -197,7 +210,24 @@ export async function reconcileSquarePaymentWebhook(rawBody: Record<string, unkn
       } as Prisma.InputJsonValue,
       tx
     );
+
+    const becamePaid = mapped.paid && prevStatus !== "completed";
+    const becameFailed = mapped.failed && prevStatus !== "failed";
+    if ((becamePaid || becameFailed) && record) {
+      pendingTerminalEmit = {
+        kind: becamePaid ? "succeeded" : "failed",
+        commerceOrderId: record.orderId ?? null,
+        paymentRecordId: record.id,
+        squarePaymentId,
+        squareStatus: status,
+        amountCents: record.amountCents,
+      };
+    }
   });
+
+  if (pendingTerminalEmit) {
+    await emitPaymentTerminalEvent(pendingTerminalEmit);
+  }
 
   return { ok: true };
 }

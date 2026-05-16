@@ -1,13 +1,25 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-export default function StartCustomerImpersonation() {
+type Props = {
+  /** Pre-fills the target email (super-admin flows). Still editable before submit. */
+  prefilledEmail?: string | null;
+};
+
+export default function StartCustomerImpersonation({ prefilledEmail = null }: Props) {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(() => prefilledEmail?.trim() ?? "");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    const next = prefilledEmail?.trim() ?? "";
+    if (next) {
+      setEmail(next);
+    }
+  }, [prefilledEmail]);
 
   async function onStart(e: React.FormEvent) {
     e.preventDefault();

@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { runProductionStoreCatalogSync } from "@/lib/square/storeCatalogSync";
 import { jsonError } from "@/lib/server/apiErrors";
 import { rateLimitHit, clientIp } from "@/lib/server/rateLimitMemory";
+import { OperationalActivitySeverity } from "@prisma/client";
+import { emitOperationalEvent } from "@/lib/operations/emitOperationalEvent";
+import { OPERATIONAL_EVENT_TYPES } from "@/lib/operations/operationalEventTypes";
 
 /**
  * Hydrates `product_cache` / `product_variant_cache` from LIVE Square catalog — Store category only.
@@ -15,6 +18,20 @@ export async function POST(req: Request) {
 
   try {
     const result = await runProductionStoreCatalogSync();
+    await emitOperationalEvent({
+      type: OPERATIONAL_EVENT_TYPES.MENU_SYNCED,
+      severity: OperationalActivitySeverity.info,
+      actorType: "service",
+      message: "Square Store catalog synced to product cache",
+      metadata: {
+        storeCategorySquareId: result.storeCategorySquareId,
+        itemsUpserted: result.itemsUpserted,
+        variantsUpserted: result.variantsUpserted,
+        imageObjectsResolved: result.imageObjectsResolved,
+        inventoryVariantsChecked: result.inventoryVariantsChecked,
+      },
+      source: "api.square.catalog.sync",
+    });
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

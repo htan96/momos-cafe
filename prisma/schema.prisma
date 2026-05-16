@@ -43,6 +43,24 @@ model PlatformFeatureToggle {
   @@map("platform_feature_toggles")
 }
 
+/**
+ * Super-admin operational kill switches — keyed by `lib/governance/controlKeys.ts`.
+ * When `enabled` is true, the named restriction is active (e.g. checkout_disabled ⇒ checkout APIs return 403).
+ */
+model PlatformGovernanceControl {
+  id               String   @id @default(cuid())
+  key              String   @unique
+  category         String
+  enabled          Boolean  @default(false)
+  value            Json?
+  description      String?
+  lastModifiedBy   String?  @map("last_modified_by")
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  metadata         Json?
+
+  @@map("platform_governance_controls")
+}
+
 model CafeOrder {
   id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -64,17 +82,33 @@ model CafeOrder {
   @@map("cafe_orders")
 }
 
-model CateringInquiry {
-  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name       String
-  email      String
-  phone      String
-  eventDate  String   @map("event_date")
-  guestCount Int      @map("guest_count")
-  eventType  String?  @map("event_type")
-  details    String?
-  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+enum CateringInquiryStatus {
+  new
+  contacted
+  quoted
+  booked
+  closed
+  failed_submission
+}
 
+model CateringInquiry {
+  id               String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name             String
+  email            String
+  phone            String
+  eventDate        String               @map("event_date")
+  guestCount       Int                  @map("guest_count")
+  eventType        String?              @map("event_type")
+  details          String?
+  createdAt        DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  status           CateringInquiryStatus @default(new) @map("status")
+  assignedTo       String?              @map("assigned_to")
+  lastFollowUpAt   DateTime?            @map("last_follow_up_at") @db.Timestamptz(6)
+  internalNotes    String?              @map("internal_notes") @db.Text
+  submissionError  String?              @map("submission_error") @db.Text
+  contactedAt      DateTime?            @map("contacted_at") @db.Timestamptz(6)
+
+  @@index([status], map: "catering_inquiries_status_idx")
   @@map("catering_inquiries")
 }
 
@@ -415,17 +449,148 @@ model NotificationEvent {
   @@map("notification_events")
 }
 
-/** Append-only governance / impersonation audit stream (super-admin operations). */
+enum OperationalActivitySeverity {
+  info
+  warning
+  error
+  critical
+}
+
+/** Product-facing operational activity timeline (distinct from governance audit). */
+model OperationalActivityEvent {
+  id        String                       @id @default(cuid())
+  type      String
+  severity  OperationalActivitySeverity
+  actorType String                       @map("actor_type")
+  actorId   String?                      @map("actor_id")
+  actorName String?                      @map("actor_name")
+  message   String
+  metadata  Json?                        @map("metadata")
+  source    String?                      @map("source")
+  createdAt DateTime                     @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([type], map: "operational_activity_events_type_idx")
+  @@index([createdAt(sort: Desc)], map: "operational_activity_events_created_at_idx")
+  @@map("operational_activity_events")
+}
+
+/// Platform-detected operational incidents (fed by `OperationalActivityEvent` rules).
+model OperationalIncident {
+  id              String    @id @default(cuid())
+  type            String
+  /// `info` | `warning` | `high` | `critical`
+  severity        String
+  /// `active` | `investigating` | `monitoring` | `resolved`
+  status          String
+  title           String
+  description     String?
+  affectedSystems String[]  @default([]) @map("affected_systems")
+  firstDetectedAt DateTime? @map("first_detected_at") @db.Timestamptz(6)
+  lastDetectedAt  DateTime? @map("last_detected_at") @db.Timestamptz(6)
+  resolvedAt      DateTime? @map("resolved_at") @db.Timestamptz(6)
+  metadata        Json?
+  /// JSON array of contributing `OperationalActivityEvent` ids
+  sourceEventIds  Json?     @map("source_event_ids")
+  resolutionNotes String?   @map("resolution_notes")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([type], map: "operational_incidents_type_idx")
+  @@index([status], map: "operational_incidents_status_idx")
+  @@index([lastDetectedAt(sort: Desc)], map: "operational_incidents_last_detected_at_idx")
+  @@map("operational_incidents")
+}
+
+/**
+ * Latest measured integration reachability per system (`system_key` is unique — one row per integration).
+ * Status values: `healthy` | `degraded` | `offline` | `unknown`.
+ */
+model IntegrationHealthSnapshot {
+  id                    String    @id @default(cuid())
+  systemKey             String    @unique @map("system_key")
+  category              String    @map("category")
+  currentStatus         String    @map("current_status")
+  latencyMs             Int?      @map("latency_ms")
+  failureRate           Float?    @map("failure_rate")
+  lastSuccessfulCheckAt DateTime? @map("last_successful_check_at") @db.Timestamptz(6)
+  lastFailedCheckAt     DateTime? @map("last_failed_check_at") @db.Timestamptz(6)
+  lastErrorMessage      String?   @map("last_error_message") @db.VarChar(500)
+  metadata              Json?     @map("metadata")
+  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("integration_health_snapshots")
+}
+
+/**
+ * Authenticated browser presence — driven only by real `/api/presence/heartbeat` writes.
+ * Guest/anonymous sessions are intentionally out of scope for MVP.
+ */
+model PlatformPresenceSession {
+  id               String    @id @default(cuid())
+  sessionPublicId  String    @unique @map("session_public_id")
+  cognitoSub       String?   @map("cognito_sub")
+  /// `customer` | `admin` | `super_admin` — `guest` reserved for a future anonymous path (not written today).
+  userType         String    @map("user_type")
+  userRole         String?   @map("user_role")
+  displayName      String?   @map("display_name") @db.VarChar(320)
+  startedAt        DateTime  @default(now()) @map("started_at") @db.Timestamptz(6)
+  lastActivityAt   DateTime  @default(now()) @map("last_activity_at") @db.Timestamptz(6)
+  currentRoute     String?   @map("current_route") @db.VarChar(512)
+  ipAddress        String?   @map("ip_address") @db.VarChar(64)
+  userAgent        String?   @map("user_agent") @db.VarChar(512)
+  /// Updated by heartbeat; rows also evaluated against `lastActivityAt` when displaying “active”.
+  isActive         Boolean   @default(true) @map("is_active")
+  isImpersonated   Boolean   @default(false) @map("is_impersonated")
+  impersonatorSub  String?   @map("impersonator_sub")
+  terminatedAt     DateTime? @map("terminated_at") @db.Timestamptz(6)
+
+  @@index([cognitoSub], map: "platform_presence_sessions_cognito_sub_idx")
+  @@index([lastActivityAt(sort: Desc)], map: "platform_presence_sessions_last_activity_at_idx")
+  @@map("platform_presence_sessions")
+}
+
+/** Append-only governance / impersonation audit stream (distinct from `OperationalActivityEvent`). */
 model GovernanceAuditEvent {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  type        String   @map("type")
-  actorSub    String   @map("actor_sub")
-  actorEmail  String   @map("actor_email")
-  targetEmail String?  @map("target_email")
-  meta        Json?    @map("meta")
+  actionType  String   @map("action_type")
+  category    String?  @map("category")
+  actorId     String   @map("actor_id")
+  actorName   String   @map("actor_name")
+  actorRole   String?  @map("actor_role")
+  targetType  String?  @map("target_type")
+  targetId    String?  @map("target_id")
+  targetName  String?  @map("target_name")
+  description String?
+  metadata    Json?    @map("metadata")
+  reason      String?  @map("reason")
+  ipAddress   String?  @map("ip_address") @db.VarChar(64)
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@index([createdAt(sort: Desc)])
-  @@index([type])
+  @@index([actionType], map: "governance_audit_events_action_type_idx")
   @@map("governance_audit_events")
+}
+
+/**
+ * Append-only–friendly support impersonation ledger (ended rows retained).
+ * Rows with **`endedAt: null`** are active within the product’s support UX.
+ */
+model ImpersonationSupportSession {
+  id              String    @id @default(cuid())
+  /// Correlate with `momos_presence_sid` when present at start, else a fresh UUID.
+  sessionPublicId String    @unique @map("session_public_id")
+  actorSub        String    @map("actor_sub")
+  actorEmail      String    @map("actor_email") @db.VarChar(320)
+  targetSub       String?   @map("target_sub") @db.VarChar(128)
+  targetEmail     String    @map("target_email") @db.VarChar(320)
+  /// `customer` | `admin` (admin routing is not wired yet — see impersonation start handler).
+  scope           String    @map("scope")
+  startedAt       DateTime  @default(now()) @map("started_at") @db.Timestamptz(6)
+  endedAt         DateTime? @map("ended_at") @db.Timestamptz(6)
+  ipAddress       String?   @map("ip_address") @db.VarChar(64)
+  userAgent       String?   @map("user_agent") @db.VarChar(512)
+
+  @@index([actorSub, endedAt], map: "impersonation_support_sessions_actor_ended_idx")
+  @@index([startedAt(sort: Desc)], map: "impersonation_support_sessions_started_at_idx")
+  @@map("impersonation_support_sessions")
 }

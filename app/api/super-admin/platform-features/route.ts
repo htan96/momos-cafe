@@ -10,7 +10,10 @@ import {
 } from "@/lib/platform/platformFeatureState";
 import { prisma } from "@/lib/prisma";
 import { isSuperAdmin } from "@/lib/auth/cognito/roles";
-import { writeGovernanceAudit } from "@/lib/governance/governanceAudit";
+import { recordGovernanceAuditEntry } from "@/lib/governance/governanceAuditRecord";
+import { OperationalActivitySeverity } from "@prisma/client";
+import { emitOperationalEvent } from "@/lib/operations/emitOperationalEvent";
+import { OPERATIONAL_EVENT_TYPES } from "@/lib/operations/operationalEventTypes";
 
 function isPlatformFeatureKey(v: string): v is (typeof PLATFORM_FEATURE_KEYS)[number] {
   return (PLATFORM_FEATURE_KEYS as readonly string[]).includes(v);
@@ -96,13 +99,27 @@ export async function PATCH(request: Request) {
     )
   );
 
-  await writeGovernanceAudit({
-    type: "platform_feature_patch",
-    actorSub: user.sub,
-    actorEmail: updatedBy,
-    meta: {
+  await recordGovernanceAuditEntry({
+    actionType: "PLATFORM_FEATURE_UPDATED",
+    category: "platform",
+    actorId: user.sub,
+    actorName: updatedBy,
+    actorRole: "super_admin",
+    description: "Platform feature toggles updated",
+    metadata: {
       changes: entries.map(([key, enabled]) => ({ key, enabled })),
+      source: "api.super-admin.platform-features",
     },
+  });
+
+  await emitOperationalEvent({
+    type: OPERATIONAL_EVENT_TYPES.PLATFORM_FEATURE_TOGGLED,
+    severity: OperationalActivitySeverity.info,
+    actorType: "super_admin",
+    actorId: user.sub,
+    message: `Platform feature toggles updated (${entries.length} key${entries.length === 1 ? "" : "s"})`,
+    metadata: { changes: entries.map(([key, enabled]) => ({ key, enabled })) },
+    source: "api.super-admin.platform-features",
   });
 
   revalidateTag(PLATFORM_FEATURES_CACHE_TAG, "max");

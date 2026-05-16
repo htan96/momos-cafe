@@ -8,6 +8,11 @@ import {
   APP_SETTING_SHOP_ENABLED,
 } from "@/lib/app-settings/constants";
 import { ensureDefaultAppSettings, MAINTENANCE_CACHE_TAG } from "@/lib/app-settings/settings";
+import { OperationalActivitySeverity } from "@prisma/client";
+import { isSuperAdmin } from "@/lib/auth/cognito/roles";
+import { emitOperationalEvent } from "@/lib/operations/emitOperationalEvent";
+import { OPERATIONAL_EVENT_TYPES } from "@/lib/operations/operationalEventTypes";
+import { recordGovernanceAuditEntry, resolveGovernanceStaffRole } from "@/lib/governance/governanceAuditRecord";
 
 export async function GET() {
   const user = await getCognitoServerSession();
@@ -86,6 +91,37 @@ export async function PATCH(request: Request) {
       data: { enabled: rawMenu, updatedBy },
     });
   }
+
+  await emitOperationalEvent({
+    type: OPERATIONAL_EVENT_TYPES.MAINTENANCE_UPDATED,
+    severity: OperationalActivitySeverity.info,
+    actorType: isSuperAdmin(user.groups) ? "super_admin" : "admin",
+    actorId: user.sub,
+    message: "Shop or menu availability flags updated",
+    metadata: {
+      ...(rawShop !== undefined ? { shopEnabled: rawShop } : {}),
+      ...(rawMenu !== undefined ? { menuEnabled: rawMenu } : {}),
+    },
+    source: "api.admin.app-settings",
+  });
+
+  const keysChanged: string[] = [];
+  if (rawShop !== undefined) keysChanged.push("shopEnabled");
+  if (rawMenu !== undefined) keysChanged.push("menuEnabled");
+  await recordGovernanceAuditEntry({
+    actionType: "MAINTENANCE_UPDATED",
+    category: "maintenance",
+    actorId: user.sub,
+    actorName: updatedBy,
+    actorRole: resolveGovernanceStaffRole(user.groups),
+    description: "Shop/menu availability (maintenance gates) updated",
+    metadata: {
+      keysChanged,
+      ...(rawShop !== undefined ? { shopEnabled: rawShop } : {}),
+      ...(rawMenu !== undefined ? { menuEnabled: rawMenu } : {}),
+      source: "api.admin.app-settings",
+    },
+  });
 
   revalidateTag(MAINTENANCE_CACHE_TAG, "max");
 

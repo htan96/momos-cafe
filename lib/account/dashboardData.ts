@@ -114,7 +114,10 @@ export async function loadCustomerCommerceOrder(customerId: string, orderId: str
 
 export async function loadCateringByEmail(customerEmail: string) {
   return prisma.cateringInquiry.findMany({
-    where: { email: { equals: customerEmail, mode: "insensitive" } },
+    where: {
+      email: { equals: customerEmail, mode: "insensitive" },
+      status: { not: "failed_submission" },
+    },
     orderBy: { createdAt: "desc" },
     take: 15,
   });

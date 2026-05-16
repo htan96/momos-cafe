@@ -26,6 +26,7 @@ export async function getOpsSession(): Promise<OpsSessionPayload | null> {
 
     return {
       email: user.email,
+      sub: user.sub,
       role: "admin",
       exp: payload.exp,
       roleBadge: isSuperAdmin(user.groups) ? "super_admin" : "admin",

@@ -9,6 +9,8 @@ import { validateCartEligibilityFromAdminSettings } from "@/lib/ordering/validat
 import { verifyInternalSecretFromRequest } from "@/lib/server/internalAuth";
 import { getMaintenanceFlags } from "@/lib/app-settings/settings";
 import { maintenanceBlockForUnifiedLines } from "@/lib/maintenance/unifiedCartMaintenance";
+import { emitOrderCreatedEvent } from "@/lib/operations/emitOperationalEvent";
+import { governanceBlockUnifiedOrderPath } from "@/lib/governance/governanceControls";
 
 /** Draft commerce order + fulfillment groups — validates payload strictly */
 export async function POST(req: Request) {
@@ -22,6 +24,9 @@ export async function POST(req: Request) {
     if (lines.length === 0) {
       return NextResponse.json({ error: "lines required" }, { status: 400 });
     }
+
+    const gov = await governanceBlockUnifiedOrderPath();
+    if (gov) return gov;
 
     const maint = maintenanceBlockForUnifiedLines(lines, await getMaintenanceFlags());
     if (maint) return maint;
@@ -68,6 +73,12 @@ export async function POST(req: Request) {
         warnings.length > 0
           ? { validationWarnings: warnings.map((w) => ({ code: w.code, message: w.message })) }
           : undefined,
+    });
+
+    await emitOrderCreatedEvent({
+      orderId: result.orderId,
+      fulfillmentGroupsCreated: result.fulfillmentGroupsCreated,
+      customerId: customer?.sub ?? null,
     });
 
     return NextResponse.json({

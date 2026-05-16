@@ -17,14 +17,14 @@ const legendEntries: { variant: StatusPillVariant; label: string }[] = [
 ];
 
 export default async function SuperAdminAuditPage() {
-  const rows = await loadRecentGovernanceAuditRows(25);
+  const rows = await loadRecentGovernanceAuditRows(100);
 
   return (
     <div className="space-y-8">
       <GovPageHeader
         eyebrow="Evidence"
         title="Audit stream"
-        subtitle="Latest 25 rows from `GovernanceAuditEvent`, newest first. Filter chips are visual placeholders only in this pass."
+        subtitle="Latest 100 rows from `GovernanceAuditEvent`, newest first. Filter chips are visual placeholders only in this pass."
         actions={
           <button
             type="button"
@@ -64,13 +64,18 @@ export default async function SuperAdminAuditPage() {
 
       <OperationalCard
         title="Governance timeline"
-        footer={<p className="text-[11px] text-charcoal/45">Impersonation, perspective changes, and platform feature patches append here.</p>}
+        footer={
+          <p className="text-[11px] text-charcoal/45">
+            Permanent governance actions (maintenance, platform controls, impersonation, sessions) append here — append-only, real operations
+            only.
+          </p>
+        }
       >
         {rows.length ? (
           <AuditTimeline rows={rows} />
         ) : (
           <p className="text-[13px] text-charcoal/60 leading-relaxed">
-            The audit table is empty — trigger a perspective switch or platform toggle to seed the stream.
+            The audit table is empty. Rows appear when administrators perform actions that change platform or session state.
           </p>
         )}
       </OperationalCard>

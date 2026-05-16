@@ -11,8 +11,12 @@ import {
 } from "@/lib/auth/cognito/loginInstrumentation";
 import { isMfaRelatedChallenge } from "@/lib/auth/cognito/mfa";
 import { resolvePostLoginRedirect } from "@/lib/auth/cognito/redirectByRole";
+import { isAdmin, isSuperAdmin } from "@/lib/auth/cognito/roles";
 import { clearCognitoCookieJar } from "@/lib/auth/cognito/sessionCookies";
 import { cognitoChallengeJson } from "@/lib/auth/cognito/challengeResponse";
+import { OperationalActivitySeverity } from "@prisma/client";
+import { emitOperationalEvent } from "@/lib/operations/emitOperationalEvent";
+import { OPERATIONAL_EVENT_TYPES } from "@/lib/operations/operationalEventTypes";
 
 export const runtime = "nodejs";
 
@@ -284,6 +288,20 @@ export async function POST(request: Request) {
           },
           { httpStatus: 500, outcome: "cookie_apply_failed" }
         );
+      }
+
+      if (isAdmin(result.user.groups)) {
+        await emitOperationalEvent({
+          type: OPERATIONAL_EVENT_TYPES.AUTH_LOGIN,
+          severity: OperationalActivitySeverity.info,
+          actorType: isSuperAdmin(result.user.groups) ? "super_admin" : "admin",
+          actorId: result.user.sub,
+          message: "Staff signed in via Cognito",
+          metadata: {
+            staffGroups: result.user.groups.filter((g) => g === "admin" || g === "super_admin"),
+          },
+          source: "api.auth.cognito.login",
+        });
       }
 
       return res;

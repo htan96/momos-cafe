@@ -6,11 +6,15 @@ import { cartHasBlockingIssues, validateUnifiedCart } from "@/lib/commerce/cartV
 import { summarizeFulfillmentEligibility } from "@/lib/commerce/fulfillmentEligibility";
 import { getMaintenanceFlags } from "@/lib/app-settings/settings";
 import { maintenanceBlockForUnifiedLines } from "@/lib/maintenance/unifiedCartMaintenance";
+import { governanceBlockCheckout } from "@/lib/governance/governanceControls";
 
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as { lines?: unknown };
     const { lines, issues: parseIssues } = parseUnifiedCartLines(body.lines);
+
+    const govCheckout = await governanceBlockCheckout();
+    if (govCheckout) return govCheckout;
 
     const maint = maintenanceBlockForUnifiedLines(lines, await getMaintenanceFlags());
     if (maint) return maint;

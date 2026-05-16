@@ -4,6 +4,9 @@ import type { Prisma } from "@prisma/client";
 import { getOpsSession } from "@/lib/ops/getOpsSession";
 import { opsCan } from "@/lib/ops/permissions";
 import { purchaseShippoLabel } from "@/lib/shipping/shippoClient";
+import { OperationalActivitySeverity } from "@prisma/client";
+import { emitOperationalEvent } from "@/lib/operations/emitOperationalEvent";
+import { OPERATIONAL_EVENT_TYPES } from "@/lib/operations/operationalEventTypes";
 
 /**
  * Purchase a shipping label for a pending storefront shipment row that has a stored rate id.
@@ -86,6 +89,20 @@ export async function POST(req: Request) {
         shippedAt: hasProofOfPurchase ? new Date() : row.shippedAt,
         metadata: mergedMeta as Prisma.InputJsonValue,
       },
+    });
+
+    await emitOperationalEvent({
+      type: OPERATIONAL_EVENT_TYPES.SHIPMENT_LABEL_CREATED,
+      severity: OperationalActivitySeverity.info,
+      actorType: session.roleBadge === "super_admin" ? "super_admin" : "admin",
+      actorId: session.sub,
+      message: "Shippo label purchased for storefront shipment",
+      metadata: {
+        shipmentId: updated.id,
+        carrier: updated.carrier,
+        trackingNumber: updated.trackingNumber,
+      },
+      source: "api.ops.shipping.purchase-label",
     });
 
     return NextResponse.json({ ok: true, shipment: updated });

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import GovPageHeader from "@/components/governance/GovPageHeader";
 import OperationalCard from "@/components/governance/OperationalCard";
 import StartCustomerImpersonation from "@/components/governance/StartCustomerImpersonation";
@@ -10,6 +11,14 @@ export default function SuperAdminCustomerLookupPage() {
         eyebrow="Privileged search"
         title="Customer lookup"
         subtitle="Governance-first framing for cross-checking guests during escalations. Query remains local-only."
+        actions={
+          <Link
+            href="/super-admin/customer-operations"
+            className="rounded-lg border border-cream-dark/60 bg-white px-3 py-1.5 text-[12px] font-semibold text-charcoal/80 shadow-sm transition hover:bg-cream-mid/40"
+          >
+            Customer directory
+          </Link>
+        }
       />
 
       <OperationalCard title="Customer impersonation (MVP)" meta="Scoped session · audit logged">

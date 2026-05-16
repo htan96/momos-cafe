@@ -5,6 +5,7 @@ import { isSuperAdmin } from "@/lib/auth/cognito/roles";
 import { IMPERSONATION_COOKIE } from "@/lib/governance/impersonationConstants";
 import { verifyImpersonationToken } from "@/lib/governance/impersonationToken";
 import { getImpersonationSecretForVerification } from "@/lib/governance/impersonationSecret";
+import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   const user = await getCognitoServerSession();
@@ -28,12 +29,43 @@ export async function GET() {
     return NextResponse.json({ active: false, configured: true, stale: true });
   }
 
-  return NextResponse.json({
-    active: true,
-    configured: true,
-    actor: { sub: payload.actorSub, email: payload.actorEmail },
-    target: { email: payload.targetEmail, sub: payload.targetSub ?? null },
-    scope: payload.scope,
-    issuedAt: payload.issuedAt,
-  });
+  try {
+    const row = await prisma.impersonationSupportSession.findFirst({
+      where: {
+        id: payload.ledgerId,
+        actorSub: user.sub,
+        endedAt: null,
+        targetEmail: payload.targetEmail.trim().toLowerCase(),
+        scope: payload.scope,
+        sessionPublicId: payload.sessionPublicId,
+      },
+    });
+    if (!row) {
+      return NextResponse.json({ active: false, configured: true, stale: true });
+    }
+
+    return NextResponse.json({
+      active: true,
+      configured: true,
+      actor: { sub: payload.actorSub, email: payload.actorEmail },
+      target: { email: payload.targetEmail, sub: payload.targetSub ?? null },
+      scope: payload.scope,
+      issuedAt: payload.issuedAt,
+      ledgerId: row.id,
+      sessionPublicId: row.sessionPublicId,
+      startedAt: row.startedAt.toISOString(),
+    });
+  } catch (e) {
+    console.error("[impersonation] status ledger lookup failed", e);
+    return NextResponse.json(
+      {
+        active: false,
+        configured: true,
+        stale: true,
+        error: "ledger_unavailable",
+        code: "IMPERSONATION_LEDGER_UNAVAILABLE",
+      },
+      { status: 503 }
+    );
+  }
 }

@@ -26,6 +26,10 @@ import { persistStorefrontShipmentSelection } from "@/lib/server/persistStorefro
 import type { UnifiedMerchLine } from "@/types/commerce";
 import { getMaintenanceFlags } from "@/lib/app-settings/settings";
 import { maintenanceModeJsonResponse } from "@/lib/maintenance/unifiedCartMaintenance";
+import { governanceBlockUnifiedOrderPath } from "@/lib/governance/governanceControls";
+import { OperationalActivitySeverity } from "@prisma/client";
+import { emitOperationalEvent } from "@/lib/operations/emitOperationalEvent";
+import { OPERATIONAL_EVENT_TYPES } from "@/lib/operations/operationalEventTypes";
 
 const TAX_RATE = 0.0925;
 
@@ -340,6 +344,9 @@ export async function POST(request: Request) {
       console.warn("[Order] 400: Empty cart");
       return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
     }
+
+    const gov = await governanceBlockUnifiedOrderPath();
+    if (gov) return gov;
 
     const maintenanceFlags = await getMaintenanceFlags();
     if (merchLines.length > 0 && !maintenanceFlags.shopEnabled) {
@@ -711,6 +718,19 @@ export async function POST(request: Request) {
         orderId,
         error: safeJson(squareErrorForLog(squareErr)),
       });
+      void emitOperationalEvent({
+        type: OPERATIONAL_EVENT_TYPES.PAYMENT_FAILED,
+        severity: OperationalActivitySeverity.warning,
+        actorType: "customer",
+        message: `Legacy checkout Square payment.create failed (${orderId.slice(0, 8)}…)`,
+        metadata: {
+          flow: "legacy_cafe_api_order",
+          orderId,
+          phase: "square_payments_create",
+          correlation: { squareOrderId: squareOrderId ?? null },
+        },
+        source: "api.order",
+      });
       const userMessage = getSquareUserMessage(squareErr);
       const payload: { error: string; orderId: string; squareErrors?: unknown } = {
         error: userMessage,
@@ -731,6 +751,19 @@ export async function POST(request: Request) {
 
     if (!paymentId) {
       console.error("[Order] Payment failure: createPayment response missing payment id", orderId);
+      void emitOperationalEvent({
+        type: OPERATIONAL_EVENT_TYPES.PAYMENT_FAILED,
+        severity: OperationalActivitySeverity.warning,
+        actorType: "customer",
+        message: `Legacy checkout Square payment response missing payment id (${orderId.slice(0, 8)}…)`,
+        metadata: {
+          flow: "legacy_cafe_api_order",
+          orderId,
+          phase: "square_payments_create_response",
+          correlation: { squareOrderId: squareOrderId ?? null },
+        },
+        source: "api.order",
+      });
       return NextResponse.json(
         { error: "Payment could not be completed", orderId },
         { status: 500 }
@@ -757,6 +790,21 @@ export async function POST(request: Request) {
           orderId,
           paymentId,
           detail: verified,
+        });
+        void emitOperationalEvent({
+          type: OPERATIONAL_EVENT_TYPES.PAYMENT_FAILED,
+          severity: OperationalActivitySeverity.warning,
+          actorType: "customer",
+          message: `Legacy checkout Square payment verification failed (${orderId.slice(0, 8)}…)`,
+          metadata: {
+            flow: "legacy_cafe_api_order",
+            orderId,
+            phase: "square_payments_verify",
+            squarePaymentId: paymentId,
+            verificationReason: verified.reason,
+            correlation: { squareOrderId: squareOrderId ?? null },
+          },
+          source: "api.order",
         });
         return NextResponse.json(
           {

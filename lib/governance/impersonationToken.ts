@@ -7,6 +7,10 @@ export type ImpersonationPayload = {
   targetSub?: string;
   scope: ImpersonationScope;
   issuedAt: number;
+  /** `ImpersonationSupportSession.id` — required for new tokens (ledger must be active server-side). */
+  ledgerId: string;
+  /** Public correlation id (`momos_presence_sid` when present at start). */
+  sessionPublicId: string;
 };
 
 const encoder = new TextEncoder();
@@ -105,8 +109,18 @@ export async function verifyImpersonationToken(
   const targetSub = typeof o.targetSub === "string" ? o.targetSub.trim() : undefined;
   const scope = o.scope === "customer" || o.scope === "admin" ? o.scope : null;
   const issuedAt = typeof o.issuedAt === "number" ? o.issuedAt : NaN;
+  const ledgerId = typeof o.ledgerId === "string" ? o.ledgerId.trim() : "";
+  const sessionPublicId = typeof o.sessionPublicId === "string" ? o.sessionPublicId.trim() : "";
 
-  if (!actorSub || !actorEmail || !targetEmail || !scope || !Number.isFinite(issuedAt)) {
+  if (
+    !actorSub ||
+    !actorEmail ||
+    !targetEmail ||
+    !scope ||
+    !Number.isFinite(issuedAt) ||
+    !ledgerId ||
+    !sessionPublicId
+  ) {
     return null;
   }
 
@@ -117,5 +131,7 @@ export async function verifyImpersonationToken(
     targetSub: targetSub || undefined,
     scope,
     issuedAt,
+    ledgerId,
+    sessionPublicId,
   };
 }

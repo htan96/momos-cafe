@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { validateOrderStatusTransition } from "@/lib/commerce/orderLifecycle";
 import { appendNotificationEvent } from "@/lib/notifications/notificationEvents";
 import { emitPaymentTerminalEvent } from "@/lib/operations/emitOperationalEvent";
+import { emitPlatformEvent } from "@/lib/platform/events/emitPlatformEvent";
+import { PLATFORM_EVENT_SUBTYPE } from "@/lib/platform/events/taxonomy";
+import { OperationalActivitySeverity } from "@prisma/client";
 
 export async function registerPendingCommercePayment(input: {
   commerceOrderId: string;
@@ -144,6 +147,7 @@ export async function reconcileSquarePaymentWebhook(rawBody: Record<string, unkn
   };
 
   let pendingTerminalEmit: PendingTerminal | undefined;
+  let orphanWebhookEmit: { squarePaymentId: string; status: string; referenceId: string | null } | undefined;
 
   await prisma.$transaction(async (tx) => {
     let record =
@@ -159,6 +163,11 @@ export async function reconcileSquarePaymentWebhook(rawBody: Record<string, unkn
         : null);
 
     if (!record) {
+      orphanWebhookEmit = {
+        squarePaymentId,
+        status,
+        referenceId: referenceId ?? null,
+      };
       await appendNotificationEvent(
         "commerce.payment.webhook_orphan",
         {
@@ -224,6 +233,24 @@ export async function reconcileSquarePaymentWebhook(rawBody: Record<string, unkn
       };
     }
   });
+
+  if (orphanWebhookEmit) {
+    void emitPlatformEvent({
+      subtype: PLATFORM_EVENT_SUBTYPE.PAYMENT_SQUARE_ORPHAN_WEBHOOK,
+      category: "PAYMENT_EVENT",
+      lifecycle: "failed",
+      severity: OperationalActivitySeverity.warning,
+      actorType: "service",
+      message: "Square webhook payment could not be matched to a pending PaymentRecord",
+      detail: {
+        squarePaymentId: orphanWebhookEmit.squarePaymentId,
+        squareStatus: orphanWebhookEmit.status,
+        referenceId: orphanWebhookEmit.referenceId,
+      },
+      source: { handler: "reconcileSquarePaymentWebhook" },
+      sourceTag: "webhooks.square",
+    });
+  }
 
   if (pendingTerminalEmit) {
     await emitPaymentTerminalEvent(pendingTerminalEmit);

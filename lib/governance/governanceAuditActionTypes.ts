@@ -10,6 +10,7 @@ export const GOVERNANCE_AUDIT_ACTION_TYPES = [
   "USER_ROLE_CHANGED",
   "ADMIN_PROMOTED",
   "ADMIN_DEMOTED",
+  "OPERATIONAL_FAILURE_TRIAGE_UPDATED",
 ] as const;
 
 export type GovernanceAuditActionType = (typeof GOVERNANCE_AUDIT_ACTION_TYPES)[number];

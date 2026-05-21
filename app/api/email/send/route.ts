@@ -5,6 +5,9 @@ import { prisma } from "@/lib/prisma";
 import { jsonError } from "@/lib/server/apiErrors";
 import { rateLimitHit, clientIp } from "@/lib/server/rateLimitMemory";
 import { appendNotificationEvent } from "@/lib/notifications/notificationEvents";
+import { emitPlatformEvent } from "@/lib/platform/events/emitPlatformEvent";
+import { PLATFORM_EVENT_SUBTYPE } from "@/lib/platform/events/taxonomy";
+import { OperationalActivitySeverity } from "@prisma/client";
 
 /** Staff/system outbound transactional send — protected by orchestration middleware */
 export async function POST(req: Request) {
@@ -17,6 +20,17 @@ export async function POST(req: Request) {
   const from = process.env.RESEND_FROM_EMAIL?.trim() ?? "orders@momosvallejo.com";
   if (!apiKey) {
     console.error("[email/send] RESEND_API_KEY missing");
+    void emitPlatformEvent({
+      subtype: PLATFORM_EVENT_SUBTYPE.SYSTEM_EMAIL_SEND_FAILED,
+      category: "SYSTEM_EVENT",
+      lifecycle: "failed",
+      severity: OperationalActivitySeverity.error,
+      actorType: "service",
+      message: "Outbound email aborted — RESEND_API_KEY missing",
+      detail: { stage: "config", httpStatus: 503, code: "EMAIL_UNCONFIGURED" },
+      source: { handler: "POST app/api/email/send" },
+      sourceTag: "api.email.send",
+    });
     return jsonError(503, "EMAIL_UNCONFIGURED", "Outbound email not configured");
   }
 
@@ -97,6 +111,24 @@ export async function POST(req: Request) {
         },
       });
       console.error("[email/send] Resend error", error);
+      void emitPlatformEvent({
+        subtype: PLATFORM_EVENT_SUBTYPE.SYSTEM_EMAIL_SEND_FAILED,
+        category: "SYSTEM_EVENT",
+        lifecycle: "failed",
+        severity: OperationalActivitySeverity.warning,
+        actorType: "service",
+        message: "Resend rejected outbound staff email payload",
+        entities: commerceOrderId ? { commerceOrderId } : {},
+        detail: {
+          stage: "resend_transport",
+          code: error.name ?? "RESEND_REJECTED",
+          providerMessage:
+            typeof error.message === "string" ? error.message.slice(0, 400) : String(error),
+        },
+        legacyFlatMetadata: { threadId },
+        source: { handler: "POST app/api/email/send" },
+        sourceTag: "api.email.send",
+      });
       return jsonError(502, "RESEND_REJECTED", error.message ?? "Resend rejected send");
     }
 
@@ -121,6 +153,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, threadId, messageId: outbound.id, resendEmailId: data?.id });
   } catch (e) {
     console.error("[email/send POST]", e);
+    void emitPlatformEvent({
+      subtype: PLATFORM_EVENT_SUBTYPE.SYSTEM_EMAIL_SEND_FAILED,
+      category: "SYSTEM_EVENT",
+      lifecycle: "failed",
+      severity: OperationalActivitySeverity.error,
+      actorType: "service",
+      message: "Unhandled error while orchestrating transactional email send",
+      detail: {
+        stage: "handler",
+        httpStatus: 500,
+        errorName: e instanceof Error ? e.name : typeof e,
+      },
+      source: { handler: "POST app/api/email/send" },
+      sourceTag: "api.email.send",
+    });
     return jsonError(500, "EMAIL_SEND_FAILED", "Could not send email");
   }
 }

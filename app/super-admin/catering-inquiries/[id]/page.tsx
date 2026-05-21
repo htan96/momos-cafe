@@ -40,7 +40,7 @@ export default async function SuperAdminCateringInquiryDetailPage(props: PagePro
         subtitle="Web intake row from `catering_inquiries` — link-out uses email ↔ `customers.email` only when it resolves."
         actions={
           <Link
-            href="/super-admin/live-operations"
+            href="/super-admin/live-activity"
             className="rounded-lg border border-cream-dark/60 bg-white px-3 py-1.5 text-[12px] font-semibold text-charcoal/80 shadow-sm transition hover:bg-cream-mid/40"
           >
             Live operations

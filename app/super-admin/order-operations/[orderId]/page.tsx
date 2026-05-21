@@ -471,7 +471,7 @@ export default async function SuperAdminOrderDetailPage(props: PageProps) {
                 </p>
                 <p>
                   <Link
-                    href="/super-admin/live-operations"
+                    href="/super-admin/live-activity"
                     className="font-semibold text-charcoal underline decoration-charcoal/25 hover:decoration-charcoal/60"
                   >
                     Live Operations

@@ -6,6 +6,9 @@ import { prisma } from "@/lib/prisma";
 import { getMaintenanceFlags } from "@/lib/app-settings/settings";
 import { maintenanceModeJsonResponse } from "@/lib/maintenance/unifiedCartMaintenance";
 import { governanceBlockCheckout } from "@/lib/governance/governanceControls";
+import { emitPlatformEvent } from "@/lib/platform/events/emitPlatformEvent";
+import { PLATFORM_EVENT_SUBTYPE } from "@/lib/platform/events/taxonomy";
+import { OperationalActivitySeverity } from "@prisma/client";
 
 /** Registers (idempotent) pending Square-backed payment shell for a commerce order */
 export async function POST(req: Request) {
@@ -69,6 +72,18 @@ export async function POST(req: Request) {
       return jsonError(409, "IDEMPOTENCY_KEY_ORDER_MISMATCH", "Key already used for another order");
     }
     console.error("[payments/start POST]", e);
+    void emitPlatformEvent({
+      subtype: PLATFORM_EVENT_SUBTYPE.PAYMENT_REGISTER_FAILED,
+      category: "PAYMENT_EVENT",
+      lifecycle: "failed",
+      severity: OperationalActivitySeverity.error,
+      actorType: "customer",
+      message: "Failed to register pending Square payment shell",
+      entities: { commerceOrderId },
+      detail: { errorCode: "PAYMENT_REGISTER_FAILED", errorMessage: msg.slice(0, 240) },
+      source: { handler: "POST app/api/payments/start" },
+      sourceTag: "api.payments.start",
+    });
     return jsonError(500, "PAYMENT_REGISTER_FAILED", "Could not register payment");
   }
 }

@@ -36,10 +36,17 @@ export function readOperationalMetadataEntityIds(metadata: unknown): {
     return { commerceOrderId: null, orderId: null, customerId: null, shipmentId: null };
   }
   const o = metadata as Record<string, unknown>;
-  const commerceOrderId = readUuidFromRecord(o, ["commerceOrderId", "commerce_order_id"]);
-  const orderId = readUuidFromRecord(o, ["orderId", "order_id"]);
-  const customerId = readUuidFromRecord(o, ["customerId", "customer_id"]);
-  const shipmentId = readUuidFromRecord(o, ["shipmentId", "shipment_id"]);
+  const entities =
+    o.entities && typeof o.entities === "object" && !Array.isArray(o.entities)
+      ? (o.entities as Record<string, unknown>)
+      : {};
+
+  const merge = { ...entities, ...o };
+
+  const commerceOrderId = readUuidFromRecord(merge, ["commerceOrderId", "commerce_order_id"]);
+  const orderId = readUuidFromRecord(merge, ["orderId", "order_id"]);
+  const customerId = readUuidFromRecord(merge, ["customerId", "customer_id"]);
+  const shipmentId = readUuidFromRecord(merge, ["shipmentId", "shipment_id"]);
   return { commerceOrderId, orderId, customerId, shipmentId };
 }
 

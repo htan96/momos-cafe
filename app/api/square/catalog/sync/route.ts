@@ -5,6 +5,8 @@ import { rateLimitHit, clientIp } from "@/lib/server/rateLimitMemory";
 import { OperationalActivitySeverity } from "@prisma/client";
 import { emitOperationalEvent } from "@/lib/operations/emitOperationalEvent";
 import { OPERATIONAL_EVENT_TYPES } from "@/lib/operations/operationalEventTypes";
+import { emitPlatformEvent } from "@/lib/platform/events/emitPlatformEvent";
+import { PLATFORM_EVENT_SUBTYPE } from "@/lib/platform/events/taxonomy";
 
 /**
  * Hydrates `product_cache` / `product_variant_cache` from LIVE Square catalog — Store category only.
@@ -37,11 +39,44 @@ export async function POST(req: Request) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("[square/catalog/sync POST]", e);
     if (msg.includes("SQUARE_ENVIRONMENT")) {
+      void emitPlatformEvent({
+        subtype: PLATFORM_EVENT_SUBTYPE.MENU_SYNC_FAILED,
+        category: "MENU_EVENT",
+        lifecycle: "failed",
+        severity: OperationalActivitySeverity.error,
+        actorType: "service",
+        message: "Square catalog sync aborted — environment configuration mismatch",
+        detail: { code: "SQUARE_ENV_MISMATCH", reason: msg.slice(0, 280) },
+        source: { handler: "POST app/api/square/catalog/sync" },
+        sourceTag: "api.square.catalog.sync",
+      });
       return jsonError(503, "SQUARE_ENV_MISMATCH", msg);
     }
     if (msg.includes("SQUARE_ACCESS_TOKEN")) {
+      void emitPlatformEvent({
+        subtype: PLATFORM_EVENT_SUBTYPE.MENU_SYNC_FAILED,
+        category: "MENU_EVENT",
+        lifecycle: "failed",
+        severity: OperationalActivitySeverity.error,
+        actorType: "service",
+        message: "Square catalog sync aborted — access token unavailable",
+        detail: { code: "SQUARE_TOKEN_MISSING", reason: msg.slice(0, 280) },
+        source: { handler: "POST app/api/square/catalog/sync" },
+        sourceTag: "api.square.catalog.sync",
+      });
       return jsonError(503, "SQUARE_TOKEN_MISSING", msg);
     }
+    void emitPlatformEvent({
+      subtype: PLATFORM_EVENT_SUBTYPE.MENU_SYNC_FAILED,
+      category: "MENU_EVENT",
+      lifecycle: "failed",
+      severity: OperationalActivitySeverity.error,
+      actorType: "service",
+      message: "Square Store catalog hydration failed unexpectedly",
+      detail: { code: "STORE_SYNC_FAILED", reason: msg.slice(0, 280) },
+      source: { handler: "POST app/api/square/catalog/sync" },
+      sourceTag: "api.square.catalog.sync",
+    });
     return jsonError(500, "STORE_SYNC_FAILED", msg.slice(0, 280));
   }
 }

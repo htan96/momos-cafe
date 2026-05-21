@@ -81,8 +81,10 @@ function deriveIntegrationPosture(rows: { currentStatus: string; systemKey: stri
 
 export default async function SuperAdminHomePage() {
   const dayStartUtc = startOfUtcDay();
-  const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  const presenceSince = new Date(Date.now() - PRESENCE_LIVE_WINDOW_MINUTES * 60 * 1000);
+  // eslint-disable-next-line react-hooks/purity -- Async RSC derives rolling Prisma bounds from request-time clock
+  const nowMs = Date.now();
+  const since24h = new Date(nowMs - 24 * 60 * 60 * 1000);
+  const presenceSince = new Date(nowMs - PRESENCE_LIVE_WINDOW_MINUTES * 60 * 1000);
 
   const [
     maintenance,
@@ -238,9 +240,9 @@ export default async function SuperAdminHomePage() {
   return (
     <div className="space-y-10">
       <GovPageHeader
-        eyebrow="Platform"
+        eyebrow="Command center"
         title="Overview"
-        subtitle="Executive summary from Postgres — integration snapshots, incidents, governance, presence, and commerce counters. Open Live operations for deep views and on-demand health probes."
+        subtitle="Read-only Postgres signals only — integrations, incidents, governance, storefront gates, commerce counters, and high-signal events. Drill into Live activity for timelines and impersonation tooling."
       />
 
       {/* Section 1 — Platform status strip */}
@@ -365,23 +367,28 @@ export default async function SuperAdminHomePage() {
       >
         <ul className="flex flex-wrap gap-x-5 gap-y-2 text-[13px] font-semibold text-teal-dark">
           <li>
-            <Link href="/super-admin/live-operations" className="underline-offset-2 hover:underline">
-              Live operations
+            <Link href="/super-admin/live-activity" className="underline-offset-2 hover:underline">
+              Live activity
             </Link>
           </li>
           <li>
-            <Link href="/super-admin/live-operations#related-controls" className="underline-offset-2 hover:underline">
-              Live operations · controls
+            <Link href="/super-admin/incidents" className="underline-offset-2 hover:underline">
+              Incidents
             </Link>
           </li>
           <li>
-            <Link href="/admin/settings/maintenance" className="underline-offset-2 hover:underline">
-              Maintenance (shop / menu gates)
+            <Link href="/super-admin/live-activity#related-controls" className="underline-offset-2 hover:underline">
+              Governance state
             </Link>
           </li>
           <li>
-            <Link href="/super-admin/settings/platform" className="underline-offset-2 hover:underline">
-              Platform governance
+            <Link href="/super-admin/platform/maintenance" className="underline-offset-2 hover:underline">
+              Maintenance shortcuts
+            </Link>
+          </li>
+          <li>
+            <Link href="/super-admin/platform/feature-controls" className="underline-offset-2 hover:underline">
+              Feature controls
             </Link>
           </li>
         </ul>
@@ -391,7 +398,8 @@ export default async function SuperAdminHomePage() {
       <OperationalCard title="High-signal activity" meta="Last 12 matching events · newest first">
         {highSignalRows.length === 0 ? (
           <p className="text-[13px] text-charcoal/60 leading-relaxed">
-            No matching operational events yet — types include maintenance, governance, payments, orders, and sign-ups.
+            No operational activity logged for the selected high-signal types yet — this feed only shows authenticated emitters once
+            they land in Postgres.
           </p>
         ) : (
           <ul className="divide-y divide-cream-dark/40">

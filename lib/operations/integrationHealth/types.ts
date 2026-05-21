@@ -13,7 +13,7 @@ export type IntegrationSystemKey =
 
 export type IntegrationHealthCategory = "data" | "auth" | "commerce" | "shipping" | "comms" | "platform";
 
-export type IntegrationHealthStatus = "healthy" | "degraded" | "offline" | "unknown";
+export type IntegrationHealthStatus = "healthy" | "degraded" | "offline" | "unknown" | "recovering";
 
 export type IntegrationHealthCheckResult = {
   systemKey: IntegrationSystemKey;

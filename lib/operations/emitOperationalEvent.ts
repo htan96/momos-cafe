@@ -15,7 +15,12 @@ export type EmitOperationalEventInput = {
   source?: string | null;
   /** When omitted, uses root `prisma` client. */
   tx?: Prisma.TransactionClient;
+  /** When true, skips `recordOperationalEventSideEffects` — use if caller handles incidents directly. */
+  skipSideEffects?: boolean;
 };
+
+/** Convenience alias aligning app code with the Prisma enum name */
+export type { OperationalActivitySeverity };
 
 /**
  * Best-effort append to `OperationalActivityEvent`. Never throws — failures are logged server-side only.
@@ -38,7 +43,7 @@ export async function emitOperationalEvent(input: EmitOperationalEventInput): Pr
       },
       select: { id: true },
     });
-    if (!input.tx) {
+    if (!input.tx && !input.skipSideEffects) {
       recordOperationalEventSideEffects(row.id, input.type);
     }
     return row.id;

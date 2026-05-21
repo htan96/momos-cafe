@@ -17,6 +17,8 @@ import { cognitoChallengeJson } from "@/lib/auth/cognito/challengeResponse";
 import { OperationalActivitySeverity } from "@prisma/client";
 import { emitOperationalEvent } from "@/lib/operations/emitOperationalEvent";
 import { OPERATIONAL_EVENT_TYPES } from "@/lib/operations/operationalEventTypes";
+import { emitPlatformEvent } from "@/lib/platform/events/emitPlatformEvent";
+import { PLATFORM_EVENT_SUBTYPE } from "@/lib/platform/events/taxonomy";
 
 export const runtime = "nodejs";
 
@@ -95,6 +97,17 @@ export async function POST(request: Request) {
     }));
 
     if (!cfg) {
+      void emitPlatformEvent({
+        subtype: PLATFORM_EVENT_SUBTYPE.AUTH_LOGIN_FAILED,
+        category: "AUTH_EVENT",
+        lifecycle: "failed",
+        severity: OperationalActivitySeverity.error,
+        actorType: "customer",
+        message: "Cognito login blocked — environment incomplete",
+        detail: { stage: "env_check", code: "COGNITO_ENV_MISSING" },
+        source: { handler: "POST app/api/auth/cognito/login" },
+        sourceTag: "api.auth.cognito.login",
+      });
       return await runStage(
         "response_send",
         async () =>
@@ -187,7 +200,28 @@ export async function POST(request: Request) {
 
         return await runStage(
           "response_send",
-          async () => signInFailureResponse(result),
+          async () => {
+            void emitPlatformEvent({
+              subtype: PLATFORM_EVENT_SUBTYPE.AUTH_LOGIN_FAILED,
+              category: "AUTH_EVENT",
+              lifecycle: "failed",
+              severity: OperationalActivitySeverity.warning,
+              actorType: "customer",
+              message: "Cognito sign-in refused",
+              detail: {
+                outcome: "sign_in_failed",
+                code: result.extras?.code ?? "SIGN_IN_FAILED",
+                cognitoKey: typeof result.error === "string" ? result.error : "unknown_error",
+                cognitoErrorName: result.extras?.cognitoErrorName ?? null,
+                cognitoErrorCode: result.extras?.cognitoErrorCode ?? null,
+                transient: !!result.extras?.transient,
+                httpStatus: result.extras?.status ?? 401,
+              },
+              source: { handler: "POST app/api/auth/cognito/login" },
+              sourceTag: "api.auth.cognito.login",
+            });
+            return signInFailureResponse(result);
+          },
           {
             outcome: "sign_in_failed",
             httpStatus: result.extras?.status ?? 401,
@@ -242,6 +276,17 @@ export async function POST(request: Request) {
         return await runStage(
           "response_send",
           async () => {
+            void emitPlatformEvent({
+              subtype: PLATFORM_EVENT_SUBTYPE.AUTH_LOGIN_FAILED,
+              category: "AUTH_EVENT",
+              lifecycle: "failed",
+              severity: OperationalActivitySeverity.error,
+              actorType: "customer",
+              message: "Access token failed validation after Cognito authentication",
+              detail: { outcome: "token_validation_failed", code: "ACCESS_TOKEN_INVALID", httpStatus: 500 },
+              source: { handler: "POST app/api/auth/cognito/login" },
+              sourceTag: "api.auth.cognito.login",
+            });
             const res = NextResponse.json(
               { error: "token_validation_failed", code: "ACCESS_TOKEN_INVALID" },
               { status: 500 }
@@ -279,6 +324,17 @@ export async function POST(request: Request) {
         return await runStage(
           "response_send",
           async () => {
+            void emitPlatformEvent({
+              subtype: PLATFORM_EVENT_SUBTYPE.AUTH_LOGIN_FAILED,
+              category: "AUTH_EVENT",
+              lifecycle: "failed",
+              severity: OperationalActivitySeverity.error,
+              actorType: "customer",
+              message: "Session cookies could not be applied after Cognito authentication",
+              detail: { outcome: "cookie_apply_failed", code: "COOKIE_APPLY", httpStatus: 500 },
+              source: { handler: "POST app/api/auth/cognito/login" },
+              sourceTag: "api.auth.cognito.login",
+            });
             const r = NextResponse.json(
               { error: "session_apply_failed", code: "COOKIE_APPLY" },
               { status: 500 }
@@ -321,6 +377,22 @@ export async function POST(request: Request) {
       return await runStage(
         "response_send",
         async () => {
+          void emitPlatformEvent({
+            subtype: PLATFORM_EVENT_SUBTYPE.AUTH_LOGIN_FAILED,
+            category: "AUTH_EVENT",
+            lifecycle: "failed",
+            severity: OperationalActivitySeverity.critical,
+            actorType: "customer",
+            message: "Unhandled exception escaped Cognito login handler",
+            detail: {
+              outcome: "handler_exception",
+              code: "HANDLER_EXCEPTION",
+              httpStatus: 500,
+              errorName: err.name,
+            },
+            source: { handler: "POST app/api/auth/cognito/login" },
+            sourceTag: "api.auth.cognito.login",
+          });
           const r = NextResponse.json(
             { error: "login_internal_error", code: "HANDLER_EXCEPTION" },
             { status: 500 }
@@ -343,6 +415,22 @@ export async function POST(request: Request) {
       })
     );
     try {
+      void emitPlatformEvent({
+        subtype: PLATFORM_EVENT_SUBTYPE.AUTH_LOGIN_FAILED,
+        category: "AUTH_EVENT",
+        lifecycle: "failed",
+        severity: OperationalActivitySeverity.critical,
+        actorType: "customer",
+        message: "Unhandled outer-boundary Cognito login failure",
+        detail: {
+          outcome: "unhandled_outer",
+          code: "UNHANDLED_BOUNDARY",
+          httpStatus: 500,
+          errorName: err.name,
+        },
+        source: { handler: "POST app/api/auth/cognito/login" },
+        sourceTag: "api.auth.cognito.login",
+      });
       const res = NextResponse.json(
         { error: "login_unexpected_error", code: "UNHANDLED_BOUNDARY" },
         { status: 500 }

@@ -38,30 +38,30 @@ export const ADMIN_PLATFORM_NAV: PlatformNavItem[] = [
   { href: "/admin/settings/maintenance", label: "Maintenance" },
 ];
 
-/** Governance — routes under `/super-admin/*` and linked ops paths where shared. */
+/** Super-admin — routes under `/super-admin/*`; cross-linked admin routes noted in helper copy when relevant. */
 export const SUPER_ADMIN_PLATFORM_NAV: SuperAdminPlatformNavItem[] = [
-  { section: "PLATFORM", href: "/super-admin", label: "Overview" },
-  { section: "PLATFORM", href: "/super-admin/live-operations", label: "Live Operations" },
-  { section: "PLATFORM", href: "/super-admin/order-operations", label: "Order operations" },
-  { section: "PLATFORM", href: "/super-admin/shipping-operations", label: "Shipping operations" },
-  { section: "PLATFORM", href: "/super-admin/catering-inquiries", label: "Catering inquiries" },
-  { section: "PLATFORM", href: "/super-admin/settings/platform", label: "Global Settings" },
-  { section: "ACCESS", href: "/admin/accounts", label: "Accounts" },
-  { section: "ACCESS", href: "/super-admin/admins", label: "Admins" },
-  { section: "ACCESS", href: "/super-admin/roles", label: "Roles" },
-  { section: "ACCESS", href: "/super-admin/customer-lookup", label: "Customers" },
-  { section: "ACCESS", href: "/super-admin/customer-operations", label: "Customer operations" },
-  { section: "ACCESS", href: "/super-admin/cognito-tools", label: "Cognito / Authentication" },
-  { section: "GOVERNANCE", href: "/super-admin/audit", label: "Audit Logs" },
-  { section: "GOVERNANCE", href: "/super-admin/settings/security", label: "Security" },
+  { section: "COMMAND_CENTER", href: "/super-admin", label: "Overview" },
+  { section: "COMMAND_CENTER", href: "/super-admin/live-activity", label: "Live Activity" },
+  { section: "COMMAND_CENTER", href: "/super-admin/incidents", label: "Incidents" },
+  { section: "OPERATIONS", href: "/super-admin/operations/orders", label: "Orders" },
+  { section: "OPERATIONS", href: "/super-admin/operations/failures", label: "Failures" },
+  { section: "OPERATIONS", href: "/super-admin/operations/payments", label: "Payments" },
+  { section: "OPERATIONS", href: "/super-admin/operations/deliveries", label: "Deliveries" },
+  { section: "USERS", href: "/super-admin/users/customers", label: "Customers" },
+  { section: "USERS", href: "/super-admin/users/admins", label: "Admins" },
+  { section: "USERS", href: "/super-admin/users/permissions", label: "Permissions" },
+  { section: "PLATFORM", href: "/super-admin/platform/feature-controls", label: "Feature Controls" },
   {
-    section: "GOVERNANCE",
-    href: "/admin/settings/maintenance",
-    label: "Maintenance Controls",
-    navHelperText: "Admin settings · super admins may open",
+    section: "PLATFORM",
+    href: "/super-admin/platform/maintenance",
+    label: "Maintenance",
+    navHelperText: "Opens admin storefront gates — authenticated area",
   },
-  { section: "SYSTEM", href: "/super-admin/settings/integrations", label: "Integrations" },
-  { section: "SYSTEM", href: "/super-admin/settings/health", label: "Health Monitoring" },
+  { section: "PLATFORM", href: "/super-admin/platform/notifications", label: "Notifications" },
+  { section: "SECURITY", href: "/super-admin/security/audit-logs", label: "Audit Logs" },
+  { section: "SECURITY", href: "/super-admin/security/events", label: "Security Events" },
+  { section: "SYSTEM", href: "/super-admin/system/service-health", label: "Service Health" },
+  { section: "SYSTEM", href: "/super-admin/system/integrations", label: "Integrations" },
 ];
 
 export const PORTAL_PLATFORM_NAV: PlatformNavItem[] = [{ href: "/portal", label: "Home" }];

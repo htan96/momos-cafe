@@ -192,6 +192,7 @@ export default async function SuperAdminCustomerDetailPage(props: PageProps) {
         : Promise.resolve([]),
     ]);
 
+  // eslint-disable-next-line react-hooks/purity -- Async RSC presence window uses request-time clock
   const now = Date.now();
   const presenceRecentCutoff = new Date(now - PRESENCE_RECENT_MS);
   const presenceRecent = presenceSessions.filter(
@@ -215,7 +216,7 @@ export default async function SuperAdminCustomerDetailPage(props: PageProps) {
               All customers
             </Link>
             <Link
-              href="/super-admin/customer-lookup"
+              href="/super-admin/users/customers"
               className="rounded-lg border border-cream-dark/60 bg-white px-3 py-1.5 text-[12px] font-semibold text-charcoal/80 shadow-sm transition hover:bg-cream-mid/40"
             >
               Lookup
@@ -286,7 +287,7 @@ export default async function SuperAdminCustomerDetailPage(props: PageProps) {
           <p className="text-[13px] text-charcoal/60 leading-relaxed">
             This customer row has no email on file. Customer-scope impersonation is started by verified Cognito email
             only — use{" "}
-            <Link href="/super-admin/customer-lookup" className="text-teal-dark font-medium hover:underline">
+            <Link href="/super-admin/users/customers" className="text-teal-dark font-medium hover:underline">
               Customer lookup
             </Link>{" "}
             if you need manual entry.

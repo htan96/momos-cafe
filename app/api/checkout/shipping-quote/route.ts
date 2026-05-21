@@ -8,6 +8,9 @@ import type { UnifiedMerchLine } from "@/types/commerce";
 import type { AddressCreateRequest } from "shippo";
 import { getMaintenanceFlags } from "@/lib/app-settings/settings";
 import { maintenanceModeJsonResponse } from "@/lib/maintenance/unifiedCartMaintenance";
+import { emitPlatformEvent } from "@/lib/platform/events/emitPlatformEvent";
+import { PLATFORM_EVENT_SUBTYPE } from "@/lib/platform/events/taxonomy";
+import { OperationalActivitySeverity } from "@prisma/client";
 
 function exposeShippingQuoteDetailToClient(): boolean {
   return (
@@ -73,6 +76,17 @@ export async function POST(req: Request) {
       console.error(
         "[checkout/shipping-quote] Missing or incomplete Ops business location — configure Admin Settings → Business location"
       );
+      void emitPlatformEvent({
+        subtype: PLATFORM_EVENT_SUBTYPE.SHIPMENT_QUOTE_FAILED,
+        category: "SHIPMENT_EVENT",
+        lifecycle: "failed",
+        severity: OperationalActivitySeverity.warning,
+        actorType: "customer",
+        message: "Shipping quote aborted — business origin incomplete in admin settings",
+        detail: { reason: "missing_origin_address", httpStatus: 503 },
+        source: { handler: "POST app/api/checkout/shipping-quote" },
+        sourceTag: "api.checkout.shipping-quote",
+      });
       return NextResponse.json(
         {
           options: [],
@@ -98,6 +112,21 @@ export async function POST(req: Request) {
 
     if (!result.ok) {
       console.error("[checkout/shipping-quote] Rate lookup failed:", result.logDetail);
+      void emitPlatformEvent({
+        subtype: PLATFORM_EVENT_SUBTYPE.SHIPMENT_QUOTE_FAILED,
+        category: "SHIPMENT_EVENT",
+        lifecycle: "failed",
+        severity: OperationalActivitySeverity.warning,
+        actorType: "customer",
+        message: "Shippo rate lookup failed for storefront quote",
+        detail: {
+          reason: "rate_unavailable",
+          logDetailSnippet:
+            typeof result.logDetail === "string" ? result.logDetail.slice(0, 500) : result.logDetail,
+        },
+        source: { handler: "POST app/api/checkout/shipping-quote" },
+        sourceTag: "api.checkout.shipping-quote",
+      });
       return NextResponse.json({
         options: [],
         message:
@@ -120,6 +149,20 @@ export async function POST(req: Request) {
     });
   } catch (e) {
     console.error("[checkout/shipping-quote POST]", e);
+    void emitPlatformEvent({
+      subtype: PLATFORM_EVENT_SUBTYPE.SHIPMENT_QUOTE_FAILED,
+      category: "SHIPMENT_EVENT",
+      lifecycle: "failed",
+      severity: OperationalActivitySeverity.error,
+      actorType: "customer",
+      message: "Unhandled error while quoting storefront shipment",
+      detail: {
+        reason: "unexpected_exception",
+        errorName: e instanceof Error ? e.name : typeof e,
+      },
+      source: { handler: "POST app/api/checkout/shipping-quote" },
+      sourceTag: "api.checkout.shipping-quote",
+    });
     return NextResponse.json(
       {
         error: "quote_failed",

@@ -11,9 +11,13 @@ import { getMaintenanceFlags } from "@/lib/app-settings/settings";
 import { maintenanceBlockForUnifiedLines } from "@/lib/maintenance/unifiedCartMaintenance";
 import { emitOrderCreatedEvent } from "@/lib/operations/emitOperationalEvent";
 import { governanceBlockUnifiedOrderPath } from "@/lib/governance/governanceControls";
+import { emitPlatformEvent } from "@/lib/platform/events/emitPlatformEvent";
+import { PLATFORM_EVENT_SUBTYPE } from "@/lib/platform/events/taxonomy";
+import { OperationalActivitySeverity } from "@prisma/client";
 
 /** Draft commerce order + fulfillment groups — validates payload strictly */
 export async function POST(req: Request) {
+  let sessionCustomerSub: string | undefined;
   try {
     const body = (await req.json()) as { guestToken?: string; lines?: unknown };
 
@@ -64,11 +68,11 @@ export async function POST(req: Request) {
     }
 
     const warnings = validationIssues.filter((i) => i.severity === "warning");
-    const customer = await getCustomerSession();
+    sessionCustomerSub = (await getCustomerSession())?.sub;
     const result = await createCommerceOrderWithGroups({
       lines: linesForOrder,
       guestCartToken: body.guestToken?.trim() ?? null,
-      customerId: customer?.sub ?? null,
+      customerId: sessionCustomerSub ?? null,
       metadata:
         warnings.length > 0
           ? { validationWarnings: warnings.map((w) => ({ code: w.code, message: w.message })) }
@@ -78,7 +82,7 @@ export async function POST(req: Request) {
     await emitOrderCreatedEvent({
       orderId: result.orderId,
       fulfillmentGroupsCreated: result.fulfillmentGroupsCreated,
-      customerId: customer?.sub ?? null,
+      customerId: sessionCustomerSub ?? null,
     });
 
     return NextResponse.json({
@@ -90,6 +94,25 @@ export async function POST(req: Request) {
   } catch (e) {
     console.error("[orders POST]", e);
     const msg = e instanceof Error ? e.message : "";
+    void emitPlatformEvent({
+      subtype: PLATFORM_EVENT_SUBTYPE.ORDER_DRAFT_CREATE_FAILED,
+      category: "ORDER_EVENT",
+      lifecycle: "failed",
+      severity: OperationalActivitySeverity.error,
+      actorType: sessionCustomerSub ? "customer" : "system",
+      actorId: sessionCustomerSub ?? undefined,
+      message: "Failed to persist draft commerce order from storefront payload",
+      entities: sessionCustomerSub ? { customerId: sessionCustomerSub } : {},
+      detail: {
+        integrityHint: !!(
+          msg.startsWith("MISSING_LINE_ID_IN_PAYLOAD") ||
+          msg.startsWith("missing_order_item_for_line") ||
+          msg.startsWith("order_integrity")
+        ),
+      },
+      source: { handler: "POST app/api/orders" },
+      sourceTag: "api.orders",
+    });
     if (msg.startsWith("MISSING_LINE_ID_IN_PAYLOAD") || msg.startsWith("missing_order_item_for_line")) {
       return NextResponse.json({ error: "order_integrity_failed", detail: msg }, { status: 500 });
     }

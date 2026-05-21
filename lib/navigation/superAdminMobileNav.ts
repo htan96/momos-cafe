@@ -2,7 +2,7 @@ import { SUPER_ADMIN_PLATFORM_NAV } from "@/components/platform/navConfig";
 import type { StorefrontNavIconId } from "@/lib/navigation/storefrontMobileNav";
 
 /** Primary bottom tabs — rest of IA is under More. */
-export const SUPER_ADMIN_MOBILE_PRIMARY_HREFS = ["/super-admin", "/super-admin/live-operations"] as const;
+export const SUPER_ADMIN_MOBILE_PRIMARY_HREFS = ["/super-admin", "/super-admin/live-activity"] as const;
 
 export type SuperAdminMobileTab =
   | {
@@ -29,10 +29,10 @@ export type SuperAdminMobileTab =
 export const SUPER_ADMIN_MOBILE_PRIMARY_TABS: SuperAdminMobileTab[] = [
   { id: "overview", type: "link", href: "/super-admin", label: "Overview", icon: "governance" },
   {
-    id: "live_ops",
+    id: "live_activity",
     type: "link",
-    href: "/super-admin/live-operations",
-    label: "Live Ops",
+    href: "/super-admin/live-activity",
+    label: "Live",
     icon: "queues",
   },
   { id: "more", type: "more", label: "More", icon: "more" },

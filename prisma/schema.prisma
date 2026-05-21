@@ -474,6 +474,30 @@ model OperationalActivityEvent {
   @@map("operational_activity_events")
 }
 
+enum OperationalFailureTriageState {
+  new
+  acknowledged
+  investigating
+  resolved
+  ignored
+}
+
+/// Super-admin triage overlay for failure rows in `OperationalActivityEvent` (not a duplicate incident ledger).
+model OperationalFailureTriage {
+  id              String                        @id @default(cuid())
+  activityEventId String                        @unique @map("activity_event_id")
+  state           OperationalFailureTriageState @default(new)
+  assignedTo      String?                       @map("assigned_to") @db.VarChar(320)
+  notes           String?                       @map("notes")
+  updatedBy       String?                       @map("updated_by") @db.VarChar(320)
+  createdAt       DateTime                      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime                      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([state], map: "operational_failure_triage_state_idx")
+  @@index([updatedAt(sort: Desc)], map: "operational_failure_triage_updated_at_idx")
+  @@map("operational_failure_triage")
+}
+
 /// Platform-detected operational incidents (fed by `OperationalActivityEvent` rules).
 model OperationalIncident {
   id              String    @id @default(cuid())

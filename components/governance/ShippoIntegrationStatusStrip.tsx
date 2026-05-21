@@ -35,7 +35,7 @@ export default function ShippoIntegrationStatusStrip({ snapshot }: ShippoIntegra
         <span>—</span>
         <span>No health snapshot row yet (run checks from Live Operations).</span>
         <Link
-          href="/super-admin/live-operations"
+          href="/super-admin/live-activity"
           className="font-semibold text-teal-dark hover:underline"
         >
           Live Operations
@@ -74,7 +74,7 @@ export default function ShippoIntegrationStatusStrip({ snapshot }: ShippoIntegra
       <span className="text-[11px] text-charcoal/45">
         snapshot {snapshot.updatedAt.toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })}
       </span>
-      <Link href="/super-admin/live-operations" className="ml-auto font-semibold text-teal-dark hover:underline">
+      <Link href="/super-admin/live-activity" className="ml-auto font-semibold text-teal-dark hover:underline">
         Live Operations
       </Link>
     </div>

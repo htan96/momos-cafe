@@ -83,7 +83,7 @@ export default async function AdminAccountsPage(props: { searchParams?: Promise<
         }
         actions={
           <Link
-            href="/super-admin/audit"
+            href="/super-admin/security/audit-logs"
             className="rounded-lg border border-cream-dark bg-white px-3 py-2 text-[12px] font-semibold uppercase tracking-[0.08em] text-charcoal hover:bg-cream/80 transition-colors"
           >
             Governance audit

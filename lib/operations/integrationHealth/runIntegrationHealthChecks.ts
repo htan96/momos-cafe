@@ -1,7 +1,6 @@
 import { performance } from "node:perf_hooks";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { evaluateIntegrationHealthIncidents } from "@/lib/operations/incidentDetection";
 import {
   INTEGRATION_SYSTEM_KEYS,
   type IntegrationHealthCheckResult,
@@ -510,10 +509,6 @@ export async function persistIntegrationHealthSnapshots(
   const now = new Date();
 
   for (const r of results) {
-    const previous = await prisma.integrationHealthSnapshot.findUnique({
-      where: { systemKey: r.systemKey },
-    });
-
     const isSuccess = r.currentStatus === "healthy";
     const isFailed = r.currentStatus === "degraded" || r.currentStatus === "offline";
 
@@ -559,14 +554,5 @@ export async function persistIntegrationHealthSnapshots(
         metadata: (r.metadata ?? undefined) as Prisma.InputJsonValue | undefined,
       },
     });
-
-    await evaluateIntegrationHealthIncidents(
-      {
-        systemKey: r.systemKey,
-        currentStatus: r.currentStatus,
-        metadata: r.metadata ?? undefined,
-      },
-      previous ? { currentStatus: previous.currentStatus } : null
-    );
   }
 }

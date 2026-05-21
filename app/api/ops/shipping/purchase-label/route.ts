@@ -7,6 +7,8 @@ import { purchaseShippoLabel } from "@/lib/shipping/shippoClient";
 import { OperationalActivitySeverity } from "@prisma/client";
 import { emitOperationalEvent } from "@/lib/operations/emitOperationalEvent";
 import { OPERATIONAL_EVENT_TYPES } from "@/lib/operations/operationalEventTypes";
+import { emitPlatformEvent } from "@/lib/platform/events/emitPlatformEvent";
+import { PLATFORM_EVENT_SUBTYPE } from "@/lib/platform/events/taxonomy";
 
 /**
  * Purchase a shipping label for a pending storefront shipment row that has a stored rate id.
@@ -55,6 +57,23 @@ export async function POST(req: Request) {
     const purchased = await purchaseShippoLabel(rateId);
     if (!purchased.ok) {
       console.error("[ops shipping purchase-label]", purchased.logDetail);
+      void emitPlatformEvent({
+        subtype: PLATFORM_EVENT_SUBTYPE.SHIPMENT_LABEL_FAILED,
+        category: "SHIPMENT_EVENT",
+        lifecycle: "failed",
+        severity: OperationalActivitySeverity.error,
+        actorType: session.roleBadge === "super_admin" ? "super_admin" : "admin",
+        actorId: session.sub,
+        message: "Shippo label purchase failed after rate selection",
+        entities: { shipmentId: row.id },
+        detail: {
+          reason: "carrier_purchase_failed",
+          logDetailSnippet:
+            typeof purchased.logDetail === "string" ? purchased.logDetail.slice(0, 500) : purchased.logDetail,
+        },
+        source: { handler: "POST app/api/ops/shipping/purchase-label" },
+        sourceTag: "api.ops.shipping.purchase-label",
+      });
       return NextResponse.json(
         {
           error: "purchase_failed",
@@ -108,6 +127,22 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, shipment: updated });
   } catch (e) {
     console.error("[ops shipping purchase-label]", e);
+    void emitPlatformEvent({
+      subtype: PLATFORM_EVENT_SUBTYPE.SHIPMENT_LABEL_FAILED,
+      category: "SHIPMENT_EVENT",
+      lifecycle: "failed",
+      severity: OperationalActivitySeverity.critical,
+      actorType: session.roleBadge === "super_admin" ? "super_admin" : "admin",
+      actorId: session.sub,
+      message: "Unexpected error while purchasing Shippo label",
+      entities: shipmentId ? { shipmentId } : {},
+      detail: {
+        reason: "unexpected_exception",
+        errorName: e instanceof Error ? e.name : typeof e,
+      },
+      source: { handler: "POST app/api/ops/shipping/purchase-label" },
+      sourceTag: "api.ops.shipping.purchase-label",
+    });
     return NextResponse.json({ error: "update_failed" }, { status: 500 });
   }
 }

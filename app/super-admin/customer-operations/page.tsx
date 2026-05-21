@@ -50,7 +50,7 @@ export default async function SuperAdminCustomerOperationsPage() {
         subtitle="Live `Customer` rows from Postgres — newest 80 by `updated_at`. Counts and last order come from the `orders` relation on `CommerceOrder`."
         actions={
           <Link
-            href="/super-admin/customer-lookup"
+            href="/super-admin/users/customers"
             className="rounded-lg border border-cream-dark/60 bg-white px-3 py-1.5 text-[12px] font-semibold text-charcoal/80 shadow-sm transition hover:bg-cream-mid/40"
           >
             Customer lookup

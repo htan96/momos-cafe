@@ -1,3 +1,5 @@
+import type { PlatformEventSubtype } from "@/lib/platform/events/taxonomy";
+
 /** Event `type` values persisted to `OperationalActivityEvent.type` (only types emitted by the app). */
 export const OPERATIONAL_EVENT_TYPES = {
   ORDER_CREATED: "order.created",
@@ -20,4 +22,7 @@ export const OPERATIONAL_EVENT_TYPES = {
   ADMIN_DEMOTED: "access.admin_demoted",
 } as const;
 
-export type OperationalEventType = (typeof OPERATIONAL_EVENT_TYPES)[keyof typeof OPERATIONAL_EVENT_TYPES];
+/** Includes canonical platform backbone subtypes from `PLATFORM_EVENT_SUBTYPE`. */
+export type OperationalEventType =
+  | (typeof OPERATIONAL_EVENT_TYPES)[keyof typeof OPERATIONAL_EVENT_TYPES]
+  | PlatformEventSubtype;

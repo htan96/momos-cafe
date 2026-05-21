@@ -86,7 +86,7 @@ export default async function SuperAdminOrderOperationsPage() {
         subtitle="Recent `CommerceOrder` rows from Postgres — newest 75. Open a row for line items, payments, fulfillment, shipments, and operational timeline."
         actions={
           <Link
-            href="/super-admin/live-operations"
+            href="/super-admin/live-activity"
             className="rounded-lg border border-cream-dark/60 bg-white px-3 py-1.5 text-[12px] font-semibold text-charcoal/80 shadow-sm transition hover:bg-cream-mid/40"
           >
             Live operations

@@ -13,8 +13,10 @@ export async function reconcileCommerceOrderAfterStorefrontPayment(input: {
   commerceOrderId: string;
   squarePaymentId: string;
   paidTotalCents: number;
-  /** Attach logged-in customer after payment if the draft order was anonymous */
+  /** Attach logged-in customer after payment if the draft order was anonymous (Prisma `Customer.id`). */
   customerId?: string | null;
+  /** Guest checkout email for post-signup order linking (`metadata.storefrontCheckoutEmail`). */
+  storefrontCheckoutEmail?: string | null;
   shipping: {
     cents: number;
     label?: string;
@@ -45,6 +47,9 @@ export async function reconcileCommerceOrderAfterStorefrontPayment(input: {
     ...existingMeta,
     squarePaymentId: input.squarePaymentId,
     paidAt: new Date().toISOString(),
+    ...(input.storefrontCheckoutEmail?.trim()
+      ? { storefrontCheckoutEmail: input.storefrontCheckoutEmail.trim() }
+      : {}),
     ...(Object.keys(shippingMeta).length > 0 ? { storefrontShipping: shippingMeta } : {}),
   } satisfies Record<string, unknown>;
 

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import {
   StorefrontAuthCard,
@@ -10,11 +11,16 @@ import {
   storefrontAuthPrimaryButton,
 } from "@/components/auth/StorefrontAuthChrome";
 import { commerceCheckoutShell } from "@/lib/commerce/tokens";
+import { safeInternalPath } from "@/lib/auth/cognito/redirectByRole";
 import { readApiJson } from "@/lib/http/readApiJson";
 
 type Step = "signup" | "confirm";
 
 export default function CognitoSignupForm() {
+  const searchParams = useSearchParams();
+  const postLoginDestination = safeInternalPath(searchParams.get("next"), "/account");
+  const loginHref = `/login?next=${encodeURIComponent(postLoginDestination)}`;
+
   const [step, setStep] = useState<Step>("signup");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -165,7 +171,7 @@ export default function CognitoSignupForm() {
             {info ? (
               <p className="rounded-xl border border-teal/20 bg-teal/10 px-3 py-2.5 text-sm text-teal-dark">{info}</p>
             ) : null}
-            <Link href="/login" className={`${storefrontAuthPrimaryButton} block text-center`}>
+            <Link href={loginHref} className={`${storefrontAuthPrimaryButton} block text-center`}>
               Go to sign in
             </Link>
           </div>
@@ -222,7 +228,7 @@ export default function CognitoSignupForm() {
 
         <p className="mt-6 border-t border-gold/25 pt-5 text-center text-[13px] text-charcoal/70">
           Already visiting with us?{" "}
-          <Link href="/login" className={storefrontAuthInlineLink}>
+          <Link href={loginHref} className={storefrontAuthInlineLink}>
             Back to sign in
           </Link>
         </p>

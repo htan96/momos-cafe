@@ -57,6 +57,11 @@ export const PLATFORM_EVENT_SUBTYPE = {
   SUPPORT_ISSUE_CREATED: "support.issue_created",
   /** Operational support desk — persisted `OperationalSupportIssue` materially changed (status/title/etc.). */
   SUPPORT_ISSUE_UPDATED: "support.issue_updated",
+  /**
+   * `FulfillmentGroup.status` transitioned through the validated orchestration gates
+   * (ops console or automation). Emitted once per persisted update.
+   */
+  FULFILLMENT_GROUP_STATUS_CHANGED: "fulfillment.group_status_changed",
   /** Ops refund shell — analyst opened a coordinated refund row (Square not yet instructed). */
   REFUND_CASE_REQUESTED: "refund.case_requested",
   REFUND_CASE_REVIEWING: "refund.case_reviewing",

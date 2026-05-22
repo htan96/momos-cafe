@@ -25,13 +25,14 @@ import { prisma } from "@/lib/prisma";
 import { registerPendingCommercePayment } from "@/lib/payments/commercePaymentOrchestration";
 import { reconcileCommerceOrderAfterStorefrontPayment } from "@/lib/server/reconcileCommerceCheckout";
 import { persistStorefrontShipmentSelection } from "@/lib/server/persistStorefrontShipment";
+import { ensureCommerceCustomer, linkGuestCommerceOrdersByCheckoutEmail } from "@/lib/account/commerceCustomerProfile";
 import { isUnifiedCommerceCheckoutEnabled } from "@/lib/server/unifiedCommerceCheckout";
 import type { UnifiedMerchLine } from "@/types/commerce";
 import { getMaintenanceFlags } from "@/lib/app-settings/settings";
 import { maintenanceModeJsonResponse } from "@/lib/maintenance/unifiedCartMaintenance";
 import { governanceBlockUnifiedOrderPath } from "@/lib/governance/governanceControls";
 import { OperationalActivitySeverity } from "@prisma/client";
-import { emitOperationalEvent } from "@/lib/operations/emitOperationalEvent";
+import { emitOperationalEvent, emitPaymentTerminalEvent } from "@/lib/operations/emitOperationalEvent";
 import { OPERATIONAL_EVENT_TYPES } from "@/lib/operations/operationalEventTypes";
 
 const TAX_RATE = 0.0925;
@@ -971,12 +972,24 @@ export async function POST(request: Request) {
 
       if (commerceOrderId) {
         const storefrontCustomer = await getCustomerSession();
+        const checkoutEmailLc = email.trim().toLowerCase();
+        let commerceCustomerRowId: string | null = null;
+        if (storefrontCustomer) {
+          commerceCustomerRowId = await ensureCommerceCustomer({
+            cognitoSub: storefrontCustomer.sub,
+            email: storefrontCustomer.email,
+          });
+          if (commerceCustomerRowId && checkoutEmailLc) {
+            await linkGuestCommerceOrdersByCheckoutEmail(commerceCustomerRowId, checkoutEmailLc);
+          }
+        }
         try {
           await reconcileCommerceOrderAfterStorefrontPayment({
             commerceOrderId,
             squarePaymentId: paymentId,
             paidTotalCents: totalCents,
-            customerId: storefrontCustomer?.sub ?? null,
+            customerId: commerceCustomerRowId,
+            storefrontCheckoutEmail: storefrontCustomer ? null : checkoutEmailLc || null,
             shipping:
               shippingCents > 0
                 ? {
@@ -989,6 +1002,33 @@ export async function POST(request: Request) {
                   }
                 : null,
           });
+
+          if (registeredCommercePaymentShellId) {
+            const prior = await prisma.paymentRecord.findUnique({
+              where: { id: registeredCommercePaymentShellId },
+              select: { status: true, amountCents: true },
+            });
+            if (prior && prior.status !== "completed") {
+              await prisma.paymentRecord.update({
+                where: { id: registeredCommercePaymentShellId },
+                data: {
+                  status: "completed",
+                  squarePaymentStatus,
+                  capturedAt: new Date(),
+                  squarePaymentId: paymentId,
+                },
+              });
+              void emitPaymentTerminalEvent({
+                kind: "succeeded",
+                commerceOrderId,
+                paymentRecordId: registeredCommercePaymentShellId,
+                squarePaymentId: paymentId,
+                squareStatus: squarePaymentStatus,
+                amountCents: prior.amountCents,
+                source: "api.order",
+              });
+            }
+          }
         } catch (commerceErr) {
           console.error("[Order] Commerce order reconcile failed", {
             commerceOrderId,

@@ -20,7 +20,7 @@ export function getStorefrontMobileTabs(): StorefrontMobileTab[] {
   const auth: StorefrontMobileTab = {
     id: "auth",
     type: "auth",
-    guest: { href: "/login", label: "Sign in" },
+    guest: { href: `/login?next=${encodeURIComponent("/account")}`, label: "Account" },
     customer: { href: "/account", label: "Account" },
   };
 

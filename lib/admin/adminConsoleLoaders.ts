@@ -755,7 +755,10 @@ export async function loadAdminSupportBacklogSummary() {
   };
 }
 
-/** Single fan-out for `/admin` to avoid repeated Prisma round-trips. */
+/**
+ * Single fan-out for `/admin` home — shares domain sources with queues page but does not reuse `opsLoadTodayQueues()`
+ * (`lib/ops/queries`). Treat both as parity candidates during `/ops` → `/admin` consolidation.
+ */
 export async function loadAdminHomeDashboard() {
   const [
     queueSummaries,

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import CheckoutPanel from "@/components/ordering/CheckoutPanel";
 import CheckoutOrderSummary from "@/components/checkout/CheckoutOrderSummary";
 import OrderConfirmation from "@/components/ordering/OrderConfirmation";
+import GuestSaveOrderHistoryDialog from "@/components/checkout/GuestSaveOrderHistoryDialog";
 import { useCommerceCart } from "@/context/CartContext";
 import { useAdminSettings } from "@/lib/useAdminSettings";
 import { commerceCheckoutShell, commerceSectionSpacing } from "@/lib/commerce/tokens";
@@ -72,6 +73,8 @@ export default function CheckoutPage() {
     orderNum: string;
     pickup?: string;
     verification?: OrderPlacedVerification | null;
+    commerceOrderId?: string | null;
+    checkoutEmail?: string | null;
   } | null>(null);
 
   useEffect(() => {
@@ -156,7 +159,7 @@ export default function CheckoutPage() {
 
   if (complete) {
     return (
-      <div className={`${commerceCheckoutShell.page} pb-24 pt-8 px-4`}>
+      <div className={`${commerceCheckoutShell.page} pb-24 pt-8 px-4 relative`}>
         <div className={`max-w-lg mx-auto ${commerceCheckoutShell.card}`}>
           <OrderConfirmation
             orderNum={complete.orderNum}
@@ -168,6 +171,10 @@ export default function CheckoutPage() {
             }}
           />
         </div>
+        <GuestSaveOrderHistoryDialog
+          checkoutEmail={complete.checkoutEmail}
+          commerceOrderId={complete.commerceOrderId}
+        />
       </div>
     );
   }
@@ -359,8 +366,14 @@ export default function CheckoutPage() {
                   requiresShippingChoice={requiresShippingChoice}
                   commerceOrderId={commerceOrderId}
                   onCommerceOrderResolved={(id) => setCommerceOrderId(id)}
-                  onOrderPlaced={(orderNum, pickup, verification) => {
-                    setComplete({ orderNum, pickup, verification });
+                  onOrderPlaced={(orderNum, pickup, verification, ctx) => {
+                    setComplete({
+                      orderNum,
+                      pickup,
+                      verification,
+                      commerceOrderId: ctx?.commerceOrderId,
+                      checkoutEmail: ctx?.checkoutEmail,
+                    });
                   }}
                 />
               ) : null}

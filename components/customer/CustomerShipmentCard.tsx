@@ -40,12 +40,18 @@ export default function CustomerShipmentCard({
         </div>
       </div>
       <p className="mt-5 font-mono text-[13px] tracking-tight text-charcoal/80">Tracking · {trackingMasked}</p>
-      <div className="mt-6">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-charcoal/45">Progress</p>
-        <div className="mt-3">
-          <CustomerTimeline steps={timeline} />
+      {timeline.length > 0 ? (
+        <div className="mt-6">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-charcoal/45">Tracking timeline</p>
+          <div className="mt-3">
+            <CustomerTimeline steps={timeline} />
+          </div>
         </div>
-      </div>
+      ) : (
+        <p className="mt-5 text-[13px] text-charcoal/60 leading-relaxed">
+          Detailed carrier checkpoints appear here when scans are recorded for your package.
+        </p>
+      )}
     </article>
   );
 }

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useCustomerSessionPhase } from "@/lib/auth/cognito/useCustomerSessionPhase";
 
+const ACCOUNT_LOGIN_HREF = `/login?next=${encodeURIComponent("/account")}`;
+
 const linkInline =
   "font-semibold text-[13px] tracking-[0.15em] uppercase py-2 px-3.5 rounded-md text-teal-dark hover:bg-teal/10 hover:text-teal-dark transition-colors duration-200";
 
@@ -35,25 +37,15 @@ export default function HeaderAuthLink({ layout = "inline" }: Props) {
 
   if (layout === "stack") {
     return (
-      <div className="flex flex-col gap-2">
-        <Link href="/login" className={linkCls}>
-          Sign in
-        </Link>
-        <Link href="/account" className={linkCls}>
-          Track order
-        </Link>
-      </div>
+      <Link href={ACCOUNT_LOGIN_HREF} className={linkCls}>
+        Account
+      </Link>
     );
   }
 
   return (
-    <>
-      <Link href="/login" className={linkCls}>
-        Sign in
-      </Link>
-      <Link href="/account" className={linkCls}>
-        Track order
-      </Link>
-    </>
+    <Link href={ACCOUNT_LOGIN_HREF} className={linkCls}>
+      Account
+    </Link>
   );
 }

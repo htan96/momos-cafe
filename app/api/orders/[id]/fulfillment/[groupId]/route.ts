@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { OperationalActivitySeverity } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { FulfillmentPipeline } from "@/types/commerce";
 import {
@@ -6,6 +7,8 @@ import {
   type CommerceOrderStatus,
   validateOrderStatusTransition,
 } from "@/lib/commerce/orderLifecycle";
+import { emitPlatformEvent } from "@/lib/platform/events/emitPlatformEvent";
+import { PLATFORM_EVENT_SUBTYPE } from "@/lib/platform/events/taxonomy";
 
 /**
  * PATCH fulfillment group status — validates pipeline-specific transitions.
@@ -54,6 +57,27 @@ export async function PATCH(
 
     /** Opportunistically advance coarse order status when groups complete */
     await maybeAdvanceAggregateOrderStatus(orderId);
+
+    void emitPlatformEvent({
+      category: "ORDER_EVENT",
+      subtype: PLATFORM_EVENT_SUBTYPE.FULFILLMENT_GROUP_STATUS_CHANGED,
+      lifecycle: "processing",
+      severity: OperationalActivitySeverity.info,
+      actorType: "service",
+      actorId: "orders.fulfillment_api",
+      message: `Fulfillment group ${group.pipeline} → ${nextStatus}`,
+      entities: {
+        commerceOrderId: orderId,
+        fulfillmentGroupId: groupId,
+      },
+      detail: {
+        pipeline: group.pipeline,
+        priorStatus: group.status,
+        newStatus: nextStatus,
+      },
+      source: { handler: "PATCH api/orders/[id]/fulfillment/[groupId]" },
+      sourceTag: "internal.orders.fulfillment",
+    });
 
     return NextResponse.json({ ok: true, group: updated });
   } catch (e) {

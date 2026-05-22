@@ -7,6 +7,7 @@ import { useSwipeToClose } from "@/hooks/useSwipeToClose";
 import CartSummary from "./CartSummary";
 import CheckoutPanel from "./CheckoutPanel";
 import OrderConfirmation from "./OrderConfirmation";
+import GuestSaveOrderHistoryDialog from "@/components/checkout/GuestSaveOrderHistoryDialog";
 
 const DEBUG_CHECKOUT = process.env.NODE_ENV === "development";
 
@@ -27,6 +28,10 @@ export default function MobileCheckoutOverlay({
   const [orderNum, setOrderNum] = useState("");
   const [estimatedPickupTime, setEstimatedPickupTime] = useState<string | undefined>();
   const [orderVerification, setOrderVerification] = useState<OrderPlacedVerification | null>(null);
+  const [guestCtx, setGuestCtx] = useState<{
+    commerceOrderId?: string | null;
+    checkoutEmail?: string | null;
+  } | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -34,6 +39,7 @@ export default function MobileCheckoutOverlay({
       setOrderNum("");
       setEstimatedPickupTime(undefined);
       setOrderVerification(null);
+      setGuestCtx(null);
     }
   }, [isOpen]);
 
@@ -55,16 +61,23 @@ export default function MobileCheckoutOverlay({
 
   if (!isOpen) return null;
 
-  const handleOrderPlaced = (num: string, pickupTime?: string, verification?: OrderPlacedVerification) => {
+  const handleOrderPlaced = (
+    num: string,
+    pickupTime?: string,
+    verification?: OrderPlacedVerification,
+    ctx?: { commerceOrderId?: string | null; checkoutEmail?: string | null }
+  ) => {
     setOrderNum(num);
     setEstimatedPickupTime(pickupTime);
     setOrderVerification(verification ?? null);
+    setGuestCtx(ctx ?? null);
     setStep(3);
   };
 
   const handleOrderAgain = () => {
     setOrderNum("");
     setOrderVerification(null);
+    setGuestCtx(null);
     setStep(1);
     onClose();
   };
@@ -119,14 +132,20 @@ export default function MobileCheckoutOverlay({
           </div>
         )}
         {step === 3 && (
-          <div className="bg-white border-[1.5px] border-cream-dark rounded-2xl mx-4 mt-4 overflow-hidden">
-            <OrderConfirmation
-              orderNum={orderNum}
-              estimatedPickupTime={estimatedPickupTime}
-              verification={orderVerification}
-              onOrderAgain={handleOrderAgain}
+          <>
+            <div className="bg-white border-[1.5px] border-cream-dark rounded-2xl mx-4 mt-4 overflow-hidden">
+              <OrderConfirmation
+                orderNum={orderNum}
+                estimatedPickupTime={estimatedPickupTime}
+                verification={orderVerification}
+                onOrderAgain={handleOrderAgain}
+              />
+            </div>
+            <GuestSaveOrderHistoryDialog
+              checkoutEmail={guestCtx?.checkoutEmail}
+              commerceOrderId={guestCtx?.commerceOrderId}
             />
-          </div>
+          </>
         )}
       </div>
     </div>

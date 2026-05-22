@@ -745,6 +745,25 @@ model OperationalSupportIssue {
   @@map("operational_support_issues")
 }
 
+/// Append-only lifecycle transition log (support domain first). Not a workflow engine — audit/replay only.
+model OperationalStateTransition {
+  id           String   @id @default(cuid())
+  occurredAt   DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  domain       String   @map("domain") @db.VarChar(32)
+  entityId     String   @map("entity_id") @db.VarChar(40)
+  fromStatus   String   @map("from_status") @db.VarChar(64)
+  toStatus     String   @map("to_status") @db.VarChar(64)
+  actorType    String   @map("actor_type") @db.VarChar(32)
+  actorId      String   @map("actor_id") @db.VarChar(128)
+  actorName    String?  @map("actor_name") @db.VarChar(320)
+  sourceSystem String   @map("source_system") @db.VarChar(64)
+  note         String?  @db.Text
+  metadata     Json?    @map("metadata")
+
+  @@index([domain, entityId])
+  @@map("operational_state_transitions")
+}
+
 /**
  * Internal coordination note — markdown/plain; surfaced on operational communication timelines only.
  */

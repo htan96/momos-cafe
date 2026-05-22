@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import type { DashboardOrderBrief } from "@/lib/account/orderPresentation";
 
-const accountOrderInclude = {
+export const accountOrderInclude = {
   fulfillmentGroups: {
     include: {
       shipments: true,

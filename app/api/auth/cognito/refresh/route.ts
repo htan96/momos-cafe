@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { applyCognitoTokenCookies } from "@/lib/auth/cognito/httpCookies";
 import { performCognitoRefreshFromTokens } from "@/lib/auth/cognito/performRefreshFromTokens";
+import { syncCommerceCustomerForCognitoCustomerUser } from "@/lib/account/commerceCustomerProfile";
 import {
   COGNITO_ID_TOKEN_COOKIE,
   COGNITO_REFRESH_TOKEN_COOKIE,
@@ -36,5 +37,18 @@ export async function POST() {
     accessToken: result.tokens.accessToken,
     refreshToken: result.tokens.refreshToken,
   });
+
+  try {
+    if (result.user) {
+      await syncCommerceCustomerForCognitoCustomerUser({
+        sub: result.user.sub,
+        email: result.user.email ?? null,
+        groups: result.user.groups,
+      });
+    }
+  } catch (syncErr) {
+    console.warn("[cognito/refresh] commerce_customer_sync_failed", syncErr);
+  }
+
   return res;
 }

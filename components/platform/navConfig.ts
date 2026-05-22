@@ -6,15 +6,11 @@ export type SuperAdminPlatformNavItem = PlatformNavItem & { section: SuperAdminN
 
 export type { SuperAdminNavSection } from "@/components/platform/superAdminNavMeta";
 
-/** Customer portal — routes under `/account/*`. Settings live under `/account/settings/*`. */
+/** Customer portal — `/account` (+ settings under `/account/settings/*`, not all linked in nav). */
 export const ACCOUNT_PLATFORM_NAV: PlatformNavItem[] = [
-  { section: "Overview", href: "/account", label: "Dashboard" },
-  { section: "Orders & delivery", href: "/account/orders", label: "Orders" },
-  { href: "/account/shipments", label: "Shipments" },
-  { section: "Programs", href: "/account/catering-requests", label: "Catering" },
-  { href: "/account/rewards", label: "Rewards" },
-  { section: "Records", href: "/account/invoices", label: "Invoices" },
-  { section: "Account", href: "/account/settings", label: "Settings" },
+  { section: "Overview", href: "/account", label: "Overview" },
+  { section: "Orders", href: "/account/orders", label: "Orders" },
+  { section: "Account", href: "/account/settings/profile", label: "Profile" },
 ];
 
 /** Staff ops — routes under `/admin/*`. Operational settings under `/admin/settings/*` (maintenance stays put). */

@@ -1,12 +1,8 @@
 import Link from "next/link";
 import AccountOrderCard from "@/components/account/AccountOrderCard";
 import CommerceOrderCustomerCard from "@/components/customer/CommerceOrderCustomerCard";
-import CommunicationRow from "@/components/customer/CommunicationRow";
-import CustomerOrderCard from "@/components/customer/CustomerOrderCard";
 import CustomerPageHeader from "@/components/customer/CustomerPageHeader";
 import CustomerPanel from "@/components/customer/CustomerPanel";
-import CustomerShipmentCard from "@/components/customer/CustomerShipmentCard";
-import RewardsSummaryCard from "@/components/customer/RewardsSummaryCard";
 import { assertCustomerPlatformLayout } from "@/lib/auth/cognito/assertRoleInLayout";
 import { resolveCommerceCustomerId } from "@/lib/account/effectiveAccountContext";
 import {
@@ -21,24 +17,6 @@ import {
   orderDisplayNumber,
   pipelineLabel,
 } from "@/lib/account/orderPresentation";
-import { mockCommunications, mockShipments } from "@/lib/customer/mockAccount";
-import type { CustomerTimelineStep } from "@/components/customer/CustomerTimeline";
-
-function teaserTimeline(
-  steps: { label: string; time: string }[],
-  opts?: { delayed?: boolean }
-): CustomerTimelineStep[] {
-  const delayed = opts?.delayed ?? false;
-  return steps.map((s, i) => {
-    const last = i === steps.length - 1;
-    return {
-      id: `teaser-${i}`,
-      title: s.label,
-      meta: s.time,
-      tone: last ? (delayed ? "current" : "current") : "done",
-    };
-  });
-}
 
 export default async function AccountDashboardPage() {
   const session = await assertCustomerPlatformLayout();
@@ -61,7 +39,6 @@ export default async function AccountDashboardPage() {
   );
 
   const peek = ordersRaw.slice(0, 3);
-  const show = mockShipments[0];
 
   return (
     <>
@@ -112,14 +89,6 @@ export default async function AccountDashboardPage() {
           {peek.map((row) => (
             <CommerceOrderCustomerCard key={row.id} row={row} />
           ))}
-          <CustomerOrderCard
-            href="/shop"
-            orderNumber="soon"
-            placedAt="When you’re ready"
-            summary="Reserve something wonderful — your cart remembers while you browse signed in."
-            status="scheduled"
-            etaReassurance="No rush. We’ll tuck new visits here the moment you check out."
-          />
         </div>
       </section>
 
@@ -226,24 +195,12 @@ export default async function AccountDashboardPage() {
         </section>
       )}
 
-      <div className="mb-16 grid gap-8 lg:grid-cols-[1fr,340px]">
-        <CustomerShipmentCard
-          orderRef={show.orderRef}
-          carrier={show.carrier}
-          destination={show.destination}
-          trackingMasked={show.trackingMasked}
-          status={show.status}
-          delayed={show.delayed}
-          timeline={teaserTimeline(show.timeline.slice(0, 3), { delayed: show.delayed })}
-        />
-        <RewardsSummaryCard
-          tierLabel="Host circle"
-          tagline="Small celebrations add up — we remember how you like the tray lined."
-          progressLabel="Path to signature perks"
-          progressPercent={62}
-          actionHref="/account/rewards"
-          actionLabel="Peek at rewards →"
-        />
+      <div className="mb-16 grid gap-8 lg:grid-cols-1">
+        <CustomerPanel title="Delivery &amp; mail" eyebrow="Heads up" className="scroll-mt-28">
+          <p className="text-[14px] text-charcoal/70 leading-relaxed">
+            Tracking for shipped items appears on each order&apos;s detail page when carriers send updates.
+          </p>
+        </CustomerPanel>
       </div>
 
       <CustomerPanel
@@ -253,13 +210,9 @@ export default async function AccountDashboardPage() {
         paddingClassName="p-6 md:p-7"
       >
         <p className="-mt-2 max-w-2xl text-[14px] text-charcoal/65 leading-relaxed">
-          Helpful nudges we’d slip beside your plate — nothing noisy, just clarity.
+          When we add order messages for your account, they&apos;ll show here. For now, check your email for receipts and
+          replies from the team.
         </p>
-        <div className="mt-6 space-y-4">
-          {mockCommunications.map((c) => (
-            <CommunicationRow key={c.id} subject={c.subject} preview={c.preview} when={c.when} channel={c.channel} />
-          ))}
-        </div>
       </CustomerPanel>
 
       <section
@@ -330,9 +283,9 @@ export default async function AccountDashboardPage() {
           </ul>
         )}
         <p className="mt-6 text-[13px] text-charcoal/55">
-          Prefer the concierge board?{" "}
-          <Link href="/account/catering-requests" className="font-semibold text-teal-dark underline-offset-2 hover:underline">
-            Open catering requests
+          Planning an event?{" "}
+          <Link href="/catering" className="font-semibold text-teal-dark underline-offset-2 hover:underline">
+            Start a catering inquiry
           </Link>
           .
         </p>
@@ -352,13 +305,11 @@ export default async function AccountDashboardPage() {
               Cards stay with our secure checkout partner — saved cards are on the wishlist.
             </dd>
           </div>
-          <div className="sm:col-span-2">
+          <div>
             <dt className="text-[10px] font-semibold uppercase tracking-wider text-teal-dark">
               Loyalty &amp; preferences
             </dt>
-            <dd className="mt-1 text-charcoal/60">
-              Little perks you pick up over time — we&apos;ll add them gently.
-            </dd>
+            <dd className="mt-1 text-charcoal/60">No separate rewards program in the account portal yet.</dd>
           </div>
         </dl>
       </CustomerPanel>

@@ -69,6 +69,16 @@ export async function runShippoLabelPurchaseForShipment(input: {
 
   const row = await prisma.shipment.findUnique({
     where: { id: shipmentId },
+    select: {
+      id: true,
+      fulfillmentGroupId: true,
+      carrier: true,
+      trackingNumber: true,
+      shippedAt: true,
+      status: true,
+      selectedShippoRateId: true,
+      metadata: true,
+    },
   });
   if (!row) {
     return { ok: false, httpStatus: 404, errorCode: "shipment_not_found" };
@@ -177,6 +187,11 @@ export async function runShippoLabelPurchaseForShipment(input: {
     return { ok: false, httpStatus: 500, errorCode: "update_failed" };
   }
 
+  const grp = await prisma.fulfillmentGroup.findUnique({
+    where: { id: updated.fulfillmentGroupId },
+    select: { orderId: true },
+  });
+
   await emitOperationalEvent({
     type: OPERATIONAL_EVENT_TYPES.SHIPMENT_LABEL_CREATED,
     severity: OperationalActivitySeverity.info,
@@ -185,6 +200,11 @@ export async function runShippoLabelPurchaseForShipment(input: {
     message: "Shippo label purchased for storefront shipment",
     metadata: {
       shipmentId: updated.id,
+      commerceOrderId: grp?.orderId,
+      fulfillmentGroupId: updated.fulfillmentGroupId,
+      entities: grp?.orderId
+        ? { commerceOrderId: grp.orderId, shipmentId: updated.id, fulfillmentGroupId: updated.fulfillmentGroupId }
+        : { shipmentId: updated.id, fulfillmentGroupId: updated.fulfillmentGroupId },
       carrier: updated.carrier,
       trackingNumber: updated.trackingNumber,
     },

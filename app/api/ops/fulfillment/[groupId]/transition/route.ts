@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { OperationalActivitySeverity } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { FulfillmentPipeline } from "@/types/commerce";
 import {
@@ -8,6 +9,8 @@ import {
 } from "@/lib/commerce/orderLifecycle";
 import { getOpsSession } from "@/lib/ops/getOpsSession";
 import { opsCan } from "@/lib/ops/permissions";
+import { emitPlatformEvent } from "@/lib/platform/events/emitPlatformEvent";
+import { PLATFORM_EVENT_SUBTYPE } from "@/lib/platform/events/taxonomy";
 
 async function maybeAdvanceAggregateOrderStatus(orderId: string): Promise<void> {
   const order = await prisma.commerceOrder.findUnique({
@@ -88,6 +91,28 @@ export async function PATCH(
     });
 
     await maybeAdvanceAggregateOrderStatus(orderId);
+
+    void emitPlatformEvent({
+      category: "ORDER_EVENT",
+      subtype: PLATFORM_EVENT_SUBTYPE.FULFILLMENT_GROUP_STATUS_CHANGED,
+      lifecycle: "processing",
+      severity: OperationalActivitySeverity.info,
+      actorType: session.roleBadge === "super_admin" ? "super_admin" : "admin",
+      actorId: session.sub,
+      actorName: session.email,
+      message: `Fulfillment group ${group.pipeline} → ${nextStatus}`,
+      entities: {
+        commerceOrderId: orderId,
+        fulfillmentGroupId: groupId,
+      },
+      detail: {
+        pipeline: group.pipeline,
+        priorStatus: group.status,
+        newStatus: nextStatus,
+      },
+      source: { handler: "PATCH api/ops/fulfillment/[groupId]/transition" },
+      sourceTag: "ops.fulfillment",
+    });
 
     return NextResponse.json({ ok: true, group: updated });
   } catch (e) {

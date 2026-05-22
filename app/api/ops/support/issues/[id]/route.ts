@@ -8,6 +8,11 @@ import { prisma } from "@/lib/prisma";
 import { emitPlatformEvent } from "@/lib/platform/events/emitPlatformEvent";
 import { PLATFORM_EVENT_SUBTYPE } from "@/lib/platform/events/taxonomy";
 import { recordGovernanceAuditEntry } from "@/lib/governance/governanceAuditRecord";
+import { legalSupportTransition } from "@/lib/operations/support/legalSupportTransition";
+import {
+  appendOperationalStateTransition,
+  OPERATIONAL_STATE_TRANSITION_DOMAIN,
+} from "@/lib/operations/transitions/appendOperationalStateTransition";
 
 export const runtime = "nodejs";
 
@@ -36,11 +41,13 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 
   const merged: Prisma.OperationalSupportIssueUpdateInput = {};
 
-  const nextStatus = typeof body.status === "string" ? body.status.trim().toUpperCase() : "";
-  if (nextStatus) {
+  let nextParsedStatus: OperationalSupportIssueStatus | undefined;
+  const nextStatusRaw = typeof body.status === "string" ? body.status.trim().toUpperCase() : "";
+  if (nextStatusRaw) {
     const allowed = Object.values(OperationalSupportIssueStatus) as string[];
-    if (!allowed.includes(nextStatus)) return bad("invalid_status");
-    merged.status = nextStatus as OperationalSupportIssueStatus;
+    if (!allowed.includes(nextStatusRaw)) return bad("invalid_status");
+    nextParsedStatus = nextStatusRaw as OperationalSupportIssueStatus;
+    merged.status = nextParsedStatus;
   }
 
   if (typeof body.assignedToStaffSub === "string") {
@@ -69,9 +76,50 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     return bad("no_changes");
   }
 
-  const updated = await prisma.operationalSupportIssue.update({
-    where: { id: issue.id },
-    data: merged,
+  const transitionNoteRaw =
+    typeof body.transitionNote === "string" ? body.transitionNote.trim() || null : null;
+
+  /** Status change attempted */
+  let statusChanged = false;
+  let priorStatus = issue.status;
+  let newStatusForAudit = issue.status;
+
+  if (nextParsedStatus !== undefined && nextParsedStatus !== issue.status) {
+    const gate = legalSupportTransition(issue.status, nextParsedStatus);
+    if (!gate.ok) {
+      return NextResponse.json({ error: "illegal_support_transition", reason: gate.reason }, { status: 422 });
+    }
+    statusChanged = true;
+    newStatusForAudit = nextParsedStatus;
+  }
+
+  const actorType = session.roleBadge === "super_admin" ? ("super_admin" as const) : ("admin" as const);
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const row = await tx.operationalSupportIssue.update({
+      where: { id: issue.id },
+      data: merged,
+    });
+
+    if (statusChanged) {
+      await appendOperationalStateTransition(tx, {
+        domain: OPERATIONAL_STATE_TRANSITION_DOMAIN.SUPPORT,
+        entityId: row.id,
+        fromStatus: priorStatus,
+        toStatus: newStatusForAudit,
+        actorType,
+        actorId: session.sub,
+        actorName: session.email,
+        sourceSystem: "ops_api",
+        note: transitionNoteRaw,
+        metadata: {
+          patchedKeys: Object.keys(merged),
+          commerceOrderId: row.commerceOrderId ?? undefined,
+        },
+      });
+    }
+
+    return row;
   });
 
   await recordGovernanceAuditEntry({
@@ -83,7 +131,11 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     targetType: "operational_support_issue",
     targetId: updated.id,
     description: `Support issue patched (${String(merged.status ?? issue.status)})`,
-    metadata: { merged: merged as Record<string, unknown>, priorStatus: issue.status },
+    metadata: {
+      merged: merged as Record<string, unknown>,
+      priorStatus: issue.status,
+      ...(statusChanged ? { supportTransition: { from: priorStatus, to: newStatusForAudit } } : {}),
+    },
   });
 
   void emitPlatformEvent({
@@ -100,6 +152,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       supportIssueId: updated.id,
       status: updated.status,
       patchedKeys: Object.keys(merged),
+      ...(statusChanged ? { priorStatus: issue.status, newStatus: updated.status } : {}),
     },
     source: { handler: "PATCH api/ops/support/issues/[id]" },
     sourceTag: "ops.support",

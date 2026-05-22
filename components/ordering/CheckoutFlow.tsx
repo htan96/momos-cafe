@@ -10,6 +10,7 @@ import CheckoutPanel from "./CheckoutPanel";
 import OrderConfirmation from "./OrderConfirmation";
 import StickyCheckoutBar from "./StickyCheckoutBar";
 import MixedCartCheckoutNotice from "@/components/commerce/MixedCartCheckoutNotice";
+import GuestSaveOrderHistoryDialog from "@/components/checkout/GuestSaveOrderHistoryDialog";
 
 interface CheckoutFlowProps {
   onCartClick?: () => void;
@@ -53,6 +54,10 @@ export default function CheckoutFlow({
   const [orderNum, setOrderNum] = useState("");
   const [estimatedPickupTime, setEstimatedPickupTime] = useState<string | undefined>();
   const [orderVerification, setOrderVerification] = useState<OrderPlacedVerification | null>(null);
+  const [guestCtx, setGuestCtx] = useState<{
+    commerceOrderId?: string | null;
+    checkoutEmail?: string | null;
+  } | null>(null);
 
   const goToCheckout = () => {
     setStep(2);
@@ -67,16 +72,23 @@ export default function CheckoutFlow({
     }
   }, [step]);
 
-  const handleOrderPlaced = (num: string, pickupTime?: string, verification?: OrderPlacedVerification) => {
+  const handleOrderPlaced = (
+    num: string,
+    pickupTime?: string,
+    verification?: OrderPlacedVerification,
+    ctx?: { commerceOrderId?: string | null; checkoutEmail?: string | null }
+  ) => {
     setOrderNum(num);
     setEstimatedPickupTime(pickupTime);
     setOrderVerification(verification ?? null);
+    setGuestCtx(ctx ?? null);
     setStep(3);
   };
 
   const handleOrderAgain = () => {
     setOrderNum("");
     setOrderVerification(null);
+    setGuestCtx(null);
     setStep(1);
   };
 
@@ -115,7 +127,7 @@ export default function CheckoutFlow({
       </div>
 
       {/* Step content — only one visible */}
-      <div className="bg-white border-[1.5px] border-cream-dark rounded-b-2xl overflow-hidden -mt-px">
+      <div className="bg-white border-[1.5px] border-cream-dark rounded-b-2xl overflow-hidden -mt-px relative">
         {step === 1 && (
           <>
             <MixedCartCheckoutNotice variant="cart" />
@@ -136,12 +148,18 @@ export default function CheckoutFlow({
           </>
         )}
         {step === 3 && (
-          <OrderConfirmation
-            orderNum={orderNum}
-            estimatedPickupTime={estimatedPickupTime}
-            verification={orderVerification}
-            onOrderAgain={handleOrderAgain}
-          />
+          <>
+            <OrderConfirmation
+              orderNum={orderNum}
+              estimatedPickupTime={estimatedPickupTime}
+              verification={orderVerification}
+              onOrderAgain={handleOrderAgain}
+            />
+            <GuestSaveOrderHistoryDialog
+              checkoutEmail={guestCtx?.checkoutEmail}
+              commerceOrderId={guestCtx?.commerceOrderId}
+            />
+          </>
         )}
       </div>
 

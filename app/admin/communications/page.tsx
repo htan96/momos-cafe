@@ -16,7 +16,7 @@ export default async function AdminCommunicationsPage() {
     <div className="space-y-8">
       <OpsPageHeader
         title="Communications timeline"
-        subtitle="EmailThread + newest EmailMessage samples — conversational recovery happens in `/ops/communications`."
+        subtitle="EmailThread + newest EmailMessage samples — surfaced from loaders for inbound and outbound transactional mail."
       />
 
       <div className="space-y-5">

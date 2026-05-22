@@ -1,5 +1,19 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  async redirects() {
+    /**
+     * Transitional `/ops/**` aliases → canonical `/admin/**` where execution surfaces exist.
+     * See `docs/architecture/admin-ops-consolidation-deliverables.md`.
+     */
+    return [
+      { source: "/ops/fulfillment", destination: "/admin/fulfillment", permanent: false },
+      { source: "/ops/shipping", destination: "/admin/shipping", permanent: false },
+      { source: "/ops/support", destination: "/admin/support", permanent: false },
+      { source: "/ops/communications/:threadId", destination: "/admin/communications", permanent: false },
+      { source: "/ops/communications", destination: "/admin/communications", permanent: false },
+    ];
+  },
+
   images: {
     remotePatterns: [
       {

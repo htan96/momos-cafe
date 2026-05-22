@@ -10,8 +10,10 @@ import { useCartNav } from "@/context/CartNavContext";
 import HeaderAuthLink from "./HeaderAuthLink";
 import StorefrontHeaderMobileMenu from "./StorefrontHeaderMobileMenu";
 import { useCustomerSessionPhase } from "@/lib/auth/cognito/useCustomerSessionPhase";
-import { NavAccountIcon, NavCartIcon, NavMenuIcon, NavSignInIcon } from "@/components/icons/navigation/NavIcons";
+import { NavAccountIcon, NavCartIcon, NavMenuIcon } from "@/components/icons/navigation/NavIcons";
 import { STOREFRONT_HEADER_NAV_LINKS } from "@/lib/navigation/storefrontHeaderNav";
+
+const ACCOUNT_LOGIN_HREF = `/login?next=${encodeURIComponent("/account")}`;
 
 function HeaderMobileAccount() {
   const phase = useCustomerSessionPhase();
@@ -40,12 +42,12 @@ function HeaderMobileAccount() {
 
   return (
     <Link
-      href="/login"
+      href={ACCOUNT_LOGIN_HREF}
       className="inline-flex h-10 w-10 items-center justify-center rounded-full text-teal-dark hover:bg-teal/10 transition-colors"
-      aria-label="Sign in"
-      title="Sign in"
+      aria-label="Account"
+      title="Account"
     >
-      <NavSignInIcon className="w-6 h-6" />
+      <NavAccountIcon className="w-6 h-6" />
     </Link>
   );
 }

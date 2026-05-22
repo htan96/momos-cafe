@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ensureCommerceCustomer, linkGuestCommerceOrdersByCheckoutEmail } from "@/lib/account/commerceCustomerProfile";
 import { getCustomerSession } from "@/lib/auth/getCustomerSession";
 import { prisma } from "@/lib/prisma";
 import { parseUnifiedCartLines } from "@/lib/commerce/parseUnifiedCartLines";
@@ -17,7 +18,7 @@ import { OperationalActivitySeverity } from "@prisma/client";
 
 /** Draft commerce order + fulfillment groups — validates payload strictly */
 export async function POST(req: Request) {
-  let sessionCustomerSub: string | undefined;
+  let commerceCustomerRowIdForLog: string | undefined;
   try {
     const body = (await req.json()) as { guestToken?: string; lines?: unknown };
 
@@ -68,11 +69,23 @@ export async function POST(req: Request) {
     }
 
     const warnings = validationIssues.filter((i) => i.severity === "warning");
-    sessionCustomerSub = (await getCustomerSession())?.sub;
+    const customerSession = await getCustomerSession();
+    let commerceCustomerRowId: string | null = null;
+    if (customerSession) {
+      commerceCustomerRowId = await ensureCommerceCustomer({
+        cognitoSub: customerSession.sub,
+        email: customerSession.email,
+      });
+      if (commerceCustomerRowId) {
+        await linkGuestCommerceOrdersByCheckoutEmail(commerceCustomerRowId, customerSession.email);
+      }
+      commerceCustomerRowIdForLog = commerceCustomerRowId ?? undefined;
+    }
+
     const result = await createCommerceOrderWithGroups({
       lines: linesForOrder,
       guestCartToken: body.guestToken?.trim() ?? null,
-      customerId: sessionCustomerSub ?? null,
+      customerId: commerceCustomerRowId,
       metadata:
         warnings.length > 0
           ? { validationWarnings: warnings.map((w) => ({ code: w.code, message: w.message })) }
@@ -82,7 +95,7 @@ export async function POST(req: Request) {
     await emitOrderCreatedEvent({
       orderId: result.orderId,
       fulfillmentGroupsCreated: result.fulfillmentGroupsCreated,
-      customerId: sessionCustomerSub ?? null,
+      customerId: commerceCustomerRowId,
     });
 
     return NextResponse.json({
@@ -99,10 +112,10 @@ export async function POST(req: Request) {
       category: "ORDER_EVENT",
       lifecycle: "failed",
       severity: OperationalActivitySeverity.error,
-      actorType: sessionCustomerSub ? "customer" : "system",
-      actorId: sessionCustomerSub ?? undefined,
+      actorType: commerceCustomerRowIdForLog ? "customer" : "system",
+      actorId: commerceCustomerRowIdForLog,
       message: "Failed to persist draft commerce order from storefront payload",
-      entities: sessionCustomerSub ? { customerId: sessionCustomerSub } : {},
+      entities: commerceCustomerRowIdForLog ? { customerId: commerceCustomerRowIdForLog } : {},
       detail: {
         integrityHint: !!(
           msg.startsWith("MISSING_LINE_ID_IN_PAYLOAD") ||

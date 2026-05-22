@@ -15,6 +15,7 @@ import { isAdmin, isSuperAdmin } from "@/lib/auth/cognito/roles";
 import { clearCognitoCookieJar } from "@/lib/auth/cognito/sessionCookies";
 import { cognitoChallengeJson } from "@/lib/auth/cognito/challengeResponse";
 import { OperationalActivitySeverity } from "@prisma/client";
+import { syncCommerceCustomerForCognitoCustomerUser } from "@/lib/account/commerceCustomerProfile";
 import { emitOperationalEvent } from "@/lib/operations/emitOperationalEvent";
 import { OPERATIONAL_EVENT_TYPES } from "@/lib/operations/operationalEventTypes";
 import { emitPlatformEvent } from "@/lib/platform/events/emitPlatformEvent";
@@ -358,6 +359,16 @@ export async function POST(request: Request) {
           },
           source: "api.auth.cognito.login",
         });
+      }
+
+      try {
+        await syncCommerceCustomerForCognitoCustomerUser({
+          sub: result.user.sub,
+          email: result.user.email ?? null,
+          groups: result.user.groups,
+        });
+      } catch (syncErr) {
+        console.warn("[cognito/login] commerce_customer_sync_failed", syncErr);
       }
 
       return res;

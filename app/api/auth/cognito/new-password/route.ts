@@ -13,6 +13,7 @@ import { getCognitoConfig } from "@/lib/auth/cognito/config";
 import { cognitoChallengeJson } from "@/lib/auth/cognito/challengeResponse";
 import { applyCognitoTokenCookies } from "@/lib/auth/cognito/httpCookies";
 import { resolvePostLoginRedirect } from "@/lib/auth/cognito/redirectByRole";
+import { syncCommerceCustomerForCognitoCustomerUser } from "@/lib/account/commerceCustomerProfile";
 import { clearCognitoCookieJar } from "@/lib/auth/cognito/sessionCookies";
 
 export const runtime = "nodejs";
@@ -125,6 +126,17 @@ export async function POST(request: Request) {
       accessToken: out.accessToken,
       refreshToken: out.refreshToken ?? undefined,
     });
+
+    try {
+      await syncCommerceCustomerForCognitoCustomerUser({
+        sub: user.sub,
+        email: user.email ?? null,
+        groups: user.groups,
+      });
+    } catch (syncErr) {
+      console.warn("[cognito/new-password] commerce_customer_sync_failed", syncErr);
+    }
+
     return res;
   } catch (e) {
     console.error("[cognito/new-password] unhandled", e);

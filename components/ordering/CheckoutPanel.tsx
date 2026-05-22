@@ -37,7 +37,12 @@ interface CheckoutPanelProps {
   onCartClick?: () => void;
   onBackToMenu?: () => void;
   onBack?: () => void;
-  onOrderPlaced?: (orderNum: string, estimatedPickupTime?: string, verification?: OrderPlacedVerification) => void;
+  onOrderPlaced?: (
+    orderNum: string,
+    estimatedPickupTime?: string,
+    verification?: OrderPlacedVerification,
+    guestContext?: { commerceOrderId?: string | null; checkoutEmail?: string | null }
+  ) => void;
   /** When false, food lines are excluded from payment for this attempt (merch/gifts may still clear). */
   kitchenFoodPaymentAllowed?: boolean;
   /** @deprecated Use `kitchenFoodPaymentAllowed` — storefront is never hard-closed. */
@@ -318,7 +323,11 @@ export default function CheckoutPanel({
       onOrderPlaced?.(
         orderId,
         pickupDisplayInstant ? formatPickupTime(pickupDisplayInstant) : undefined,
-        verification
+        verification,
+        {
+          commerceOrderId: resolvedCommerceId,
+          checkoutEmail: trimmedEmail,
+        }
       );
     },
     [

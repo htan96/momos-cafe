@@ -29,6 +29,14 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
+## Customer auth & sessions
+
+After sign-in, password-completion, explicit refresh (`POST /api/auth/cognito/refresh`), or a **silent** refresh from `GET /api/auth/cognito/session` when the ID token expired, we upsert a Prisma **`Customer`** with `externalAuthSubject` = Cognito `sub`.
+
+**`CommerceOrder.customerId`** references that **`Customer.id`**. Paid **guest** checkouts stash `metadata.storefrontCheckoutEmail` so signing up with the same email can **`updateMany`** link those orders to the account.
+
+Strict **“one concurrent session per account/email”** is **not enforced** via Cognito Hosted UI alone; doing so needs extra revocation/session-store design (see AWS docs). This repo documents the gap rather than presenting a mocked device dashboard.
+
 ## Deploy on Vercel
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.

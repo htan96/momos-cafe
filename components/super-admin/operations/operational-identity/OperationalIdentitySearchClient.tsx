@@ -43,9 +43,33 @@ export default function OperationalIdentitySearchClient() {
       }
       const body = (await res.json()) as {
         hint?: string;
+        cognitoConfigured?: boolean;
+        cognitoLookup?: {
+          degraded?: boolean;
+          scannedUsers?: number;
+          scanCapped?: boolean;
+          errorCode?: string;
+          errorDetail?: string;
+        };
         candidates?: OperationalIdentityCandidate[];
       };
-      setHint(body.hint ?? null);
+      const hintPieces: string[] = [];
+      if (body.hint) hintPieces.push(body.hint);
+      if (body.cognitoLookup?.degraded) {
+        const code = body.cognitoLookup.errorCode ?? "COGNITO_DEGRADED";
+        const scanned = typeof body.cognitoLookup.scannedUsers === "number" ? `${body.cognitoLookup.scannedUsers}` : "?";
+        const cap = body.cognitoLookup.scanCapped ? ` · scan capped (${scanned} rows examined)` : ` · inspected ${scanned} rows`;
+        hintPieces.push(`Cognito search degraded (${code}${cap}).`);
+      } else if (body.cognitoLookup?.scanCapped) {
+        const scanned =
+          typeof body.cognitoLookup.scannedUsers === "number" ? `${body.cognitoLookup.scannedUsers}` : "several hundred";
+        hintPieces.push(`Cognito scan hit hard cap (${scanned}+ rows enumerated).`);
+      }
+      if (body.cognitoConfigured === false) hintPieces.push("User pool variables missing — results are prisma-only.");
+
+      const hintResolved = hintPieces.join(" ");
+
+      setHint(hintResolved.length > 0 ? hintResolved : null);
       setRows(body.candidates ?? []);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));
@@ -88,9 +112,12 @@ export default function OperationalIdentitySearchClient() {
 
       <ul className="space-y-2">
         {rows.map((c) => {
-          const routeId = encodeURIComponent(c.kind === "customer" ? c.id : (c.cognitoSub ?? c.id));
+          const routeId =
+            encodeURIComponent(c.kind === "customer" ? c.id : ((c.cognitoSub ?? c.id)?.trim() || ""));
           const href = `/super-admin/operations/operational-identity/${routeId}`;
           const title = c.email ?? c.cognitoSub ?? c.id;
+          const linkageLabel =
+            c.linkage === "linked_customer" ? "Linked customer" : c.linkage === "cognito_only" ? "Cognito-only" : "Prisma (no pool link)";
 
           return (
             <li key={`${c.kind}:${routeId}`}>
@@ -98,26 +125,68 @@ export default function OperationalIdentitySearchClient() {
                 href={href}
                 className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-cream-dark/60 bg-white/[0.9] px-4 py-3 shadow-[0_12px_32px_-20px_rgba(46,42,37,0.22)] hover:border-teal-dark/55"
               >
-                <div>
-                  <div className="font-medium text-teal-dark">{title}</div>
-                  <div className="mt-1 text-[12px] text-charcoal/60">{c.subtitle}</div>
-                  <div className="mt-1 font-mono text-[11px] text-charcoal/45">
-                    {c.kind === "customer" ?
-                      <>
-                        prisma <span className="text-charcoal/70">{c.id}</span>
-                      </>
-                    : null}
-                    {c.cognitoSub ?
-                      <>
-                        {" "}
-                        · sub <span className="text-charcoal/70">{c.cognitoSub}</span>
-                      </>
-                    : null}
+                <div className="flex-1 min-w-[200px]">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="font-medium text-teal-dark">{title}</div>
+                    <span
+                      className="rounded-full border border-teal-soft/65 bg-teal-soft/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-charcoal/70"
+                      title={`Cognito tenant wiring ${c.cognitoConfigured ? "present" : "absent"} (env-derived).`}
+                    >
+                      {c.cognitoConfigured ? "Pool wired" : "Pool off-env"}
+                    </span>
+                    <span className="rounded-full border border-cream-dark/60 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-charcoal/55">
+                      {linkageLabel}
+                    </span>
+                    {typeof c.enabled === "boolean" ? (
+                      <span className="text-[11px] text-charcoal/50">{c.enabled ? "ENABLED" : "DISABLED"}</span>
+                    ) : (
+                      <span className="text-[11px] text-charcoal/40">ENABLED · unknown</span>
+                    )}
                   </div>
+                  <div className="mt-2 text-[12px] leading-snug text-charcoal/60">{c.subtitle}</div>
+                  <div className="mt-2 space-y-1 font-mono text-[11px] text-charcoal/45">
+                    {c.kind === "customer" ? (
+                      <div>
+                        prisma <span className="text-charcoal/70">{c.id}</span>
+                      </div>
+                    ) : null}
+                    {c.cognitoUsername ? (
+                      <div>
+                        username <span className="text-charcoal/70">{c.cognitoUsername}</span>
+                      </div>
+                    ) : null}
+                    {c.preferredUsername ? (
+                      <div>
+                        preferred_username <span className="text-charcoal/70">{c.preferredUsername}</span>
+                      </div>
+                    ) : null}
+                    {c.cognitoSub ? (
+                      <div>
+                        sub <span className="text-charcoal/70">{c.cognitoSub}</span>
+                      </div>
+                    ) : null}
+                    {c.email ? (
+                      <div className="text-[11px]">
+                        email <span className="text-charcoal/70">{c.email}</span>
+                      </div>
+                    ) : null}
+                  </div>
+                  {c.groups.length > 0 ? (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {c.groups.map((g) => (
+                        <span
+                          key={`${routeId}:${g}`}
+                          className="rounded-md border border-cream-dark/60 bg-charcoal/[0.04] px-2 py-0.5 text-[11px] text-charcoal/70"
+                        >
+                          {g}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-[11px] text-charcoal/40">Assigned groups · none surfaced for this dossier probe.</p>
+                  )}
                 </div>
-                <span className="self-center text-[11px] font-semibold uppercase tracking-[0.16em] text-charcoal/40">
-                  Open
-                </span>
+                <span className="self-center text-[11px] font-semibold uppercase tracking-[0.16em] text-charcoal/40">Open</span>
               </Link>
             </li>
           );

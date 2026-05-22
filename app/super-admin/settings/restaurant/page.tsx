@@ -7,7 +7,7 @@ export default function SuperAdminRestaurantSettingsPage() {
       <GovPageHeader
         eyebrow="Settings · Restaurant"
         title="Hours, prep rules & storefront details"
-        subtitle="Weekly open hours, optional kitchen window overrides, lead time, last-order cutoff, pickup spacing, and restaurant timezone control when guests can order food and how pickup slots are generated. Address and phone here also feed maps, labels, and shipping origin."
+        subtitle="Weekly open hours, optional kitchen window overrides, lead time, last-order cutoff, pickup spacing, and restaurant timezone control when guests can order food and how pickup slots are generated. Address and phone here also feed maps, labels, and shipping origin. The same persisted editor lives under Admin › Settings › Restaurant & profile for staff admins."
       />
       <div className="max-w-4xl">
         <SettingsPanel

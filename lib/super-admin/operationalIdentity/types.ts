@@ -13,11 +13,21 @@ export type OperationalIdentityDeepLinks = {
   paymentIntegrityHref: string;
 };
 
+/** How the candidate ties together prisma vs pool directory. */
+export type OperationalIdentityLinkage = "linked_customer" | "cognito_only" | "customer_no_pool_link";
+
 export type OperationalIdentityCandidate = {
+  cognitoConfigured: boolean;
+  linkage: OperationalIdentityLinkage;
+  /** `customer`: prisma diner row · **`cognito_profile`** — pool hit without prisma row (or withheld duplicate). */
   kind: "customer" | "cognito_profile";
   id: string;
   email: string | null;
   cognitoSub: string | null;
+  cognitoUsername: string | null;
+  preferredUsername: string | null;
+  enabled: boolean | null;
+  groups: string[];
   phone: string | null;
   subtitle: string;
 };

@@ -1,5 +1,12 @@
 "use client";
 
+/**
+ * Legacy tab shell (settings + catering) predating Cognito-backed `/admin` and `/super-admin`
+ * consoles. Nothing in the App Router imports this component — use SettingsPanel from
+ * `@/components/admin/SettingsPanel` on `/admin/settings/business` or `/super-admin/settings/restaurant`.
+ * Kept for reference only.
+ */
+
 import { useState } from "react";
 import SettingsPanel from "./SettingsPanel";
 import CateringRequestsPanel from "./CateringRequestsPanel";

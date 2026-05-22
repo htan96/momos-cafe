@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server";
 import { requireSuperStaffJson } from "@/lib/auth/cognito/requireSuperStaff";
+import { getCognitoConfig } from "@/lib/auth/cognito/config";
 import { searchOperationalIdentityCandidates } from "@/lib/super-admin/operationalIdentity/resolveOperationalIdentity";
-import {
-  OPERATIONAL_IDENTITY_SEARCH_MIN_Q,
-} from "@/lib/super-admin/operationalIdentity/constants";
+import { OPERATIONAL_IDENTITY_SEARCH_MIN_Q } from "@/lib/super-admin/operationalIdentity/constants";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   const gate = await requireSuperStaffJson();
   if (gate) return gate;
+
+  const cognitoConfigured = Boolean(getCognitoConfig());
 
   const { searchParams } = new URL(request.url);
   const qRaw = typeof searchParams.get("q") === "string" ? searchParams.get("q")!.trim() : "";
@@ -18,13 +19,25 @@ export async function GET(request: Request) {
 
   if (qLimited.length > 0 && qLimited.length < OPERATIONAL_IDENTITY_SEARCH_MIN_Q) {
     return NextResponse.json({
+      q: qLimited,
+      cognitoConfigured,
       candidates: [],
       hint: `Query must be at least ${OPERATIONAL_IDENTITY_SEARCH_MIN_Q} characters.`,
     });
   }
 
-  const candidates =
-    qLimited.length === 0 ? [] : await searchOperationalIdentityCandidates(qLimited);
+  if (qLimited.length === 0) {
+    return NextResponse.json({
+      q: qLimited,
+      cognitoConfigured,
+      candidates: [],
+    });
+  }
 
-  return NextResponse.json({ q: qLimited, candidates });
+  const result = await searchOperationalIdentityCandidates(qLimited);
+
+  return NextResponse.json({
+    q: qLimited,
+    ...result,
+  });
 }

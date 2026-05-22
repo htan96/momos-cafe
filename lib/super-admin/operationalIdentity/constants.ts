@@ -1,3 +1,11 @@
+/**
+ * Max Cognito **`ListUsers`** records examined (across pagination) per operational-identity search.
+ * Hard stop for safety — large pools enumerate slowly; substring matching is intentionally bounded.
+ *
+ * Tweaking: raise only with awareness of **`cognito-idp:ListUsers`** limits + latency.
+ */
+export const OPERATIONAL_IDENTITY_COGNITO_SCAN_MAX_USERS = 420;
+
 /** Max rows returned from identity search (customers + optional Cognito adjunct). */
 export const OPERATIONAL_IDENTITY_SEARCH_LIMIT = 18;
 

@@ -3,6 +3,7 @@ import {
   AdminListGroupsForUserCommand,
   AdminRemoveUserFromGroupCommand,
   CognitoIdentityProviderClient,
+  ListUsersCommand,
   ListUsersInGroupCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
 import type { CognitoEnvConfig } from "@/lib/auth/cognito/config";
@@ -24,6 +25,9 @@ export type ListedPoolUser = {
   username: string;
   sub: string;
   email: string | null;
+  preferredUsername: string | null;
+  givenName: string | null;
+  familyName: string | null;
   name: string | null;
   userCreateDate: Date | null;
   /** Cognito pool user Enabled flag — null when the API response omitted it. */
@@ -35,6 +39,81 @@ function attr(attrs: ReadonlyArray<{ Name?: string; Value?: string }> | undefine
   return hit && hit.length > 0 ? hit : null;
 }
 
+/** Safe literal for Cognito **`ListUsers` → `Filter`** strings (escapes `\` and `"`). */
+export function cognitoQuotedFilterLiteral(raw: string): string {
+  const v = raw.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  return `"${v}"`;
+}
+
+function listedPoolUserFromAttributes(opts: {
+  username: string;
+  attrs: ReadonlyArray<{ Name?: string; Value?: string }>;
+  userCreateDate?: Date | null;
+  enabled?: boolean | null;
+}): ListedPoolUser | null {
+  const username = opts.username.trim();
+  if (!username) return null;
+
+  const attrs = opts.attrs ?? [];
+  const sub = attr(attrs, "sub");
+  if (!sub) return null;
+
+  const givenName = attr(attrs, "given_name");
+  const familyName = attr(attrs, "family_name");
+  const composedParts = [givenName, familyName].filter(Boolean).join(" ").trim();
+
+  const nameResolved =
+    attr(attrs, "name") ??
+    (composedParts.length > 0 ? composedParts : null);
+
+  return {
+    username,
+    sub,
+    email: attr(attrs, "email"),
+    preferredUsername: attr(attrs, "preferred_username"),
+    givenName,
+    familyName,
+    name: nameResolved,
+    userCreateDate: opts.userCreateDate instanceof Date ? opts.userCreateDate : null,
+    enabled: opts.enabled ?? null,
+  };
+}
+
+/** One **`ListUsers`** page — **`cognito-idp:ListUsers`** (pagination via `PaginationToken`). */
+export async function adminListUsersPage(
+  cfg: CognitoEnvConfig,
+  params: {
+    limit?: number | undefined;
+    paginationToken?: string | undefined;
+    /** Cognito `Filter` grammar (`=` equality · `^=` prefix on supported attributes). */
+    filter?: string | undefined;
+  }
+): Promise<{ users: ListedPoolUser[]; nextPaginationToken?: string | undefined }> {
+  const res = await client(cfg).send(
+    new ListUsersCommand({
+      UserPoolId: cfg.userPoolId,
+      Limit: params.limit ?? 60,
+      PaginationToken: params.paginationToken,
+      Filter: params.filter,
+    })
+  );
+
+  const users: ListedPoolUser[] = [];
+  for (const u of res.Users ?? []) {
+    const username = u.Username?.trim();
+    if (!username) continue;
+    const mapped = listedPoolUserFromAttributes({
+      username,
+      attrs: u.Attributes ?? [],
+      userCreateDate: u.UserCreateDate,
+      enabled: typeof u.Enabled === "boolean" ? u.Enabled : null,
+    });
+    if (mapped) users.push(mapped);
+  }
+
+  return { users, nextPaginationToken: res.PaginationToken };
+}
+
 function mapUser(u: {
   Username?: string;
   Attributes?: ReadonlyArray<{ Name?: string; Value?: string }>;
@@ -43,22 +122,12 @@ function mapUser(u: {
 }): ListedPoolUser | null {
   const username = u.Username?.trim();
   if (!username) return null;
-  const attrs = u.Attributes ?? [];
-  const sub = attr(attrs, "sub");
-  if (!sub) return null;
-  const composed = [attr(attrs, "given_name"), attr(attrs, "family_name")]
-    .filter(Boolean)
-    .join(" ")
-    .trim();
-  const nameResolved = attr(attrs, "name") ?? (composed.length > 0 ? composed : null);
-  return {
+  return listedPoolUserFromAttributes({
     username,
-    sub,
-    email: attr(attrs, "email"),
-    name: nameResolved,
-    userCreateDate: u.UserCreateDate instanceof Date ? u.UserCreateDate : null,
+    attrs: u.Attributes ?? [],
+    userCreateDate: u.UserCreateDate,
     enabled: typeof u.Enabled === "boolean" ? u.Enabled : null,
-  };
+  });
 }
 
 export async function adminGetPoolUser(cfg: CognitoEnvConfig, usernameRaw: string): Promise<ListedPoolUser | null> {
@@ -75,22 +144,14 @@ export async function adminGetPoolUser(cfg: CognitoEnvConfig, usernameRaw: strin
 
     const attrs = res.UserAttributes ?? [];
     const uname = res.Username?.trim();
-    const sub = attr(attrs, "sub");
-    if (!uname || !sub) return null;
+    if (!uname) return null;
 
-    const composedFromParts = [attr(attrs, "given_name"), attr(attrs, "family_name")]
-      .filter(Boolean)
-      .join(" ")
-      .trim();
-
-    return {
+    return listedPoolUserFromAttributes({
       username: uname,
-      sub,
-      email: attr(attrs, "email"),
-      name: attr(attrs, "name") ?? (composedFromParts.length > 0 ? composedFromParts : null),
-      userCreateDate: res.UserCreateDate instanceof Date ? res.UserCreateDate : null,
+      attrs,
+      userCreateDate: res.UserCreateDate,
       enabled: typeof res.Enabled === "boolean" ? res.Enabled : null,
-    };
+    });
   } catch {
     return null;
   }

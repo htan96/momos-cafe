@@ -13,7 +13,7 @@ export const ACCOUNT_PLATFORM_NAV: PlatformNavItem[] = [
   { section: "Account", href: "/account/settings/profile", label: "Profile" },
 ];
 
-/** Staff ops — routes under `/admin/*`. Operational settings under `/admin/settings/*` (maintenance stays put). */
+/** Staff ops — routes under `/admin/*`. Persisted tenant settings: `/admin/settings/business` (Live SettingsPanel). Maintenance: `/admin/settings/maintenance`. */
 export const ADMIN_PLATFORM_NAV: PlatformNavItem[] = [
   { section: "Overview", href: "/admin", label: "Dashboard" },
   { section: "Fulfillment", href: "/admin/fulfillment", label: "Fulfillment" },
@@ -30,7 +30,12 @@ export const ADMIN_PLATFORM_NAV: PlatformNavItem[] = [
   { href: "/admin/notifications", label: "Notifications" },
   { href: "/admin/queues", label: "Queues" },
   { href: "/admin/refunds", label: "Refunds" },
-  { section: "Settings", href: "/admin/settings/business", label: "Business" },
+  {
+    section: "Settings",
+    href: "/admin/settings/business",
+    label: "Restaurant & profile",
+    navHelperText: "Hours, address, ordering rules — persisted",
+  },
   { href: "/admin/settings/maintenance", label: "Maintenance" },
 ];
 
@@ -109,6 +114,12 @@ export const SUPER_ADMIN_PLATFORM_NAV: SuperAdminPlatformNavItem[] = [
     href: "/super-admin/platform/maintenance",
     label: "Maintenance",
     navHelperText: "Opens admin storefront gates — authenticated area",
+  },
+  {
+    section: "GOVERNANCE",
+    href: "/super-admin/settings/restaurant",
+    label: "Restaurant & profile",
+    navHelperText: "Same persisted editor as Admin › Settings › Restaurant & profile",
   },
   {
     section: "GOVERNANCE",

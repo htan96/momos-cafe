@@ -9,6 +9,7 @@ import type {
   OperationalIdentityCandidate,
   OperationalIdentityCounts,
   OperationalIdentityDeepLinks,
+  OperationalIdentityLinkage,
 } from "./types";
 import {
   OPERATIONAL_IDENTITY_NOTIFICATION_COUNT_CAP,
@@ -17,6 +18,7 @@ import {
   OPERATIONAL_IDENTITY_TIMELINE_TAKE,
 } from "./constants";
 import { resolveOperationalPoolUserBySub } from "./resolvePoolUserBySub";
+import { scanCognitoForOperationalIdentitySearch } from "./scanCognitoForOperationalIdentitySearch";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -117,19 +119,42 @@ function buildCustomerSearchWhere(q: string) {
   return { OR: orClause };
 }
 
-/**
- * Lightweight search across Prisma diners + optional exact-email Cognito adjunct (staff-looking rows without prisma match).
- */
-export async function searchOperationalIdentityCandidates(trimmedQuery: string): Promise<OperationalIdentityCandidate[]> {
-  const q = trimmedQuery.trim();
-  if (q.length < OPERATIONAL_IDENTITY_SEARCH_MIN_Q) return [];
+function dbgOperationalSearch(payload: Record<string, unknown>): void {
+  if (process.env.OPERATIONAL_IDENTITY_SEARCH_DEBUG === "true") {
+    console.info(JSON.stringify({ evt: "operational_identity_search", ts: Date.now(), ...payload }));
+  }
+}
 
-  const out: OperationalIdentityCandidate[] = [];
-  const max = OPERATIONAL_IDENTITY_SEARCH_LIMIT;
+export type OperationalIdentitySearchResult = {
+  candidates: OperationalIdentityCandidate[];
+  cognitoConfigured: boolean;
+  cognitoLookup?: {
+    degraded: boolean;
+    scannedUsers: number;
+    scanCapped: boolean;
+    errorCode?: string;
+    errorDetail?: string;
+  };
+};
+
+/** Prisma `Customer` probes + pooled **`ListUsers`** scan (**bounded** substring ladder on identities). */
+export async function searchOperationalIdentityCandidates(trimmedQuery: string): Promise<OperationalIdentitySearchResult> {
+  const cfg = getCognitoConfig();
+  const cognitoConfigured = Boolean(cfg);
+  const q = trimmedQuery.trim();
+
+  const emptyOutcome = (): OperationalIdentitySearchResult => ({
+    candidates: [],
+    cognitoConfigured,
+  });
+
+  if (q.length < OPERATIONAL_IDENTITY_SEARCH_MIN_Q) return emptyOutcome();
+
+  const limit = OPERATIONAL_IDENTITY_SEARCH_LIMIT;
 
   const custRows = await prisma.customer.findMany({
     where: buildCustomerSearchWhere(q),
-    take: max,
+    take: limit,
     select: {
       id: true,
       email: true,
@@ -138,48 +163,114 @@ export async function searchOperationalIdentityCandidates(trimmedQuery: string):
     },
   });
 
-  const linkedSubs = new Set<string>();
+  const linkedSubsNormalize = new Set<string>();
+  for (const row of custRows) {
+    const s = row.externalAuthSubject?.trim();
+    if (s) linkedSubsNormalize.add(s);
+  }
+
+  const prismaEmailsLc = new Set<string>();
+  for (const row of custRows) {
+    const em = row.email?.trim().toLowerCase();
+    if (em) prismaEmailsLc.add(em);
+  }
+
+  const prismaCandidates: OperationalIdentityCandidate[] = [];
+
   for (const c of custRows) {
-    if (c.externalAuthSubject?.trim()) linkedSubs.add(c.externalAuthSubject.trim());
-    out.push({
+    const h = await hydrateCognitoForCustomerRecord(c);
+    const poolUser = h.poolUser;
+    const emailMerged = poolUser?.email ?? c.email ?? null;
+
+    const linkageResolved: OperationalIdentityLinkage = poolUser?.sub?.trim()
+      ? "linked_customer"
+      : "customer_no_pool_link";
+
+    const resolvedPoolSub = poolUser?.sub?.trim();
+    if (resolvedPoolSub) linkedSubsNormalize.add(resolvedPoolSub);
+    const emLcMerged = emailMerged?.trim().toLowerCase();
+    if (emLcMerged) prismaEmailsLc.add(emLcMerged);
+
+    const groupsSorted = poolUser ? [...poolUser.assignedGroups].sort((a, b) => a.localeCompare(b)) : [];
+
+    prismaCandidates.push({
+      cognitoConfigured,
       kind: "customer",
+      linkage: linkageResolved,
       id: c.id,
-      email: c.email,
-      cognitoSub: c.externalAuthSubject,
+      email: emailMerged,
+      cognitoSub: poolUser?.sub ?? c.externalAuthSubject,
+      cognitoUsername: poolUser?.username ?? null,
+      preferredUsername: poolUser?.preferredUsername ?? null,
+      enabled: poolUser?.enabled ?? null,
+      groups: groupsSorted,
       phone: c.phone ?? null,
-      subtitle: `Customer · ${c.externalAuthSubject ? "Cognito-linked" : "no Cognito subject on prisma row"}`,
+      subtitle:
+        linkageResolved === "linked_customer"
+          ? "Prisma matched · pooled profile resolved."
+          : "Prisma matched · no Cognito directory hit for hydrate path.",
     });
   }
 
-  const emailExact =
-    /^[^\s@]{1,120}@[^\s@.]{1,120}\.[^\s@]{2,24}$/.test(q) && q.length <= 254;
+  let cognitoLookup: OperationalIdentitySearchResult["cognitoLookup"];
+  let poolOnly: OperationalIdentityCandidate[] = [];
 
-  const cfg = getCognitoConfig();
-  const qMail = q.trim().toLowerCase();
+  const poolVacancy = Math.max(0, limit - prismaCandidates.length);
 
-  if (cfg && emailExact && custRows.every((c) => c.email?.trim().toLowerCase() !== qMail) && out.length < max) {
-    try {
-      const lu = await adminGetUserByEmail(qMail);
-      if (lu?.sub && !linkedSubs.has(lu.sub)) {
-        const groups = await adminListAssignedGroupsForUser(cfg, lu.username);
-        const looksStaffish = groups.includes("super_admin") || groups.includes("admin");
-        if (looksStaffish) {
-          out.push({
-            kind: "cognito_profile",
-            id: lu.sub,
-            email: lu.email ?? q,
-            cognitoSub: lu.sub,
-            phone: null,
-            subtitle: "Cognito-only (staff groups; no prisma Customer matched this email)",
-          });
-        }
-      }
-    } catch {
-      /* Swallow noisy identity-provider errors during search UX. */
+  if (cfg && poolVacancy > 0) {
+    const scanOutcome = await scanCognitoForOperationalIdentitySearch(cfg, q, {
+      maxEnvelopes: poolVacancy,
+      linkedSubsNormalized: linkedSubsNormalize,
+      prismaEmailsLc,
+    });
+
+    cognitoLookup = {
+      degraded: scanOutcome.degraded,
+      scannedUsers: scanOutcome.scannedUsers,
+      scanCapped: scanOutcome.scanCapped,
+      ...(scanOutcome.errorCode ? { errorCode: scanOutcome.errorCode } : {}),
+      ...(scanOutcome.errorDetail ? { errorDetail: scanOutcome.errorDetail } : {}),
+    };
+
+    for (const envelope of scanOutcome.envelopes) {
+      const subKey = envelope.sub.trim();
+      if (linkedSubsNormalize.has(subKey)) continue;
+      const mailLc = envelope.email?.trim().toLowerCase() ?? "";
+      if (mailLc && prismaEmailsLc.has(mailLc)) continue;
+
+      poolOnly.push({
+        cognitoConfigured: true,
+        kind: "cognito_profile",
+        linkage: "cognito_only",
+        id: envelope.sub,
+        email: envelope.email ?? null,
+        cognitoSub: envelope.sub,
+        cognitoUsername: envelope.username,
+        preferredUsername: envelope.preferredUsername,
+        enabled: envelope.enabled,
+        groups: [...envelope.assignedGroups].sort((a, b) => a.localeCompare(b)),
+        phone: null,
+        subtitle: "Cognito-only (no prisma Customer surfaced for this match).",
+      });
     }
   }
 
-  return out.slice(0, max);
+  const combined = prismaCandidates.concat(poolOnly);
+
+  dbgOperationalSearch({
+    query: q,
+    prismaHits: prismaCandidates.length,
+    poolExtras: poolOnly.length,
+    cognitoConfigured,
+    cognitoLookup: cognitoLookup ?? null,
+    combinedReturned: combined.length,
+  });
+
+  return {
+    cognitoConfigured,
+    ...(cognitoLookup ? { cognitoLookup } : {}),
+    candidates: combined,
+  };
 }
 
 export type OperationalIdentityCustomerJson = {

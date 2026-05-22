@@ -15,6 +15,9 @@ import { loadGovernanceControlRowsUncached } from "@/lib/governance/governanceCo
 import SuperAdminEmptyPanel from "@/components/super-admin/SuperAdminEmptyPanel";
 import { Layers } from "lucide-react";
 
+/** Avoid Postgres access during `next build` — page bootstraps via Prisma only at request time. */
+export const dynamic = "force-dynamic";
+
 async function bootstrapGovernanceFeatures(): Promise<GovernanceFeatureBootstrap[]> {
   await ensurePlatformFeatures();
   const state = await loadPlatformFeatureStateUncached();

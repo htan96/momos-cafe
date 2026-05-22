@@ -28,6 +28,7 @@ export const EMAIL_FAILURE_WINDOW_MS = OPERATIONAL_RULE_WINDOW_MS;
 export const WEBHOOK_FAILURE_TYPES = [
   PLATFORM_EVENT_SUBTYPE.PAYMENT_WEBHOOK_PROCESSING_FAILED,
   PLATFORM_EVENT_SUBTYPE.SECURITY_WEBHOOK_SIGNATURE_INVALID,
+  PLATFORM_EVENT_SUBTYPE.SHIPMENT_WEBHOOK_PROCESSING_FAILED,
 ] as const;
 
 export const SHIPPO_OPS_TYPES = [
@@ -208,9 +209,9 @@ async function detectWebhookFailureLoop(): Promise<void> {
 
   await upsertRollingWindowIncident({
     type: INCIDENT_TYPES.WEBHOOK_FAILURE_LOOP,
-    title: `Square webhook anomaly (${WEBHOOK_FAILURE_LOOP_THRESHOLD}+ failures in ${OPERATIONAL_RULE_WINDOW_MS / 60_000} minutes)`,
-    descriptionSeed: "Square webhook signatures or reconcile handlers failing repetitively",
-    affectedSystems: ["square", "webhooks"],
+    title: `Inbound webhook anomaly (${WEBHOOK_FAILURE_LOOP_THRESHOLD}+ failures in ${OPERATIONAL_RULE_WINDOW_MS / 60_000} minutes)`,
+    descriptionSeed: "PSP / shipping webhook signatures or reconcile handlers failing repetitively",
+    affectedSystems: ["square", "shippo", "webhooks"],
     windowMs: OPERATIONAL_RULE_WINDOW_MS,
     threshold: WEBHOOK_FAILURE_LOOP_THRESHOLD,
     ids: events.map((e) => e.id),

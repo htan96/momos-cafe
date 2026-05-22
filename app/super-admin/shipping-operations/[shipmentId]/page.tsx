@@ -9,6 +9,7 @@ import ShippoIntegrationStatusStrip from "@/components/governance/ShippoIntegrat
 import StatusPill, { type StatusPillVariant } from "@/components/governance/StatusPill";
 import { INTEGRATION_SYSTEM_KEYS } from "@/lib/operations/integrationHealth/types";
 import { OPERATIONAL_EVENT_TYPES } from "@/lib/operations/operationalEventTypes";
+import { PLATFORM_EVENT_SUBTYPE } from "@/lib/platform/events/taxonomy";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +22,15 @@ const TIMELINE_TYPES = [
   OPERATIONAL_EVENT_TYPES.PAYMENT_SUCCEEDED,
   OPERATIONAL_EVENT_TYPES.PAYMENT_FAILED,
   OPERATIONAL_EVENT_TYPES.SHIPMENT_LABEL_CREATED,
+  PLATFORM_EVENT_SUBTYPE.SHIPMENT_TRACKING_UPDATED,
+  PLATFORM_EVENT_SUBTYPE.SHIPMENT_IN_TRANSIT,
+  PLATFORM_EVENT_SUBTYPE.SHIPMENT_OUT_FOR_DELIVERY,
+  PLATFORM_EVENT_SUBTYPE.SHIPMENT_DELIVERED,
+  PLATFORM_EVENT_SUBTYPE.SHIPMENT_EXCEPTION,
+  PLATFORM_EVENT_SUBTYPE.SHIPMENT_RETURNED,
+  PLATFORM_EVENT_SUBTYPE.SHIPMENT_FAILURE,
+  PLATFORM_EVENT_SUBTYPE.SHIPMENT_WEBHOOK_ORPHAN,
+  PLATFORM_EVENT_SUBTYPE.SHIPMENT_WEBHOOK_PROCESSING_FAILED,
 ] as const;
 
 function formatUsd(cents: number): string {
@@ -56,7 +66,9 @@ function buildShipmentTimelineWhere(
     { message: { contains: orderId } },
     { metadata: { path: ["orderId"], equals: orderId } },
     { metadata: { path: ["commerceOrderId"], equals: orderId } },
+    { metadata: { path: ["entities", "commerceOrderId"], equals: orderId } },
     { metadata: { path: ["shipmentId"], equals: shipmentId } },
+    { metadata: { path: ["entities", "shipmentId"], equals: shipmentId } },
     ...paymentIds.map((id) => ({ metadata: { path: ["paymentRecordId"], equals: id } })),
   ];
 

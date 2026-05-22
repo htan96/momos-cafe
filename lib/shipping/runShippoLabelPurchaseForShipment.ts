@@ -132,7 +132,12 @@ export async function runShippoLabelPurchaseForShipment(input: {
     ...metaBase,
     labelPurchaseAt: new Date().toISOString(),
     ...(purchased.labelUrl ? { labelUrl: purchased.labelUrl } : {}),
-    ...(purchased.transactionId ? { carrierTransactionId: purchased.transactionId } : {}),
+    ...(purchased.transactionId ?
+      {
+        carrierTransactionId: purchased.transactionId,
+        shippoTransactionId: purchased.transactionId,
+      }
+    : {}),
   };
 
   const carrierOut = purchased.carrier?.trim() || row.carrier;

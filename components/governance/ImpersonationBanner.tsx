@@ -116,6 +116,9 @@ export default function OperationalPerspectiveBanner() {
     router.refresh();
   }, [router]);
 
+  /** Super-admin shell mounts {@link GovernancePerspectiveSwitcher} via `PlatformShell.headerAddon`. */
+  const showLensInBanner = !pathname.startsWith("/super-admin");
+
   if (!shouldOfferGovernanceSwitcher(pathname) || !data) return null;
 
   const startedMs = Date.parse(data.startedAt);
@@ -145,9 +148,11 @@ export default function OperationalPerspectiveBanner() {
           </p>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2 md:gap-3">
-          <div className="hidden sm:flex min-w-[120px] max-w-[210px]">
-            <GovernancePerspectiveSwitcher variant="compact" />
-          </div>
+          {showLensInBanner ? (
+            <div className="hidden sm:flex min-w-[120px] max-w-[210px]">
+              <GovernancePerspectiveSwitcher variant="compact" />
+            </div>
+          ) : null}
           <Link
             href="/super-admin/users/customers"
             className="text-[11px] font-semibold uppercase tracking-[0.12em] text-cream/75 underline-offset-4 hover:text-cream hover:underline whitespace-nowrap"
@@ -168,9 +173,11 @@ export default function OperationalPerspectiveBanner() {
             Return to Super&nbsp;Admin perspective
           </button>
         </div>
-        <div className="flex sm:hidden w-full">
-          <GovernancePerspectiveSwitcher variant="compact" className="w-full" />
-        </div>
+        {showLensInBanner ? (
+          <div className="flex sm:hidden w-full">
+            <GovernancePerspectiveSwitcher variant="compact" className="w-full" />
+          </div>
+        ) : null}
       </div>
     </aside>
   );

@@ -13,6 +13,7 @@ export function buildCommerceOrderOperationalActivityWhere(input: {
     { metadata: { path: ["entities", "orderId"], equals: input.orderId } },
     { metadata: { path: ["entities", "commerceOrderId"], equals: input.orderId } },
     ...input.shipmentIds.map((id) => ({ metadata: { path: ["shipmentId"], equals: id } })),
+    ...input.shipmentIds.map((id) => ({ metadata: { path: ["entities", "shipmentId"], equals: id } })),
     ...input.paymentIds.map((id) => ({ metadata: { path: ["paymentRecordId"], equals: id } })),
   ];
   return { OR: linkOr };

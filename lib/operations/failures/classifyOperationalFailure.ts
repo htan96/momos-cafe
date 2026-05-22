@@ -78,6 +78,20 @@ const BY_TYPE: Partial<Record<OperationalFailureType, Partial<ClassificationDefa
     customerImpact: "single",
     operationalPriority: "high",
   },
+  [PLATFORM_EVENT_SUBTYPE.SHIPMENT_WEBHOOK_PROCESSING_FAILED]: {
+    severity: "error",
+    retryable: true,
+    escalationEligible: true,
+    customerImpact: "multi",
+    operationalPriority: "urgent",
+  },
+  [PLATFORM_EVENT_SUBTYPE.SHIPMENT_WEBHOOK_ORPHAN]: {
+    severity: "warning",
+    retryable: true,
+    escalationEligible: false,
+    customerImpact: "none",
+    operationalPriority: "medium",
+  },
   [PLATFORM_EVENT_SUBTYPE.AUTH_LOGIN_FAILED]: {
     severity: "warning",
     retryable: false,

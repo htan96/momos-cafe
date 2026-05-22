@@ -3,7 +3,7 @@ import OperationalBreadcrumbs from "@/components/super-admin/operations/Operatio
 import OperationalCrossLinks from "@/components/super-admin/operations/OperationalCrossLinks";
 import OperationalEscalationBanner from "@/components/super-admin/operations/OperationalEscalationBanner";
 import { shippoWebhookDriftOperationalContext } from "@/components/super-admin/operations/operationalIncidentPresets";
-import { superAdminOperationsBreadcrumbs } from "@/components/super-admin/operations/superAdminOperationsBreadcrumbs";
+import { superAdminPlatformBreadcrumbs } from "@/components/super-admin/operations/superAdminOperationsBreadcrumbs";
 import SuperAdminSectionIntro from "@/components/super-admin/SuperAdminSectionIntro";
 import { loadShippoWebhookOperationalVisibility } from "@/lib/super-admin/loadShippoWebhookOperationalVisibility";
 import { Anchor, Package } from "lucide-react";
@@ -26,7 +26,7 @@ export default async function SuperAdminShippoWebhooksOperationalPage() {
 
   return (
     <div className="space-y-8">
-      <OperationalBreadcrumbs segments={superAdminOperationsBreadcrumbs("Shippo webhooks")} className="-mb-2" />
+      <OperationalBreadcrumbs segments={superAdminPlatformBreadcrumbs("Shippo webhooks")} className="-mb-2" />
 
       <OperationalEscalationBanner forceShow={orphanSignal} title="Receipt linkage · investigate">
         <p>

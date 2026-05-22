@@ -48,8 +48,14 @@ export async function assertCustomerPlatformLayout(): Promise<CustomerSessionPay
   redirect(await forwardedLoginHref("/account"));
 }
 
+export type AdminPlatformLayoutResult = {
+  user: CognitoSessionUser;
+  /** Native or delegated **`super_admin`** authority — mounts operational lens chrome on `/admin`. */
+  showSuperAdminOperationalLens: boolean;
+};
+
 /** Mirrors middleware: `/admin` allows admin / super_admin (including delegated impersonation authority). */
-export async function assertAdminPlatformLayout(): Promise<CognitoSessionUser> {
+export async function assertAdminPlatformLayout(): Promise<AdminPlatformLayoutResult> {
   const user = await getCognitoServerSession();
   if (!user) {
     redirect(await forwardedLoginHref("/admin"));
@@ -62,7 +68,10 @@ export async function assertAdminPlatformLayout(): Promise<CognitoSessionUser> {
     }
     redirect(await forwardedLoginHref("/admin"));
   }
-  return governanceLayoutPrincipalUser(user, impersonation);
+  return {
+    user: governanceLayoutPrincipalUser(user, impersonation),
+    showSuperAdminOperationalLens: isSuperAdmin(groups),
+  };
 }
 
 /** Mirrors middleware: `/super-admin` uses delegated authority (`actorStaffGroups`), not storefront subject JWT alone. */

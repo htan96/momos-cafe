@@ -160,7 +160,7 @@ export default async function NotificationOperationalHealthPage({
   return (
     <div className="space-y-8">
       <OperationalBreadcrumbs
-        segments={superAdminOperationsBreadcrumbs("Notification outbox health")}
+        segments={superAdminOperationsBreadcrumbs("Notification health")}
         className="-mb-2"
       />
 

@@ -7,7 +7,7 @@ import OperationalBreadcrumbs from "@/components/super-admin/operations/Operatio
 import OperationalCrossLinks from "@/components/super-admin/operations/OperationalCrossLinks";
 import OperationalEscalationBanner from "@/components/super-admin/operations/OperationalEscalationBanner";
 import { orphanSquarePaymentOperationalContext } from "@/components/super-admin/operations/operationalIncidentPresets";
-import { superAdminOperationsBreadcrumbs } from "@/components/super-admin/operations/superAdminOperationsBreadcrumbs";
+import { superAdminCommerceBreadcrumbs } from "@/components/super-admin/operations/superAdminOperationsBreadcrumbs";
 import { buildSquareDashboardLinks } from "@/lib/commerce/squareOperationalVisibility";
 import { PLATFORM_EVENT_SUBTYPE } from "@/lib/platform/events/taxonomy";
 import { WEBHOOK_OPS_EVENT_TYPES } from "@/lib/operations/queryWebhookOpsActivityForCommerceOrder";
@@ -147,7 +147,7 @@ export default async function SuperAdminOperationalPaymentsPage({
 
   return (
     <div className="space-y-8">
-      <OperationalBreadcrumbs segments={superAdminOperationsBreadcrumbs("Payments")} className="-mb-2" />
+      <OperationalBreadcrumbs segments={superAdminCommerceBreadcrumbs("Payments")} className="-mb-2" />
 
       <OperationalEscalationBanner forceShow={orphanEscalated} title="Incident drill-in · orphan webhook path">
         <p>

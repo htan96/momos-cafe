@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import SignOutButton from "@/app/account/SignOutButton";
 import {
   SUPER_ADMIN_SECTION_LABEL,
+  SUPER_ADMIN_SECTION_SUBTITLE,
   type SuperAdminNavSection,
 } from "@/components/platform/superAdminNavMeta";
 import { pathMatchesNav } from "@/lib/navigation/pathMatchesNav";
@@ -185,7 +186,25 @@ export default function PlatformShell({
               const isActive = pathMatchesNav(pathname, item.href);
               return (
                 <Fragment key={item.href}>
-                  {showHeading ? <p className={headingClass}>{sectionHeadingText(item.section!)}</p> : null}
+                  {showHeading ? (
+                    variant === "super_admin" &&
+                    Object.prototype.hasOwnProperty.call(SUPER_ADMIN_SECTION_SUBTITLE, item.section!) ? (
+                      <div
+                        className={`${
+                          i === 0 ? "pt-0" : "pt-4"
+                        } pb-2 mb-1 border-b border-cream-dark/45`}
+                      >
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-teal-dark/60 pb-1">
+                          {sectionHeadingText(item.section!)}
+                        </p>
+                        <p className="text-[10px] font-normal normal-case tracking-normal text-charcoal/45 leading-snug">
+                          {SUPER_ADMIN_SECTION_SUBTITLE[item.section as SuperAdminNavSection]}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className={headingClass}>{sectionHeadingText(item.section!)}</p>
+                    )
+                  ) : null}
                   <Link
                     href={item.href}
                     className={sidebarNavClass(item.href)}

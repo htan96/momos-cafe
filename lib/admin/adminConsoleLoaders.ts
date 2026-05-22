@@ -383,7 +383,7 @@ export async function loadAdminOperationalAlerts(): Promise<OpsAlert[]> {
       id: `inc-${inc.id}`,
       level,
       message: inc.title,
-      href: "/super-admin/live",
+      href: "/super-admin/live-activity",
       hrefLabel: "Incident feed",
     });
   }

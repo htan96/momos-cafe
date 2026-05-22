@@ -12,13 +12,19 @@ type ApiPerspective = "governance" | "admin_operations" | "customer_experience";
 
 type Variant = "default" | "compact";
 
+/** `dark`: teal super-admin platform header. `light`: cream admin / customer shells. */
+export type GovernancePerspectiveHeaderTone = "dark" | "light";
+
 export type GovernancePerspectiveSwitcherProps = {
   variant?: Variant;
+  /** Platform shell chrome — compact labels/select are tuned per surface contrast. */
+  headerTone?: GovernancePerspectiveHeaderTone;
   className?: string;
 };
 
 export default function GovernancePerspectiveSwitcher({
   variant = "default",
+  headerTone = "dark",
   className,
 }: GovernancePerspectiveSwitcherProps) {
   const router = useRouter();
@@ -69,6 +75,29 @@ export default function GovernancePerspectiveSwitcher({
   );
 
   const isCompact = variant === "compact";
+  const isLight = headerTone === "light";
+
+  const labelClass = (() => {
+    if (isCompact) {
+      return isLight ?
+          "text-[8px] font-semibold uppercase tracking-[0.16em] text-charcoal/45 leading-none"
+        : "text-[8px] font-semibold uppercase tracking-[0.16em] text-cream/50 leading-none";
+    }
+    return isLight ?
+        "text-[9px] font-semibold uppercase tracking-[0.18em] text-charcoal/45 leading-none"
+      : "text-[9px] font-semibold uppercase tracking-[0.18em] text-cream/55 leading-none";
+  })();
+
+  const selectClass = (() => {
+    if (isCompact) {
+      return isLight ?
+          "w-full rounded-md border border-teal-dark/30 bg-white/95 text-charcoal text-[11px] font-semibold uppercase tracking-wide px-2 pr-8 py-1 max-w-none truncate cursor-pointer shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-dark/25 disabled:opacity-60"
+        : "w-full rounded-md border border-gold/40 bg-charcoal/50 text-cream text-[11px] font-semibold uppercase tracking-wide px-2 pr-8 py-1 max-w-none truncate cursor-pointer focus:outline-none focus:ring-2 focus:ring-gold/40 disabled:opacity-60";
+    }
+    return isLight ?
+        "rounded-lg border border-teal-dark/30 bg-white/95 text-charcoal text-[12px] font-semibold uppercase tracking-wide pl-2 pr-7 py-1.5 max-w-[220px] truncate cursor-pointer shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-dark/25 disabled:opacity-60"
+      : "rounded-lg border border-cream/25 bg-teal-dark/80 text-cream text-[12px] font-semibold uppercase tracking-wide pl-2 pr-7 py-1.5 max-w-[220px] truncate cursor-pointer focus:outline-none focus:ring-2 focus:ring-gold/35 disabled:opacity-60";
+  })();
 
   return (
     <label
@@ -78,21 +107,11 @@ export default function GovernancePerspectiveSwitcher({
         : ["flex flex-col gap-1 min-w-0", className].filter(Boolean).join(" ")
       }
     >
-      <span
-        className={
-          isCompact ?
-            "text-[8px] font-semibold uppercase tracking-[0.16em] text-cream/50 leading-none"
-          : "text-[9px] font-semibold uppercase tracking-[0.18em] text-cream/55 leading-none"
-        }
-      >
+      <span className={labelClass}>
         {isCompact ? "Viewing lens" : "Viewing"}
       </span>
       <select
-        className={
-          isCompact ?
-            "w-full rounded-md border border-gold/40 bg-charcoal/50 text-cream text-[11px] font-semibold uppercase tracking-wide px-2 pr-8 py-1 max-w-none truncate cursor-pointer focus:outline-none focus:ring-2 focus:ring-gold/40 disabled:opacity-60"
-          : "rounded-lg border border-cream/25 bg-teal-dark/80 text-cream text-[12px] font-semibold uppercase tracking-wide pl-2 pr-7 py-1.5 max-w-[220px] truncate cursor-pointer focus:outline-none focus:ring-2 focus:ring-gold/35 disabled:opacity-60"
-        }
+        className={selectClass}
         value={current}
         disabled={pending}
         aria-label="Operational perspective"

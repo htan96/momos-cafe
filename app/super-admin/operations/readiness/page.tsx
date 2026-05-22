@@ -69,7 +69,7 @@ export default async function SuperAdminOperationalReadinessPage() {
 
   return (
     <div className="space-y-8">
-      <OperationalBreadcrumbs segments={superAdminOperationsBreadcrumbs("Operational readiness")} className="-mb-2" />
+      <OperationalBreadcrumbs segments={superAdminOperationsBreadcrumbs("Readiness")} className="-mb-2" />
       <GovPageHeader
         eyebrow="Platform · Operations"
         title="Operational readiness"

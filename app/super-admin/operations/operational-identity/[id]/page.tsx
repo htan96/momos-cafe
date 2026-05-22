@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import GovPageHeader from "@/components/governance/GovPageHeader";
 import OperationalBreadcrumbs from "@/components/super-admin/operations/OperationalBreadcrumbs";
 import OperationalIdentityDetailClient from "@/components/super-admin/operations/operational-identity/OperationalIdentityDetailClient";
+import { superAdminIdentityBreadcrumbs } from "@/components/super-admin/operations/superAdminOperationsBreadcrumbs";
 import { resolveOperationalIdentityBundle } from "@/lib/super-admin/operationalIdentity/resolveOperationalIdentity";
 import { getCognitoServerSession } from "@/lib/auth/cognito/serverSession";
 
@@ -19,17 +20,15 @@ export default async function OperationalIdentityDetailPage({ params }: { params
   return (
     <div className="space-y-8">
       <OperationalBreadcrumbs
-        segments={[
-          { label: "Super-admin", href: "/super-admin" },
-          { label: "Operations", href: "/super-admin/operations/orders" },
+        segments={superAdminIdentityBreadcrumbs([
           { label: "Operational identity", href: "/super-admin/operations/operational-identity" },
           { label: "Detail" },
-        ]}
+        ])}
         className="-mb-2"
       />
 
       <GovPageHeader
-        eyebrow="Platform · Operations · Internal"
+        eyebrow="Platform · Identity · Internal"
         title="Operational identity detail"
         subtitle={`Key ${bundle.queryKey}`}
       />

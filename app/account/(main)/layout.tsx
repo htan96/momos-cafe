@@ -1,3 +1,4 @@
+import GovernancePerspectiveSwitcher from "@/components/governance/GovernancePerspectiveSwitcher";
 import PlatformShell from "@/components/platform/PlatformShell";
 import PresenceHeartbeat from "@/components/presence/PresenceHeartbeat";
 import { ACCOUNT_PLATFORM_NAV } from "@/components/platform/navConfig";
@@ -26,6 +27,9 @@ export default async function AccountMainLayout({ children }: { children: React.
         ? `${user.email} → ${session.email}`
         : session.email;
 
+  /** Super-admin read-only dossier chrome — impersonation banner already exposes the lens. */
+  const showSuperAdminLens = Boolean(session.governance?.preview);
+
   return (
     <PlatformShell
       variant="customer"
@@ -34,6 +38,11 @@ export default async function AccountMainLayout({ children }: { children: React.
       areaTitle="Your account"
       navItems={ACCOUNT_PLATFORM_NAV}
       userHint={userHint}
+      headerAddon={
+        showSuperAdminLens ?
+          <GovernancePerspectiveSwitcher variant="compact" headerTone="light" />
+        : undefined
+      }
     >
       <PresenceHeartbeat />
       <div className="max-w-[900px] mx-auto px-5 md:px-8 lg:px-10 py-10 md:py-14 lg:pb-24">{children}</div>

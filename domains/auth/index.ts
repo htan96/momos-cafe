@@ -15,4 +15,5 @@ export {
   assertCustomerPlatformLayout,
   assertSuperAdminPlatformLayout,
 } from "@/lib/auth/cognito/assertRoleInLayout";
+export type { AdminPlatformLayoutResult } from "@/lib/auth/cognito/assertRoleInLayout";
 export type { PlatformCapability, RoleCapabilityMatrix } from "@/domains/auth/permissions";

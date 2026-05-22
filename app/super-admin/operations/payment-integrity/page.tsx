@@ -7,7 +7,7 @@ import OperationalBreadcrumbs from "@/components/super-admin/operations/Operatio
 import OperationalCrossLinks from "@/components/super-admin/operations/OperationalCrossLinks";
 import OperationalEscalationBanner from "@/components/super-admin/operations/OperationalEscalationBanner";
 import { orphanSquarePaymentOperationalContext } from "@/components/super-admin/operations/operationalIncidentPresets";
-import { superAdminOperationsBreadcrumbs } from "@/components/super-admin/operations/superAdminOperationsBreadcrumbs";
+import { superAdminCommerceBreadcrumbs } from "@/components/super-admin/operations/superAdminOperationsBreadcrumbs";
 import {
   loadPaymentIntegrityReport,
   type PaymentIntegrityCategoryKey,
@@ -87,7 +87,7 @@ export default async function SuperAdminPaymentIntegrityPage() {
 
   return (
     <div className="space-y-8">
-      <OperationalBreadcrumbs segments={superAdminOperationsBreadcrumbs("Payment integrity")} className="-mb-2" />
+      <OperationalBreadcrumbs segments={superAdminCommerceBreadcrumbs("Payment integrity")} className="-mb-2" />
 
       <OperationalEscalationBanner severity={rollupSeverity}>
         <p>

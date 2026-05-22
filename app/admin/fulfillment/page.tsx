@@ -4,20 +4,16 @@ import OpsMetricQuiet from "@/components/operations/OpsMetricQuiet";
 import OpsPageHeader from "@/components/operations/OpsPageHeader";
 import OpsPanel from "@/components/operations/OpsPanel";
 import OpsStatusPill from "@/components/operations/OpsStatusPill";
-import { adminFulfillmentBatches, adminFulfillmentRows } from "@/lib/operations/mockAdminOps";
+import { loadAdminFulfillmentWorkload } from "@/lib/admin/adminConsoleLoaders";
 
-const pickingStages = [
-  { label: "Zone pick", hint: "Tote scans · SKU confidence", pct: "72%", variant: "in_progress" as const },
-  { label: "Consolidate", hint: "Hot + garnish merge", pct: "48%", variant: "in_progress" as const },
-  { label: "QA optional", hint: "High-value parcels", pct: "12%", variant: "queued" as const },
-];
+export default async function AdminFulfillmentPage() {
+  const { tableRows, batches, metrics } = await loadAdminFulfillmentWorkload();
 
-export default function AdminFulfillmentPage() {
   return (
     <div className="space-y-10">
       <OpsPageHeader
         title="Fulfillment floor"
-        subtitle="Pack station choreography — mocks mirror how queues breathe through picking, staging, and label batons."
+        subtitle="Fulfillment groups, label-pending shipments, and late/stuck heuristics mirrored from `/lib/ops/queries.ts`."
         actions={
           <Link
             href="/admin/shipping"
@@ -29,12 +25,24 @@ export default function AdminFulfillmentPage() {
       />
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <OpsMetricQuiet label="Cold chain depth" value="6" hint="Pickup overlap window" />
-        <OpsMetricQuiet label="Tray staging" value="4" hint="Catering garnish lane" />
-        <OpsMetricQuiet label="Retail batch" value="B-004" hint="Queued label purchase mock" />
+        <OpsMetricQuiet
+          label="Late / stale groups"
+          value={String(metrics.coldChainOrLateStuckAttention)}
+          hint="36h stuck heuristic from ops dashboards"
+        />
+        <OpsMetricQuiet
+          label="Kitchen-heavy attention"
+          value={String(metrics.kitchenAttentionEstimate)}
+          hint="Subset of late/stuck routed through kitchen workloads"
+        />
+        <OpsMetricQuiet label="Retail ship attention" value={String(metrics.retailShipAttentionEstimate)} hint="Retail ship-program slice" />
       </div>
 
-      <OpsPanel title="Packing queue" eyebrow="Table" description="Slot assignment + station ownership (static mock rows).">
+      <OpsPanel
+        title="Packing queue"
+        eyebrow="Table"
+        description="Recent open fulfillment groups (paid · non-terminal)."
+      >
         <div className="overflow-x-auto">
           <table className="w-full min-w-[520px] text-left text-[13px]">
             <thead>
@@ -48,49 +56,76 @@ export default function AdminFulfillmentPage() {
               </tr>
             </thead>
             <tbody>
-              {adminFulfillmentRows.map((r) => (
-                <tr key={r.id} className="border-b border-cream-dark/40">
-                  <td className="py-3 font-mono text-charcoal">{r.slot}</td>
-                  <td className="py-3 font-semibold">{r.orderRef}</td>
-                  <td className="py-3 text-charcoal/70">{r.items}</td>
-                  <td className="py-3 text-charcoal/60">{r.eta}</td>
-                  <td className="py-3 text-charcoal/60">{r.station}</td>
-                  <td className="py-3">
-                    <OpsStatusPill variant={r.variant} />
+              {tableRows.length === 0 ? (
+                <tr>
+                  <td className="py-4 text-charcoal/55" colSpan={6}>
+                    No snapshots in range.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                tableRows.map((r) => (
+                  <tr key={r.id} className="border-b border-cream-dark/40">
+                    <td className="py-3 font-mono text-charcoal">{r.slot}</td>
+                    <td className="py-3 font-semibold">{r.orderRef}</td>
+                    <td className="py-3 text-charcoal/70">{r.items}</td>
+                    <td className="py-3 text-charcoal/60">{r.eta}</td>
+                    <td className="py-3 text-charcoal/60">{r.station}</td>
+                    <td className="py-3">
+                      <OpsStatusPill variant={r.variant} />
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </OpsPanel>
 
       <div className="grid gap-5 lg:grid-cols-3">
-        {pickingStages.map((s) => (
-          <OpsPanel key={s.label} title={s.label} description={s.hint}>
-            <div className="flex items-center justify-between gap-3 mt-2">
-              <OpsStatusPill variant={s.variant} />
-              <span className="font-display text-2xl text-charcoal">{s.pct}</span>
-            </div>
-          </OpsPanel>
-        ))}
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <OpsPanel title="Batch staging" eyebrow="Consolidation">
-          <div className="space-y-3">
-            {adminFulfillmentBatches.map((b) => (
-              <FulfillmentBatchRow key={b.id} {...b} />
-            ))}
+        <OpsPanel title="Late / stuck heuristic" description="Fulfillment rows breaching coarse aging rules.">
+          <div className="flex items-center justify-between gap-3 mt-2">
+            <OpsStatusPill variant={metrics.coldChainOrLateStuckAttention ? "blocked" : "delivered"}>Signal</OpsStatusPill>
+            <span className="font-display text-2xl text-charcoal">{metrics.coldChainOrLateStuckAttention}</span>
           </div>
         </OpsPanel>
 
-        <OpsPanel title="Packing slip preview" eyebrow="Print mocks">
+        <OpsPanel title="Kitchen attention" description="Late/stuck groups classified as kitchen / pickup-heavy.">
+          <div className="flex items-center justify-between gap-3 mt-2">
+            <OpsStatusPill variant={metrics.kitchenAttentionEstimate ? "in_progress" : "muted"}>Signal</OpsStatusPill>
+            <span className="font-display text-2xl text-charcoal">{metrics.kitchenAttentionEstimate}</span>
+          </div>
+        </OpsPanel>
+
+        <OpsPanel title="Retail ship attention" description="Retail ship-program rows still open.">
+          <div className="flex items-center justify-between gap-3 mt-2">
+            <OpsStatusPill variant={metrics.retailShipAttentionEstimate ? "in_progress" : "muted"}>Signal</OpsStatusPill>
+            <span className="font-display text-2xl text-charcoal">{metrics.retailShipAttentionEstimate}</span>
+          </div>
+        </OpsPanel>
+      </div>
+
+      <OpsPanel eyebrow="Disclosure" title="No fabricated stage percentages">
+        <p className="text-[13px] text-charcoal/65 leading-relaxed">
+          Zone pick/consolidate/QA completeness is not mirrored from scanners yet — dashboards stay empty until aisle telemetry lands.
+        </p>
+      </OpsPanel>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <OpsPanel title="Label staging" eyebrow="Retail shipments awaiting tracking">
+          <div className="space-y-3">
+            {batches.length === 0 ? (
+              <p className="text-[13px] text-charcoal/55">No shipments are missing tracking today.</p>
+            ) : (
+              batches.slice(0, 8).map((b) => <FulfillmentBatchRow key={b.id} {...b} />)
+            )}
+          </div>
+        </OpsPanel>
+
+        <OpsPanel title="Packing slip preview" eyebrow="Template">
           <div className="rounded-xl border border-dashed border-charcoal/[0.12] bg-cream/55 px-4 py-8 text-center space-y-2">
-            <p className="text-[13px] font-semibold text-charcoal">MOMO’S CAFÉ · pack sheet</p>
-            <p className="text-[11px] text-charcoal/50 uppercase tracking-[0.16em]">Order MC-84930 · tote A-14</p>
+            <p className="text-[13px] font-semibold text-charcoal">Momos Café · fulfillment label</p>
             <p className="text-[12px] text-charcoal/65 mt-4">
-              Slip layout placeholder — barcode, carrier token, allergens, handwritten notes ribbon.
+              Slip artwork is storefront-driven — rendered at print time elsewhere.
             </p>
           </div>
         </OpsPanel>

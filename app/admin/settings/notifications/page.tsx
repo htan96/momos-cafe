@@ -3,9 +3,9 @@ import OpsPanel from "@/components/operations/OpsPanel";
 
 const routes = [
   { label: "SMS · on-call escalation", hint: "+1 Vallejo paging tree", checked: false },
-  { label: "Email digest · SLA breaches", hint: "05:30 PT summary", checked: true },
-  { label: "Browser banners · fulfillment", hint: "In-console only", checked: true },
-  { label: "Slack / Teams bridge", hint: "Webhooks placeholder", checked: false },
+  { label: "Email digest · operational anomalies", hint: "Daily summary timing not configured yet", checked: false },
+  { label: "Browser banners · fulfillment", hint: "In-console only", checked: false },
+  { label: "Slack / Teams bridge", hint: "No webhook registrations stored yet", checked: false },
 ] as const;
 
 export default function AdminSettingsNotificationsPage() {
@@ -13,7 +13,7 @@ export default function AdminSettingsNotificationsPage() {
     <div className="space-y-8">
       <OpsPageHeader
         title="Notification routing"
-        subtitle="Operational fan-out mocks — complements staff notification feed vs customer email."
+        subtitle="Fan-out matrices are illustrative — OperationalNotification tooling will read persisted preferences when modeled."
       />
 
       <OpsPanel title="Channels" eyebrow="Toggles inactive">

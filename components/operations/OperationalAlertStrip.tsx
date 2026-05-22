@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { OpsAlert } from "@/lib/operations/mockAdminOps";
+import type { OpsAlert } from "@/lib/operations/adminOperationalTypes";
 
 const levelTone: Record<OpsAlert["level"], string> = {
   info: "border-charcoal/[0.1] bg-cream/80 text-charcoal/75",

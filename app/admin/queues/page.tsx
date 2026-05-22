@@ -1,9 +1,10 @@
 import OpsPageHeader from "@/components/operations/OpsPageHeader";
 import OpsPanel from "@/components/operations/OpsPanel";
 import QueueSummaryCard from "@/components/operations/QueueSummaryCard";
-import { adminQueueSummariesAll } from "@/lib/operations/mockAdminOps";
+import { loadAdminQueueSummaries } from "@/lib/admin/adminConsoleLoaders";
 
-export default function AdminQueuesPage() {
+export default async function AdminQueuesPage() {
+  const queues = await loadAdminQueueSummaries();
   return (
     <div className="space-y-10">
       <OpsPanel className="bg-gradient-to-br from-cream/90 via-white/[0.95] to-cream/[0.75] border-cream-dark/70">
@@ -13,7 +14,8 @@ export default function AdminQueuesPage() {
             Operational depth map
           </h1>
           <p className="text-[15px] text-charcoal/72 mt-3 leading-relaxed">
-            Packing, outbound labels, catering, support, refunds, shipment exceptions, and comms threads — summarized with mock assignee pools.
+            Depth counts and coarse age hints derive from FulfillmentGroup, Shipment, CateringInquiry,
+            OperationalSupportIssue, OperationalRefundCase, and failed EmailMessage rows.
           </p>
         </div>
       </OpsPanel>
@@ -21,11 +23,11 @@ export default function AdminQueuesPage() {
       <OpsPageHeader
         eyebrow={false}
         title="Detailed lane cards"
-        subtitle="Assignments are placeholders until routing binds to IAM roles and escalation timers."
+        subtitle="No synthetic SLA attainment — descriptive hints only."
       />
 
       <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-        {adminQueueSummariesAll.map((q) => (
+        {queues.map((q) => (
           <QueueSummaryCard key={q.id} {...q} />
         ))}
       </div>

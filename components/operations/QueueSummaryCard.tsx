@@ -16,7 +16,7 @@ export default function QueueSummaryCard({ name, depth, oldestWait, slaHint, ass
     <OpsPanel className="h-full flex flex-col" title={name}>
       <div className="space-y-3 -mt-1">
         <p className="text-[11px] text-charcoal/50">
-          {assignee ? <span>{assignee}</span> : <span className="italic">Assignee placeholder · pooled</span>}
+          {assignee ? <span>{assignee}</span> : <span className="italic text-charcoal/45">No assignee</span>}
         </p>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 flex-1 min-w-0">

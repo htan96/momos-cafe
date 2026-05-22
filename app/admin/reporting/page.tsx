@@ -1,34 +1,45 @@
 import OpsMetricQuiet from "@/components/operations/OpsMetricQuiet";
 import OpsPageHeader from "@/components/operations/OpsPageHeader";
 import OpsPanel from "@/components/operations/OpsPanel";
-import { adminReportingPanels } from "@/lib/operations/mockAdminOps";
+import { loadAdminReportingCounts } from "@/lib/admin/adminConsoleLoaders";
 
-export default function AdminReportingPage() {
+export default async function AdminReportingPage() {
+  const c = await loadAdminReportingCounts();
+
   return (
     <div className="space-y-8">
-      <OpsPageHeader title="Operational reporting" subtitle="Action-first signals — intentionally light on chrome; export hooks later." />
+      <OpsPageHeader
+        title="Operational reporting"
+        subtitle="Coarse Postgres counts only — SLA attainment and percentile charts remain unmodeled intentionally."
+      />
 
-      <OpsPanel eyebrow="Today" title="Throughput snapshot">
+      <OpsPanel eyebrow="Today (UTC midnight onwards)" title="Throughput snapshot · payments lens">
         <div className="grid gap-3 sm:grid-cols-3">
-          <OpsMetricQuiet label="Touched SLA" value="87%" hint="Rolling 24h · mock calc" />
-          <OpsMetricQuiet label="Outbound holds" value="3" hint="Carrier + address" />
-          <OpsMetricQuiet label="Catering on-time" value="92%" hint="Prep window fidelity" />
+          <OpsMetricQuiet
+            label="Payment posture failures · today UTC"
+            value={String(c.paymentFailuresToday)}
+            hint={`${c.paymentFailuresToday} logged payment failures + register misses`}
+          />
+          <OpsMetricQuiet label="Notification backlog" value={String(c.notificationBacklog)} hint="ProcessedAt IS NULL on NotificationEvent" />
+          <OpsMetricQuiet label="Failed email deliveries" value={String(c.failedEmailMessages)} hint="Lifetime failed EmailMessage rows" />
         </div>
       </OpsPanel>
 
-      <div className="grid gap-5 lg:grid-cols-3">
-        {adminReportingPanels.map((p) => (
-          <OpsPanel key={p.id} title={p.title} description={p.subtitle}>
-            <p className="text-[22px] font-display text-charcoal">{p.metricPrimary}</p>
-            <p className="text-[13px] text-charcoal/62 mt-2 leading-snug">{p.metricSecondary}</p>
-            <div className="mt-5 rounded-full bg-cream-dark/55 h-2 overflow-hidden" aria-hidden>
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-teal/45 to-teal-dark/65"
-                style={{ width: `${Math.round(p.barHint * 100)}%`, opacity: 0.72 }}
-              />
-            </div>
-          </OpsPanel>
-        ))}
+      <div className="grid gap-5 lg:grid-cols-2">
+        <OpsPanel title="Fulfillment friction" eyebrow="Open workloads">
+          <ul className="space-y-3 text-[14px] text-charcoal leading-relaxed">
+            <li>Open fulfillment groups · {c.openFulfillmentGroups}</li>
+            <li>Pending label shipments · {c.pendingLabelShipments}</li>
+            <li>Shipments flagged exception / returns · {c.shipmentExceptions}</li>
+          </ul>
+        </OpsPanel>
+
+        <OpsPanel title="Desk workloads" eyebrow="Support + finance shells">
+          <ul className="space-y-3 text-[14px] text-charcoal leading-relaxed">
+            <li>OperationalSupportIssue (open) · {c.openSupport}</li>
+            <li>OperationalRefundCase (active) · {c.openRefunds}</li>
+          </ul>
+        </OpsPanel>
       </div>
     </div>
   );

@@ -84,7 +84,7 @@ export default function AdminMaintenanceSettingsPage() {
         subtitle="When a toggle is on, guests can reach that storefront surface. Turning it off shows the maintenance overlay and blocks matching checkout touches."
       />
 
-      <OpsPanel title="Operational impact" eyebrow="Guidance · mock prose">
+      <OpsPanel title="Operational impact" eyebrow="Guidance">
         <div className="text-[13px] text-charcoal/68 leading-relaxed space-y-2">
           <p>Retail shop spans /shop flows, quotes, and mixed shipments.</p>
           <p>Café menu spans /menu, /order lanes, and kitchen pickup carts.</p>

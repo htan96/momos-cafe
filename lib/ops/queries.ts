@@ -136,6 +136,8 @@ export async function opsLoadTodayQueues() {
       id: true,
       createdAt: true,
       status: true,
+      carrier: true,
+      trackingNumber: true,
       selectedShippoRateId: true,
       fulfillmentGroup: {
         select: {

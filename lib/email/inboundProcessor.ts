@@ -1,16 +1,7 @@
-import type { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
-import { appendNotificationEvent } from "@/lib/notifications/notificationEvents";
-
-function uniq(ids: string[]): string[] {
-  return [...new Set(ids.map((x) => x.toLowerCase()))];
-}
-
-function extractOrderIds(blob: string): string[] {
-  const r =
-    /\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/gi;
-  return uniq(blob.match(r) ?? []);
-}
+import {
+  ingestOperationalInboundEmail,
+  type IngestOperationalInboundEmailResult,
+} from "@/lib/email/ingestOperationalInboundEmail";
 
 function extractAddresses(blob: unknown): string[] {
   if (!blob) return [];
@@ -23,7 +14,30 @@ function extractAddresses(blob: unknown): string[] {
   return [];
 }
 
-/** Flexible parser — Resend evolves payloads; we persist raw JSON for forward-compat */
+function pickHeader(headers: Record<string, unknown> | undefined, keys: string[]) {
+  if (!headers) return undefined;
+  for (const k of keys) {
+    const v = headers[k] ?? headers[k.toLowerCase() as keyof typeof headers];
+    if (typeof v === "string") return v;
+  }
+  return undefined;
+}
+
+function assertIngestOkay(
+  r: IngestOperationalInboundEmailResult
+): asserts r is {
+  ok: true;
+  threadId: string;
+  messageId: string;
+  linkedOrders: string[];
+  quarantine: boolean;
+} {
+  if (!r.ok) {
+    throw new Error(`resend ingest unexpected ${r.code}`);
+  }
+}
+
+/** Flexible parser — Resend evolves payloads; we persist raw JSON for forward-compat. */
 export async function persistInboundEmailEvent(payload: Record<string, unknown>): Promise<{
   threadId: string;
   messageId: string;
@@ -46,105 +60,40 @@ export async function persistInboundEmailEvent(payload: Record<string, unknown>)
   const dedupeKey =
     (typeof data.email_id === "string" && data.email_id) ||
     (typeof data.id === "string" && data.id) ||
-    undefined;
-
-  const headers = data.headers as Record<string, unknown> | undefined;
-  const pickHeader = (keys: string[]) => {
-    if (!headers) return undefined;
-    for (const k of keys) {
-      const v = headers[k] ?? headers[k.toLowerCase() as keyof typeof headers];
-      if (typeof v === "string") return v;
-    }
-    return undefined;
-  };
-
-  const rfcMessageId =
-    pickHeader(["Message-ID", "Message-Id", "message-id"]) ??
-    (typeof data.message_id === "string" ? data.message_id : null);
-  const inReplyTo = pickHeader(["In-Reply-To", "in-reply-to"]);
-  const referencesHeader = pickHeader(["References", "references"]);
-
-  if (dedupeKey) {
-    const dup = await prisma.emailMessage.findFirst({
-      where: {
-        OR: [{ providerMessageId: dedupeKey }, ...(rfcMessageId ? [{ rfcMessageId }] : [])],
-      },
-    });
-    if (dup) {
-      return { threadId: dup.threadId, messageId: dup.id, linkedOrders: [] };
-    }
-  }
-
-  let thread =
-    (inReplyTo &&
-      (
-        await prisma.emailMessage.findFirst({
-          where: {
-            OR: [{ rfcMessageId: inReplyTo.trim() }, { providerMessageId: inReplyTo.trim() }],
-          },
-          include: { thread: true },
-        })
-      )?.thread) ??
     null;
 
-  const blobForOrders = `${subject}\n${textBody ?? ""}`;
-  const linkedIds = extractOrderIds(blobForOrders);
+  const headers = data.headers as Record<string, unknown> | undefined;
+  const rfcMessageId =
+    pickHeader(headers, ["Message-ID", "Message-Id", "message-id"]) ??
+    (typeof data.message_id === "string" ? data.message_id : null);
+  const inReplyTo = pickHeader(headers, ["In-Reply-To", "in-reply-to"]);
+  const referencesHeader = pickHeader(headers, ["References", "references"]);
 
-  if (!thread) {
-    const commerceOrderId = linkedIds.length === 1 ? linkedIds[0] : null;
-    thread = await prisma.emailThread.create({
-      data: {
-        subjectSnapshot: subject.slice(0, 512),
-        commerceOrderId,
-      },
-    });
+  let headerFingerprint: string | undefined;
+  if (headers && typeof headers === "object") {
+    headerFingerprint = Object.entries(headers as Record<string, unknown>)
+      .map(([k, v]) =>
+        `${k}:${typeof v === "string" ? v : typeof v === "object" ? JSON.stringify(v) : ""}`
+      )
+      .join("\n");
   }
 
-  const msg = await prisma.emailMessage.create({
-    data: {
-      threadId: thread.id,
-      direction: "inbound",
-      fromEmail: from,
-      toEmails: (to.length ? to : ["orders@momosvallejo.com"]) as unknown as Prisma.InputJsonValue,
-      subject: subject.slice(0, 2048),
-      textBody,
-      htmlBody,
-      providerMessageId: typeof data.email_id === "string" ? data.email_id : rfcMessageId ?? undefined,
-      rfcMessageId: rfcMessageId ?? undefined,
-      inReplyTo: inReplyTo ?? undefined,
-      referencesHeader: referencesHeader ?? undefined,
-      deliveryStatus: "received",
-      rawPayload: payload as Prisma.InputJsonValue,
-    },
+  const out = await ingestOperationalInboundEmail({
+    transport: "resend",
+    from,
+    to,
+    subject,
+    textBody,
+    htmlBody,
+    dedupeExternalId: dedupeKey,
+    rfcMessageId,
+    inReplyTo,
+    referencesHeader,
+    rawEnvelope: payload as unknown as Record<string, unknown>,
+    ...(headerFingerprint ? { headerFingerprint } : {}),
   });
 
-  if (linkedIds.length && thread.commerceOrderId === null && linkedIds.length === 1) {
-    await prisma.emailThread.update({
-      where: { id: thread.id },
-      data: { commerceOrderId: linkedIds[0] },
-    });
-  }
+  assertIngestOkay(out);
 
-  for (const oid of linkedIds) {
-    await prisma.orderMessageLink.create({
-      data: {
-        threadId: thread.id,
-        messageId: msg.id,
-        orderKind: "commerce_order",
-        orderId: oid,
-      },
-    });
-  }
-
-  await appendNotificationEvent(
-    "email.inbound.received",
-    {
-      threadId: thread.id,
-      messageId: msg.id,
-      fromEmail: from,
-      linkedOrders: linkedIds,
-    } as Prisma.InputJsonValue
-  );
-
-  return { threadId: thread.id, messageId: msg.id, linkedOrders: linkedIds };
+  return { threadId: out.threadId, messageId: out.messageId, linkedOrders: out.linkedOrders };
 }

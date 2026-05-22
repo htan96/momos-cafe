@@ -3,6 +3,8 @@ import GovPageHeader from "@/components/governance/GovPageHeader";
 import OperationalCard from "@/components/governance/OperationalCard";
 import OperationalMetadataJumpLinks from "@/components/governance/OperationalMetadataJumpLinks";
 import StatusPill, { type StatusPillVariant } from "@/components/governance/StatusPill";
+import IncidentHighlightEffect from "@/components/super-admin/incidents/IncidentHighlightEffect";
+import IncidentLifecycleToolbar from "@/components/super-admin/incidents/IncidentLifecycleToolbar";
 import { prisma } from "@/lib/prisma";
 import { OPERATIONAL_INCIDENT_ACTIVE_STATUSES } from "@/lib/operations/incidentTypes";
 
@@ -36,7 +38,20 @@ function incidentBorderClass(sev: string): string {
   }
 }
 
-export default async function SuperAdminIncidentsPage() {
+export default async function SuperAdminIncidentsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ highlight?: string; incidentId?: string }>;
+}) {
+  const sp = searchParams ? await searchParams : {};
+  const highlightRaw =
+    typeof sp.highlight === "string"
+      ?
+        sp.highlight
+      : typeof sp.incidentId === "string"
+        ? sp.incidentId
+        : undefined;
+
   const [activeIncidents, resolvedIncidents] = await Promise.all([
     prisma.operationalIncident.findMany({
       where: { status: { in: [...OPERATIONAL_INCIDENT_ACTIVE_STATUSES] } },
@@ -49,8 +64,12 @@ export default async function SuperAdminIncidentsPage() {
     }),
   ]);
 
+  const highlightTrim = typeof highlightRaw === "string" ? highlightRaw.trim() : "";
+  const highlightId = highlightTrim.length >= 8 && /^[a-zA-Z0-9_-]+$/.test(highlightTrim) ? highlightTrim : undefined;
+
   return (
     <div className="space-y-8">
+      <IncidentHighlightEffect incidentId={highlightId} />
       <GovPageHeader
         eyebrow="Command center"
         title="Incidents"
@@ -77,6 +96,7 @@ export default async function SuperAdminIncidentsPage() {
           <ul className="divide-y divide-cream-dark/40">
             {activeIncidents.map((row) => (
               <li
+                id={`incident-row-${row.id}`}
                 key={row.id}
                 className={`py-4 first:pt-0 pl-3 ${incidentBorderClass(row.severity)} flex flex-col gap-2`}
               >
@@ -91,6 +111,7 @@ export default async function SuperAdminIncidentsPage() {
                   <p className="text-[12px] text-charcoal/50">Affected · {row.affectedSystems.join(", ")}</p>
                 ) : null}
                 <OperationalMetadataJumpLinks metadata={row.metadata} />
+                <IncidentLifecycleToolbar incidentId={row.id} status={row.status} metadata={row.metadata} />
               </li>
             ))}
           </ul>
@@ -103,7 +124,7 @@ export default async function SuperAdminIncidentsPage() {
         ) : (
           <ul className="divide-y divide-cream-dark/40">
             {resolvedIncidents.map((row) => (
-              <li key={row.id} className="py-3 first:pt-0 flex flex-col gap-1.5">
+              <li key={row.id} id={`incident-row-${row.id}`} className="py-3 first:pt-0 flex flex-col gap-1.5">
                 <div className="flex flex-wrap items-center gap-2">
                   <StatusPill variant={incidentSeverityPillVariant(row.severity)}>{row.severity}</StatusPill>
                   <span className="text-[11px] font-mono text-charcoal/45">{row.type}</span>
@@ -115,6 +136,7 @@ export default async function SuperAdminIncidentsPage() {
                   </time>
                 ) : null}
                 <OperationalMetadataJumpLinks metadata={row.metadata} />
+                <IncidentLifecycleToolbar incidentId={row.id} status={row.status} metadata={row.metadata} />
               </li>
             ))}
           </ul>

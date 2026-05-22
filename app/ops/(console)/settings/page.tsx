@@ -72,8 +72,9 @@ export default async function OpsSettingsPage() {
             </div>
           </dl>
           <p className="text-[11px] text-[#c9bba8]/65 leading-relaxed">
-            Square webhooks authenticate independently via Svix signing — errors surface through logs and optional{" "}
-            <code className="text-[#8FC4C4]/90">notification_events</code> producers.
+            Square webhooks authenticate with Square’s webhook signature verification (not Svix — that path applies to
+            inbound email providers like Resend). Delivery/orchestration issues surface via logs and{" "}
+            <code className="text-[#8FC4C4]/90">notification_events</code> when configured.
           </p>
         </section>
       </div>

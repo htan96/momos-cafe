@@ -7,32 +7,10 @@ import { prisma } from "@/lib/prisma";
 import type { AccountMgmtRole } from "@/lib/accountManagement/accountsBrowse";
 import { displayNameFromAuth } from "@/lib/accountManagement/accountsBrowse";
 import { deriveAccountRoleFromGroups } from "@/lib/accountManagement/deriveAccountRole";
+import { buildCustomerOperationalActivityWhere } from "@/lib/accountManagement/buildCustomerOperationalActivityWhere";
 
 const CUSTOMER_ID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-function buildCustomerActivityWhere(customer: {
-  id: string;
-  email: string | null;
-  externalAuthSubject: string | null;
-}): Prisma.OperationalActivityEventWhereInput {
-  const or: Prisma.OperationalActivityEventWhereInput[] = [
-    { metadata: { path: ["customerId"], equals: customer.id } },
-    { actorId: customer.id },
-  ];
-  if (customer.externalAuthSubject?.trim()) {
-    or.push({ actorId: customer.externalAuthSubject.trim() });
-  }
-  const mail = customer.email?.trim();
-  if (mail) {
-    const lower = mail.toLowerCase();
-    or.push({ metadata: { path: ["targetEmail"], equals: lower } });
-    if (lower !== mail) {
-      or.push({ metadata: { path: ["targetEmail"], equals: mail } });
-    }
-  }
-  return { OR: or };
-}
 
 export function isValidCustomerUuid(customerId: string): boolean {
   return CUSTOMER_ID_RE.test(customerId);
@@ -67,7 +45,7 @@ export async function loadAccountMgmtCustomerDetail(customerId: string) {
       }
     : null;
 
-  const activityWhere = buildCustomerActivityWhere(customer);
+  const activityWhere = buildCustomerOperationalActivityWhere(customer);
 
   const [orders, presenceSessions, activityEvents, impersonationLedger, cateringInquiries, governanceForUser] =
     await Promise.all([

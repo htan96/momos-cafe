@@ -167,12 +167,22 @@ model CartItem {
   @@map("cart_items")
 }
 
+/// How storefront checkout partitions kitchen vs native retail pipelines on this commerce order shell.
+enum CommerceOrderFulfillmentMode {
+  MIXED
+  EXTERNAL_KITCHEN_ONLY
+  NATIVE_RETAIL_ONLY
+}
+
 /// Platform order shell — distinct from legacy `CafeOrder` until checkout merges onto one pipeline.
 model CommerceOrder {
   id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
   status               String    @default("draft")
+  /** Optional coarse provenance (`storefront`, internal recovery, …). */
+  source               String?   @map("source")
+  fulfillmentMode      CommerceOrderFulfillmentMode @default(MIXED) @map("fulfillment_mode")
   customerId           String?   @map("customer_id") @db.Uuid
   customer             Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
   guestCartToken       String?   @map("guest_cart_token")
@@ -400,6 +410,8 @@ model EmailMessage {
   fulfillmentGroupId   String?     @map("fulfillment_group_id") @db.Uuid
   deliveryStatus       String      @default("queued") @map("delivery_status")
   rawPayload           Json?       @map("raw_payload")
+  /** Optional idempotent send key — unique when set (`POST /api/email/send`, automated outbox). */
+  idempotencyKey       String?     @unique @map("idempotency_key")
 
   links OrderMessageLink[]
 
@@ -438,12 +450,16 @@ model ConversationParticipant {
 
 /// Append-only audit trail for orchestration / notification triggers.
 model NotificationEvent {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  type        String    @map("type")
-  payload     Json      @map("payload")
-  processedAt DateTime? @map("processed_at") @db.Timestamptz(6)
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  type                String    @map("type")
+  payload             Json      @map("payload")
+  processedAt         DateTime? @map("processed_at") @db.Timestamptz(6)
+  /** Lease marker for single-flight outbox processing — cleared once `processedAt` is set or when stale (>15 min). */
+  startedProcessingAt DateTime? @map("started_processing_at") @db.Timestamptz(6)
 
+  @@index([processedAt])
+  @@index([processedAt, startedProcessingAt])
   @@index([createdAt(sort: Desc)])
   @@index([type])
   @@map("notification_events")
@@ -472,6 +488,39 @@ model OperationalActivityEvent {
   @@index([type], map: "operational_activity_events_type_idx")
   @@index([createdAt(sort: Desc)], map: "operational_activity_events_created_at_idx")
   @@map("operational_activity_events")
+}
+
+enum WebhookProcessingStatus {
+  accepted
+  ignored
+  processed
+  failed
+}
+
+/**
+ * PSP / email inbound webhook delivery receipts — audit trail without storing raw payloads (optional `payload_hash` SHA-256 hex).
+ * Retention 30–90d — manual purge or cron job TBD.
+ */
+model WebhookDeliveryReceipt {
+  id                 String                   @id @default(cuid())
+  provider           String
+  externalEventId    String?                  @map("external_event_id")
+  eventType          String?                  @map("event_type")
+  receivedAt         DateTime                 @default(now()) @map("received_at") @db.Timestamptz(6)
+  signatureValid     Boolean                  @map("signature_valid")
+  processingStatus   WebhookProcessingStatus  @map("processing_status")
+  httpStatus         Int?                     @map("http_status")
+  errorCode          String?                  @map("error_code")
+  commerceOrderId    String?                  @map("commerce_order_id") @db.Uuid
+  paymentRecordId    String?                  @map("payment_record_id") @db.Uuid
+  payloadHash        String?                  @map("payload_hash")
+  opsEventId         String?                  @map("ops_event_id")
+
+  @@index([provider, receivedAt(sort: Desc)], map: "webhook_delivery_receipts_provider_received_at_idx")
+  @@index([commerceOrderId, receivedAt(sort: Desc)], map: "webhook_delivery_receipts_commerce_order_received_at_idx")
+  @@index([paymentRecordId, receivedAt(sort: Desc)], map: "webhook_delivery_receipts_payment_received_at_idx")
+  @@index([provider, externalEventId], map: "webhook_delivery_receipts_provider_external_event_idx")
+  @@map("webhook_delivery_receipts")
 }
 
 enum OperationalFailureTriageState {

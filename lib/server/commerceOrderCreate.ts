@@ -1,10 +1,23 @@
 import type { Prisma } from "@prisma/client";
+import { CommerceOrderFulfillmentMode } from "@prisma/client";
 import type { UnifiedCartLine } from "@/types/commerce";
 import { prisma } from "@/lib/prisma";
 import { unifiedLineToCommerceOrderItem } from "@/lib/commerce/commerceOrderDraft";
 import { partitionLinesForOrderWrite } from "@/lib/commerce/orderOrchestration";
 import { partitionSubtotalsUsd, usdToCents } from "@/lib/commerce/orderMoney";
 import { initialFulfillmentStatus } from "@/lib/commerce/orderLifecycle";
+
+function fulfillmentModeFromUnifiedLines(lines: UnifiedCartLine[]): CommerceOrderFulfillmentMode {
+  let hasKitchen = false;
+  let hasRetail = false;
+  for (const l of lines) {
+    if (l.kind === "food") hasKitchen = true;
+    else hasRetail = true;
+  }
+  if (hasKitchen && hasRetail) return CommerceOrderFulfillmentMode.MIXED;
+  if (hasKitchen) return CommerceOrderFulfillmentMode.EXTERNAL_KITCHEN_ONLY;
+  return CommerceOrderFulfillmentMode.NATIVE_RETAIL_ONLY;
+}
 
 export interface CreatedCommerceOrderResult {
   orderId: string;
@@ -25,6 +38,8 @@ export async function createCommerceOrderWithGroups(input: {
     const order = await tx.commerceOrder.create({
       data: {
         status: "draft",
+        source: "storefront",
+        fulfillmentMode: fulfillmentModeFromUnifiedLines(lines),
         guestCartToken,
         ...(customerId ? { customerId } : {}),
         totalCents: usdToCents(totalUsd),

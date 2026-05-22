@@ -13,8 +13,10 @@ import {
 } from "@/lib/operations/failures/failureSubtypes";
 import { redactFailureMetadata } from "@/lib/operations/failures/redactFailureMetadata";
 import { recoveryActionsForSubtype } from "@/lib/operations/failures/recoveryActions";
+import { resolveShippoShipmentIdForRecovery } from "@/lib/operations/failures/resolveRecoveryShipmentTarget";
 import { readOperationalMetadataEntityIds } from "@/lib/operations/operationalContextLinks";
 import type { PlatformEventCategory } from "@/lib/platform/events/taxonomy";
+import { PLATFORM_EVENT_SUBTYPE } from "@/lib/platform/events/taxonomy";
 import { isPlatformEventMetadataV1 } from "@/lib/platform/events/metadata";
 
 /** Default list window — aligns with ~90d retention policy (no purge job yet). */
@@ -42,6 +44,7 @@ export type OperationalFailuresQueryFilters = {
   orderId?: string;
   customerId?: string;
   shipmentId?: string;
+  paymentRecordId?: string;
   incidentId?: string;
   linkedToActiveIncident?: boolean;
   triageState?: OperationalFailureTriageState;
@@ -55,6 +58,48 @@ function asStringArrayJson(v: unknown): string[] {
   return v.filter((x): x is string => typeof x === "string");
 }
 
+function readWebhookReceiptIdFromEnvelope(metadata: unknown): string | null {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return null;
+  const m = metadata as Record<string, unknown>;
+  const d =
+    m.detail && typeof m.detail === "object" && !Array.isArray(m.detail)
+      ? (m.detail as Record<string, unknown>)
+      : {};
+  const rid =
+    typeof d.receiptId === "string" ? d.receiptId : typeof m.receiptId === "string" ? m.receiptId : null;
+  const x = rid?.trim();
+  return x || null;
+}
+
+function extractSquarePaymentHint(metadata: unknown): string | null {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return null;
+  const m = metadata as Record<string, unknown>;
+  const d =
+    m.detail && typeof m.detail === "object" && !Array.isArray(m.detail)
+      ? (m.detail as Record<string, unknown>)
+      : {};
+  const hid =
+    (typeof d.squarePaymentId === "string" ? d.squarePaymentId : undefined) ??
+    (typeof m.squarePaymentId === "string" ? m.squarePaymentId : undefined);
+  const x = hid?.trim();
+  return x || null;
+}
+
+export type OperationalFailureRecoveryHints = {
+  squarePaymentId: string | null;
+  paymentRecordId: string | null;
+  commerceOrderId: string | null;
+};
+
+function operationalFailureRecoveryHints(metadata: unknown): OperationalFailureRecoveryHints {
+  const ids = readOperationalMetadataEntityIds(metadata);
+  return {
+    squarePaymentId: extractSquarePaymentHint(metadata),
+    paymentRecordId: ids.paymentRecordId,
+    commerceOrderId: ids.commerceOrderId ?? ids.orderId,
+  };
+}
+
 function buildEntityFilter(filters: OperationalFailuresQueryFilters): Prisma.OperationalActivityEventWhereInput[] {
   const clauses: Prisma.OperationalActivityEventWhereInput[] = [];
   const pairs: [string, string | undefined][] = [
@@ -62,6 +107,7 @@ function buildEntityFilter(filters: OperationalFailuresQueryFilters): Prisma.Ope
     ["orderId", filters.orderId ?? filters.commerceOrderId],
     ["customerId", filters.customerId],
     ["shipmentId", filters.shipmentId],
+    ["paymentRecordId", filters.paymentRecordId],
   ];
 
   for (const [key, id] of pairs) {
@@ -153,6 +199,8 @@ export type OperationalFailureListItem = {
     updatedAt: string | null;
   } | null;
   linkedIncidentIds: string[];
+  /** Webhook receipt row correlated via platform envelope (`detail.receiptId`). */
+  webhookReceiptId: string | null;
 };
 
 function mapListRow(
@@ -186,6 +234,7 @@ function mapListRow(
         }
       : null,
     linkedIncidentIds,
+    webhookReceiptId: readWebhookReceiptIdFromEnvelope(row.metadata),
   };
 }
 
@@ -362,6 +411,15 @@ export type OperationalFailureDetail = {
     createdAt: string;
   }[];
   recoveryActions: ReturnType<typeof recoveryActionsForSubtype>;
+  /** Square payment recovery POST hints (derived from authoritative metadata, not the redacted view). */
+  recoveryHints: OperationalFailureRecoveryHints;
+  /** Hydrated shipment target for label recovery (preferred over raw order-only metadata). */
+  recoveryShipment?: {
+    shipmentId: string;
+    commerceOrderId: string | null;
+    resolutionSource: "metadata" | "latest_for_order";
+    contractLine: string;
+  } | null;
 };
 
 const RELATED_WINDOW_MS = 30 * 60 * 1000;
@@ -377,7 +435,7 @@ export async function queryOperationalFailureDetail(eventId: string): Promise<Op
     metadata: row.metadata,
   });
 
-  const [triage, allIncidents, relatedEvents] = await Promise.all([
+  const [triage, allIncidents, relatedEvents, recoveryShipment] = await Promise.all([
     prisma.operationalFailureTriage.findUnique({ where: { activityEventId: eventId } }),
     prisma.operationalIncident.findMany({
       where: { sourceEventIds: { not: Prisma.DbNull } },
@@ -386,7 +444,19 @@ export async function queryOperationalFailureDetail(eventId: string): Promise<Op
       take: 200,
     }),
     queryRelatedOperationalEvents(row, entityIds),
+    row.type === PLATFORM_EVENT_SUBTYPE.SHIPMENT_LABEL_FAILED
+      ? resolveShippoShipmentIdForRecovery(row, entityIds)
+      : Promise.resolve(null),
   ]);
+
+  const recoveryShipmentNormalized = recoveryShipment
+    ? {
+        shipmentId: recoveryShipment.shipmentId,
+        commerceOrderId: recoveryShipment.commerceOrderId,
+        resolutionSource: recoveryShipment.source,
+        contractLine: recoveryShipment.contractLine,
+      }
+    : null;
 
   const linkedIncidents = allIncidents
     .filter((inc) => asStringArrayJson(inc.sourceEventIds).includes(eventId))
@@ -429,6 +499,8 @@ export async function queryOperationalFailureDetail(eventId: string): Promise<Op
     linkedIncidents,
     relatedEvents,
     recoveryActions: recoveryActionsForSubtype(row.type),
+    recoveryHints: operationalFailureRecoveryHints(row.metadata),
+    recoveryShipment: recoveryShipmentNormalized,
   };
 }
 
@@ -445,6 +517,7 @@ async function queryRelatedOperationalEvents(
     ["orderId", entityIds.orderId],
     ["customerId", entityIds.customerId],
     ["shipmentId", entityIds.shipmentId],
+    ["paymentRecordId", entityIds.paymentRecordId],
   ];
   for (const [key, id] of idPairs) {
     if (!id) continue;
@@ -494,6 +567,7 @@ export function parseOperationalFailuresQuery(searchParams: URLSearchParams): Op
     orderId: searchParams.get("orderId") ?? undefined,
     customerId: searchParams.get("customerId") ?? undefined,
     shipmentId: searchParams.get("shipmentId") ?? undefined,
+    paymentRecordId: searchParams.get("paymentRecordId") ?? undefined,
     incidentId: searchParams.get("incidentId") ?? undefined,
     linkedToActiveIncident: searchParams.get("linkedToActiveIncident") === "true",
     triageState: (searchParams.get("triageState") as OperationalFailureTriageState | null) ?? undefined,

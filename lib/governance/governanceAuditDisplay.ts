@@ -70,6 +70,7 @@ export function governanceEventToTimelineRow(event: {
   targetName: string | null;
   metadata: unknown;
   description: string | null;
+  reason?: string | null;
   createdAt: Date;
 }): AuditTimelineRow {
   const actor = event.actorName || "Unknown actor";
@@ -80,11 +81,16 @@ export function governanceEventToTimelineRow(event: {
     const scope =
       isRecord(event.metadata) && typeof event.metadata.scope === "string" ? event.metadata.scope : "unknown scope";
     const target = event.targetName ? `${event.targetName} · scope ${scope}` : `scope ${scope}`;
+    const reasonFrag =
+      typeof event.reason === "string" && event.reason.trim().length ?
+        event.reason.trim().slice(0, 160)
+      : "";
+    const targetCombined = reasonFrag ? `${target} · reason: ${reasonFrag}` : target;
     return {
       id: event.id,
       actor,
       verb: "started impersonation as",
-      target,
+      target: targetCombined,
       relativeTime: when,
       severity: "warning",
       severityLabel: "Impersonation",
@@ -199,6 +205,38 @@ export function governanceEventToTimelineRow(event: {
     };
   }
 
+  if (t === "CUSTOMER_COGNITO_SESSION_REVOKE_DEFERRED") {
+    const r = typeof event.reason === "string" && event.reason.trim() ? event.reason.trim().slice(0, 280) : "—";
+    return {
+      id: event.id,
+      actor,
+      verb: "filed revoke intent (IAM/Cognito deferred)",
+      target: `${event.targetName ?? "unknown diner"} · ${r}`,
+      relativeTime: when,
+      severity: "warning",
+      severityLabel: "Access",
+    };
+  }
+
+  if (t === "OPERATIONAL_INCIDENT_UPDATED") {
+    return {
+      id: event.id,
+      actor,
+      verb: "updated operational incident",
+      target:
+        typeof event.metadata === "object" &&
+        event.metadata &&
+        typeof (event.metadata as { beforeStatus?: string }).beforeStatus === "string" ?
+          `${(event.metadata as { beforeStatus: string }).beforeStatus} → ${
+            (event.metadata as { afterStatus?: string }).afterStatus ?? "updated"
+          }`
+        : (event.description ?? "incident PATCH"),
+      relativeTime: when,
+      severity: "warning",
+      severityLabel: "Operations",
+    };
+  }
+
   if (t === "SESSION_TERMINATED") {
     const reason =
       isRecord(event.metadata) && typeof event.metadata.terminationReason === "string"
@@ -237,6 +275,7 @@ export async function loadRecentGovernanceAuditRows(limit: number): Promise<Audi
       targetName: true,
       metadata: true,
       description: true,
+      reason: true,
       createdAt: true,
     },
   });

@@ -1,8 +1,8 @@
-import Link from "next/link";
 import OpsPageHeader from "@/components/ops/OpsPageHeader";
 import OpsQueueCard from "@/components/ops/OpsQueueCard";
 import StateChip from "@/components/ops/StateChip";
 import { opsLoadCommunicationsList } from "@/lib/ops/queries";
+import { readInboundOperationalFlags } from "@/lib/ops/emailInboundUi";
 
 export default async function OpsCommunicationsPage() {
   const threads = await opsLoadCommunicationsList(40);
@@ -32,6 +32,9 @@ export default async function OpsCommunicationsPage() {
               chips={
                 <>
                   <StateChip label={`msg:${t.messages.length}`} tone="neutral" />
+                  {last && last.direction === "inbound" && readInboundOperationalFlags(last.rawPayload).quarantine ? (
+                    <StateChip label="quarantine" tone="warn" />
+                  ) : null}
                   {last ? (
                     <StateChip
                       label={last.deliveryStatus}
@@ -50,8 +53,9 @@ export default async function OpsCommunicationsPage() {
         </p>
       ) : null}
       <p className="mt-8 text-[12px] text-[#c9bba8]/60">
-        Inbound parsing lives at{" "}
-        <code className="text-[#8FC4C4]/90">/api/email/inbound</code> — replies UI stays manual-first.
+        Inbound webhooks — Resend Svix verification at{" "}
+        <code className="text-[#8FC4C4]/90">/api/email/inbound</code> · SES SNS (and internal forwarder JSON) at{" "}
+        <code className="text-[#8FC4C4]/90">/api/email/inbound-ses</code>.
       </p>
     </>
   );

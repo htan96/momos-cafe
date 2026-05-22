@@ -1,4 +1,4 @@
-/** Shared transactional email shape for Resend / SES adapters. */
+/** Shared transactional email shape for SES adapters (historic rows may reference legacy providers). */
 
 export interface TransactionalContent {
   subject: string;

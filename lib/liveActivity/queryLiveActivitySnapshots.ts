@@ -1,4 +1,5 @@
 import { DateTime } from "luxon";
+import { WebhookProcessingStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
   AUTH_FAILURE_THRESHOLD,
@@ -32,6 +33,7 @@ export async function queryLiveActivitySnapshots(): Promise<LiveActivitySnapshot
     notificationBacklog,
     lateOrStuckFulfillment,
     pendingOrchestrationEvents,
+    orphanWebhookReceiptWindowCount,
   ] = await Promise.all([
     prisma.operationalIncident.findMany({
       where: { status: { in: [...OPERATIONAL_INCIDENT_ACTIVE_STATUSES] } },
@@ -77,6 +79,14 @@ export async function queryLiveActivitySnapshots(): Promise<LiveActivitySnapshot
       },
     }),
     prisma.notificationEvent.count({ where: { processedAt: null } }),
+    prisma.webhookDeliveryReceipt.count({
+      where: {
+        provider: "square",
+        processingStatus: WebhookProcessingStatus.failed,
+        errorCode: "ORPHAN_NO_LOCAL_PAYMENT",
+        receivedAt: { gte: windowStart },
+      },
+    }),
   ]);
 
   const degradedIntegrations = healthRows
@@ -113,5 +123,6 @@ export async function queryLiveActivitySnapshots(): Promise<LiveActivitySnapshot
       lateOrStuckFulfillment,
       pendingOrchestrationEvents,
     },
+    orphanWebhookReceiptWindowCount,
   };
 }

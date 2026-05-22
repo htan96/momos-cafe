@@ -26,11 +26,21 @@ export const PLATFORM_EVENT_SUBTYPE = {
   MENU_SYNC_FAILED: "menu.sync.failed",
   SYSTEM_EMAIL_SEND_FAILED: "system.email.send_failed",
   SYSTEM_EMAIL_INBOUND_FAILED: "system.email.inbound_failed",
+  /** Successful persistence of inbound operational mail (Resend + SES SNS / forwarders). */
+  SYSTEM_EMAIL_INBOUND_RECEIVED: "system.email.inbound_received",
   SYSTEM_INTEGRATION_DEGRADED: "system.integration.degraded",
   SYSTEM_INTEGRATION_OFFLINE: "system.integration.offline",
   SYSTEM_INTEGRATION_RECOVERED: "system.integration.recovered",
   SYSTEM_INTEGRATION_SLOW_RESPONSE: "system.integration.slow_response",
   SYSTEM_NOTIFICATION_PROCESS_FAILED: "system.notification.process_failed",
+  /** SES / mailbox provider bounce fan-out lands here — ingestion placeholder / stub. */
+  SYSTEM_EMAIL_BOUNCE_STUB_RECEIVED: "system.email.bounce_stub_received",
+  /** SES chosen but infra incomplete — outbound temporarily routed via Resend (noise-capped informational). */
+  SYSTEM_EMAIL_TRANSPORT_SES_FALLBACK: "system.email.transport_ses_fallback",
+  /** Super-admin read-only Square payment hydrate + reconcile (recovery); not surfaced as failure inbox subtype. */
+  PAYMENT_SUPER_ADMIN_SQUARE_LOOKUP: "payment.super_admin.square_lookup",
+  /** Super-admin updated `OperationalIncident` lifecycle/metadata. */
+  INCIDENT_OPERATOR_UPDATED: "incident.operator_updated",
 } as const;
 
 export type PlatformEventSubtype =

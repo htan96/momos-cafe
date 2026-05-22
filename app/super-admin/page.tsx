@@ -197,12 +197,12 @@ export default async function SuperAdminHomePage() {
   }
   if (degradedCount > 0) {
     criticalBullets.push(
-      `${degradedCount} integration${degradedCount === 1 ? "" : "s"} degraded (see Live operations for detail)`
+        `${degradedCount} integration${degradedCount === 1 ? "" : "s"} degraded (see Live activity for detail)`
     );
   }
   if (offlineCount > 0) {
     criticalBullets.push(
-      `${offlineCount} integration${offlineCount === 1 ? "" : "s"} offline (see Live operations for detail)`
+        `${offlineCount} integration${offlineCount === 1 ? "" : "s"} offline (see Live activity for detail)`
     );
   }
   for (const key of commerceKillSwitches) {
@@ -230,7 +230,7 @@ export default async function SuperAdminHomePage() {
 
   const healthDetail =
     overallHealthy === null
-      ? "No integration health snapshots yet — run checks from Live operations after deploy."
+      ? "No integration health snapshots yet — open Live activity to run probes after deploy."
       : overallHealthy
         ? "All systems report healthy or unknown (unknown is neutral)."
         : offlineCount > 0

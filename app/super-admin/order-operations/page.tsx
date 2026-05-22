@@ -1,7 +1,10 @@
 import Link from "next/link";
+import type { Prisma } from "@prisma/client";
 import GovPageHeader from "@/components/governance/GovPageHeader";
 import OperationalCard from "@/components/governance/OperationalCard";
 import StatusPill from "@/components/governance/StatusPill";
+import { COMMERCE_ORDER_STATUSES, type CommerceOrderStatus } from "@/lib/commerce/orderLifecycle";
+import { OPS_ENTITY_UUID_RE } from "@/lib/operations/operationalContextLinks";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -63,8 +66,32 @@ function paymentState(
   return bits.length ? bits.join(" · ") : p.status;
 }
 
-export default async function SuperAdminOrderOperationsPage() {
+export default async function SuperAdminOrderOperationsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ status?: string; q?: string }>;
+}) {
+  const sp = searchParams ? await searchParams : {};
+  const statusRaw = typeof sp.status === "string" ? sp.status.trim() : "";
+  const qRaw = typeof sp.q === "string" ? sp.q.trim() : "";
+
+  const statusFilter: CommerceOrderStatus | null =
+    statusRaw && (COMMERCE_ORDER_STATUSES as readonly string[]).includes(statusRaw)
+      ? (statusRaw as CommerceOrderStatus)
+      : null;
+
+  const where: Prisma.CommerceOrderWhereInput = {};
+  if (statusFilter) where.status = statusFilter;
+  if (qRaw) {
+    if (OPS_ENTITY_UUID_RE.test(qRaw)) {
+      where.id = qRaw;
+    } else {
+      where.customer = { is: { email: { contains: qRaw, mode: "insensitive" } } };
+    }
+  }
+
   const orders = await prisma.commerceOrder.findMany({
+    where: Object.keys(where).length ? where : undefined,
     take: 75,
     orderBy: { createdAt: "desc" },
     include: {
@@ -83,20 +110,73 @@ export default async function SuperAdminOrderOperationsPage() {
       <GovPageHeader
         eyebrow="Platform · Commerce"
         title="Order operations"
-        subtitle="Recent `CommerceOrder` rows from Postgres — newest 75. Open a row for line items, payments, fulfillment, shipments, and operational timeline."
+        subtitle="Filtered `commerce_orders` list (still capped at 75 newest matches). Scoped links respect status + quick search inputs."
         actions={
           <Link
             href="/super-admin/live-activity"
             className="rounded-lg border border-cream-dark/60 bg-white px-3 py-1.5 text-[12px] font-semibold text-charcoal/80 shadow-sm transition hover:bg-cream-mid/40"
           >
-            Live operations
+            Live activity
           </Link>
         }
       />
 
-      <OperationalCard title="Commerce orders" meta={`commerce_orders · ${orders.length} / 75`}>
+      <div className="rounded-xl border border-amber-500/35 bg-amber-50/70 px-4 py-3 text-[13px] text-charcoal/80 shadow-sm">
+        <p className="font-semibold text-charcoal mb-2">Operational split</p>
+        <ul className="list-disc ml-6 space-y-1 text-[12px] leading-relaxed">
+          <li>
+            <strong>Unified commerce orders below</strong> — Postgres <code className="font-mono text-[11px]">commerce_orders</code>.
+          </li>
+          <li>
+            <strong>Legacy cafe / Square guest kitchen flow</strong> —{" "}
+            <code className="font-mono text-[11px]">cafe_orders</code> tooling lives on{" "}
+            <Link className="text-teal-dark font-semibold underline-offset-2 hover:underline" href="/super-admin/order-operations/legacy">
+              Legacy orders
+            </Link>{" "}
+            until migrations collapse both paths.
+          </li>
+        </ul>
+      </div>
+
+      <OperationalCard title="Commerce orders — unified lifecycle" meta={`commerce_orders · ${orders.length}/75 matched`}>
+        <form method="get" className="mb-5 flex flex-wrap items-end gap-3 text-[13px]">
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-charcoal/45">Status</span>
+            <select
+              name="status"
+              defaultValue={statusFilter ?? ""}
+              className="rounded-lg border border-cream-dark/70 bg-white px-3 py-2 min-w-[10rem]"
+            >
+              <option value="">Any</option>
+              {COMMERCE_ORDER_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 min-w-[14rem] flex-1">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-charcoal/45">
+              Quick search · order UUID or customer email substring
+            </span>
+            <input
+              name="q"
+              defaultValue={qRaw}
+              placeholder="e.g. f2c3… or diner@momos..."
+              className="rounded-lg border border-cream-dark/70 px-3 py-2 w-full font-mono text-[12px]"
+            />
+          </label>
+          <button
+            type="submit"
+            className="rounded-lg border border-teal/35 bg-teal/[0.1] px-4 py-2 text-[12px] font-semibold text-teal-dark hover:bg-teal/[0.16]"
+          >
+            Apply filters
+          </button>
+        </form>
         {orders.length === 0 ? (
-          <p className="text-[13px] text-charcoal/60">No commerce orders in the database yet.</p>
+          <p className="text-[13px] text-charcoal/60">
+            {Object.keys(where).length ? "No orders matched these filters yet." : "No commerce orders in the database yet."}
+          </p>
         ) : (
           <div className="overflow-x-auto rounded-lg border border-cream-dark/50">
             <table className="w-full min-w-[56rem] text-left text-[13px]">
@@ -132,7 +212,13 @@ export default async function SuperAdminOrderOperationsPage() {
                         ) : null}
                       </td>
                       <td className="px-3 py-2">
-                        <StatusPill variant="neutral">{o.status}</StatusPill>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <StatusPill variant="neutral">{o.status}</StatusPill>
+                          {o.status === "pending_payment" ? (
+                            <StatusPill variant="warning">Pending pay</StatusPill>
+                          ) : null}
+                          {o.status === "paid" ? <StatusPill variant="neutral">Paid lifecycle</StatusPill> : null}
+                        </div>
                       </td>
                       <td className="px-3 py-2 text-charcoal/80">{channelLabel(pipes)}</td>
                       <td className="px-3 py-2 text-[12px] text-charcoal/75">{customerSummary(o)}</td>

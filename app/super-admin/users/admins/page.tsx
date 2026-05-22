@@ -37,7 +37,21 @@ export default function SuperAdminUsersAdminsPage() {
           >
             Integration env readiness
           </Link>
+          <Link
+            href="/super-admin/cognito-tools"
+            className="rounded-xl border border-dashed border-cream-dark px-4 py-2 text-[13px] font-semibold text-charcoal/70 hover:bg-cream-mid/35"
+          >
+            Environment hints (Cognito masks)
+          </Link>
         </div>
+      </OperationalCard>
+
+      <OperationalCard title="Roadmap honesty" meta="IAM deferred">
+        <p className="text-[13px] text-charcoal/70 leading-relaxed">
+          Pool admin APIs (bulk search, <span className="font-mono">AdminUserGlobalSignOut</span>, fine-grained device
+          trust) intentionally stay outside this tenant UI until infra signs off — the Cognito tooling page only mirrors{" "}
+          <span className="font-mono">process.env</span> shape instead of dangling an orphan mega-console.
+        </p>
       </OperationalCard>
 
       <OperationalCard title="Audit visibility" meta="GovernanceAuditEvent append-only">

@@ -1,5 +1,10 @@
 import { performance } from "node:perf_hooks";
 import type { Prisma } from "@prisma/client";
+import {
+  hasLikelyResolvableAwsCredentials,
+  resolveAwsRegion,
+} from "@/lib/aws/awsRuntimeEnv";
+import { sesAccountProbe } from "@/lib/email/transports/sendEmailViaSes";
 import { prisma } from "@/lib/prisma";
 import {
   INTEGRATION_SYSTEM_KEYS,
@@ -332,20 +337,51 @@ async function checkShippo(): Promise<IntegrationHealthCheckResult> {
 
 async function checkEmail(): Promise<IntegrationHealthCheckResult> {
   const systemKey = INTEGRATION_SYSTEM_KEYS.EMAIL;
-  const resend = process.env.RESEND_API_KEY?.trim();
-  const sendgrid = process.env.SENDGRID_API_KEY?.trim();
+  const region = resolveAwsRegion();
+  const credsHeuristic = hasLikelyResolvableAwsCredentials();
+  const sesFromConfigured = Boolean(process.env.SES_FROM_EMAIL?.trim());
+  /**
+   * Inbound Resend webhook secret present (`verifyResendInbound` — Svix signatures).
+   * Does **not** imply outbound connectivity; SES is the sole transactional outbound transport.
+   */
+  const resendInboundConfigured = Boolean(process.env.RESEND_WEBHOOK_SECRET?.trim());
+  /** Only surfaced when SES failed after an attempted probe or prerequisites missing. */
+  let loneSesProbeMessage: string | null = null;
 
-  if (resend) {
-    const url = "https://api.resend.com/domains";
+  const outboundMetaBase = {
+    outboundTransport: "ses" as const,
+    sesFromConfigured,
+    resendInboundConfigured,
+    sendgridApiKeyPresent: Boolean(process.env.SENDGRID_API_KEY?.trim()),
+  };
+
+  /** SES outbound health: `GetAccount` when heuristic credentials + region exist. */
+  if (region && credsHeuristic) {
     const started = performance.now();
     try {
-      const res = await fetchWithTimeout(
-        url,
-        { method: "GET", headers: { Authorization: `Bearer ${resend}` } },
-        5000
-      );
+      const probe = await sesAccountProbe();
       const latencyMs = Math.round(performance.now() - started);
-      if (res.ok) {
+
+      if (probe.ok) {
+        const metadata = {
+          ...outboundMetaBase,
+          provider: "ses" as const,
+          endpoint: `ses.${region}.amazonaws.com`,
+          maxSendRate: probe.maxSendRate ?? null,
+        };
+
+        if (!sesFromConfigured) {
+          return {
+            systemKey,
+            category: "comms",
+            currentStatus: "degraded",
+            latencyMs,
+            failureRate: null,
+            lastErrorMessage: "SES reachable but SES_FROM_EMAIL unset",
+            metadata,
+          };
+        }
+
         return {
           systemKey,
           category: "comms",
@@ -353,84 +389,57 @@ async function checkEmail(): Promise<IntegrationHealthCheckResult> {
           latencyMs,
           failureRate: null,
           lastErrorMessage: null,
-          metadata: { provider: "resend", httpStatus: res.status, endpoint: url },
+          metadata,
         };
       }
-      return {
-        systemKey,
-        category: "comms",
-        currentStatus: res.status >= 500 ? "degraded" : "offline",
-        latencyMs: null,
-        failureRate: null,
-        lastErrorMessage: truncateError(`Resend domains HTTP ${res.status}`),
-        metadata: { provider: "resend", httpStatus: res.status, endpoint: url },
-      };
+
+      loneSesProbeMessage = truncateError(
+        `SES (${probe.sdkName ?? "api"}): ${probe.code}${probe.message ? ` — ${probe.message}` : ""}`
+      );
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      return {
-        systemKey,
-        category: "comms",
-        currentStatus: "offline",
-        latencyMs: null,
-        failureRate: null,
-        lastErrorMessage: truncateError(msg),
-        metadata: { provider: "resend", endpoint: url, error: "fetch_failed" },
-      };
+      loneSesProbeMessage =
+        loneSesProbeMessage ?? truncateError(`SES probe threw: ${msg}`, 460);
     }
   }
 
-  if (sendgrid) {
-    const url = "https://api.sendgrid.com/v3/scopes";
-    const started = performance.now();
-    try {
-      const res = await fetchWithTimeout(
-        url,
-        { method: "GET", headers: { Authorization: `Bearer ${sendgrid}` } },
-        5000
-      );
-      const latencyMs = Math.round(performance.now() - started);
-      if (res.ok) {
-        return {
-          systemKey,
-          category: "comms",
-          currentStatus: "healthy",
-          latencyMs,
-          failureRate: null,
-          lastErrorMessage: null,
-          metadata: { provider: "sendgrid", httpStatus: res.status, endpoint: url },
-        };
-      }
-      return {
-        systemKey,
-        category: "comms",
-        currentStatus: res.status >= 500 ? "degraded" : "offline",
-        latencyMs: null,
-        failureRate: null,
-        lastErrorMessage: truncateError(`SendGrid scopes HTTP ${res.status}`),
-        metadata: { provider: "sendgrid", httpStatus: res.status, endpoint: url },
-      };
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      return {
-        systemKey,
-        category: "comms",
-        currentStatus: "offline",
-        latencyMs: null,
-        failureRate: null,
-        lastErrorMessage: truncateError(msg),
-        metadata: { provider: "sendgrid", endpoint: url, error: "fetch_failed" },
-      };
-    }
+  if (!region) {
+    return {
+      systemKey,
+      category: "comms",
+      currentStatus: "unknown",
+      latencyMs: null,
+      failureRate: null,
+      lastErrorMessage: "AWS_REGION (or AWS_DEFAULT_REGION) unset — cannot probe SES outbound",
+      metadata: { ...outboundMetaBase, configured: false },
+    };
+  }
+  if (!credsHeuristic) {
+    return {
+      systemKey,
+      category: "comms",
+      currentStatus: "unknown",
+      latencyMs: null,
+      failureRate: null,
+      lastErrorMessage:
+        loneSesProbeMessage ??
+        "No heuristic AWS credential hints (IAM role / keys / container) — SES outbound readiness unknown",
+      metadata: loneSesProbeMessage
+        ? { ...outboundMetaBase, configured: false, sesProbeSummary: loneSesProbeMessage.slice(0, 200) }
+        : { ...outboundMetaBase, configured: false },
+    };
   }
 
   return {
     systemKey,
     category: "comms",
-    currentStatus: "unknown",
+    currentStatus: "offline",
     latencyMs: null,
     failureRate: null,
-    lastErrorMessage: "No email provider API key configured (RESEND_API_KEY or SENDGRID_API_KEY)",
-    metadata: { configured: false },
+    lastErrorMessage: loneSesProbeMessage ?? "SES GetAccount probe failed — transactional outbound unhealthy",
+    metadata: loneSesProbeMessage
+      ? { ...outboundMetaBase, configured: false, sesProbeSummary: loneSesProbeMessage.slice(0, 200) }
+      : { ...outboundMetaBase, configured: false },
   };
 }
 

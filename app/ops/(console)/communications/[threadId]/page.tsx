@@ -4,6 +4,7 @@ import OpsPageHeader from "@/components/ops/OpsPageHeader";
 import OpsTimeline, { type OpsTimelineItem } from "@/components/ops/OpsTimeline";
 import StateChip from "@/components/ops/StateChip";
 import { opsLoadEmailThread } from "@/lib/ops/queries";
+import { readInboundOperationalFlags } from "@/lib/ops/emailInboundUi";
 
 export default async function OpsCommunicationDetailPage({
   params,
@@ -14,12 +15,18 @@ export default async function OpsCommunicationDetailPage({
   const thread = await opsLoadEmailThread(threadId);
   if (!thread) notFound();
 
-  const timeline: OpsTimelineItem[] = thread.messages.map((m) => ({
-    id: m.id,
-    title: `${m.direction} · ${m.deliveryStatus}`,
-    subtitle: `${m.fromEmail} → ${JSON.stringify(m.toEmails)}`,
-    ts: m.createdAt,
-  }));
+  const timeline: OpsTimelineItem[] = thread.messages.map((m) => {
+    const q = m.direction === "inbound" ? readInboundOperationalFlags(m.rawPayload) : { quarantine: false };
+    const sub = `${m.fromEmail} → ${JSON.stringify(m.toEmails)}${
+      q.quarantine ? ` · quarantined${q.reason ? ` (${q.reason})` : ""}` : ""
+    }`;
+    return {
+      id: m.id,
+      title: `${m.direction} · ${m.deliveryStatus}`,
+      subtitle: sub,
+      ts: m.createdAt,
+    };
+  });
 
   return (
     <>

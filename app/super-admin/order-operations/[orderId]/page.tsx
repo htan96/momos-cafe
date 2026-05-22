@@ -15,6 +15,8 @@ import {
   readCateringInquiryIdFromCommerceMetadata,
 } from "@/lib/operations/operationalContextLinks";
 import { OPERATIONAL_EVENT_TYPES } from "@/lib/operations/operationalEventTypes";
+import { queryWebhookOpsActivityForCommerceOrder } from "@/lib/operations/queryWebhookOpsActivityForCommerceOrder";
+import { PLATFORM_EVENT_SUBTYPE } from "@/lib/platform/events/taxonomy";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -22,12 +24,25 @@ export const dynamic = "force-dynamic";
 const ORDER_ID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-const TIMELINE_TYPES = [
+const ORDER_DETAIL_TIMELINE_TYPES = [
   OPERATIONAL_EVENT_TYPES.ORDER_CREATED,
   OPERATIONAL_EVENT_TYPES.PAYMENT_SUCCEEDED,
   OPERATIONAL_EVENT_TYPES.PAYMENT_FAILED,
   OPERATIONAL_EVENT_TYPES.SHIPMENT_LABEL_CREATED,
+  PLATFORM_EVENT_SUBTYPE.PAYMENT_WEBHOOK_PROCESSING_FAILED,
+  PLATFORM_EVENT_SUBTYPE.PAYMENT_SQUARE_ORPHAN_WEBHOOK,
+  PLATFORM_EVENT_SUBTYPE.PAYMENT_REGISTER_FAILED,
+  PLATFORM_EVENT_SUBTYPE.SHIPMENT_QUOTE_FAILED,
+  PLATFORM_EVENT_SUBTYPE.SHIPMENT_LABEL_FAILED,
+  PLATFORM_EVENT_SUBTYPE.ORDER_DRAFT_CREATE_FAILED,
+  PLATFORM_EVENT_SUBTYPE.SECURITY_WEBHOOK_SIGNATURE_INVALID,
 ] as const;
+
+function dedupeActivityById(events: OperationalActivityEvent[]): OperationalActivityEvent[] {
+  const map = new Map<string, OperationalActivityEvent>();
+  for (const e of events) map.set(e.id, e);
+  return [...map.values()].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+}
 
 function formatUsd(cents: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -88,11 +103,26 @@ function buildTimelineWhere(orderId: string, shipmentIds: string[], paymentIds: 
   ];
 
   return {
-    AND: [{ type: { in: [...TIMELINE_TYPES] } }, { OR: linkOr }],
+    AND: [{ type: { in: [...ORDER_DETAIL_TIMELINE_TYPES] } }, { OR: linkOr }],
   };
 }
 
 function OperationalActivityEventRow({ row }: { row: OperationalActivityEvent }) {
+  const meta = row.metadata;
+  const receiptId =
+    meta && typeof meta === "object" && !Array.isArray(meta)
+      ? (() => {
+          const m = meta as Record<string, unknown>;
+          const d =
+            m.detail && typeof m.detail === "object" && !Array.isArray(m.detail)
+              ? (m.detail as Record<string, unknown>)
+              : {};
+          const rid =
+            typeof d.receiptId === "string" ? d.receiptId : typeof m.receiptId === "string" ? m.receiptId : null;
+          return rid?.trim() || null;
+        })()
+      : null;
+
   return (
     <li className="py-4 first:pt-0 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
       <div className="min-w-0 flex-1 space-y-1.5">
@@ -110,6 +140,9 @@ function OperationalActivityEventRow({ row }: { row: OperationalActivityEvent })
           <span className="text-[11px] font-mono text-charcoal/55 break-all">{row.type}</span>
         </div>
         <p className="text-[13px] text-charcoal leading-snug">{row.message}</p>
+        {receiptId ? (
+          <p className="text-[11px] font-mono text-charcoal/48">Webhook receipt · {receiptId}</p>
+        ) : null}
         {(row.actorType || row.actorId || row.actorName || row.source) && (
           <p className="text-[12px] text-charcoal/55 leading-relaxed">
             {[row.actorType, row.actorId ? `id:${row.actorId.slice(0, 12)}${row.actorId.length > 12 ? "…" : ""}` : null, row.actorName, row.source]
@@ -165,12 +198,13 @@ export default async function SuperAdminOrderDetailPage(props: PageProps) {
     (g) => g.pipeline.trim().toUpperCase() === "CATERING"
   );
 
-  const [timelineEvents, relatedIncidents] = await Promise.all([
+  const [timelineRaw, webhookOpsEvents, relatedIncidents] = await Promise.all([
     prisma.operationalActivityEvent.findMany({
       where: timelineWhere,
       orderBy: { createdAt: "asc" },
-      take: 250,
+      take: 280,
     }),
+    queryWebhookOpsActivityForCommerceOrder(order.id, { take: 18 }),
     prisma.operationalIncident.findMany({
       where: operationalIncidentWhereForOrder(order.id),
       orderBy: { lastDetectedAt: "desc" },
@@ -178,6 +212,7 @@ export default async function SuperAdminOrderDetailPage(props: PageProps) {
     }),
   ]);
 
+  const timelineEvents = dedupeActivityById(timelineRaw);
   const cust = customerBlock(order);
   const linkEnv = process.env;
   const baseSquareLinks = buildSquareDashboardLinks(linkEnv);
@@ -191,12 +226,26 @@ export default async function SuperAdminOrderDetailPage(props: PageProps) {
         title={`Order · ${order.id.slice(0, 8)}…`}
         subtitle="Commerce order with payments, fulfillment groups, shipments, and filtered operational activity (same order id in metadata, linked shipment/payment ids, or message text)."
         actions={
-          <Link
-            href="/super-admin/order-operations"
-            className="rounded-lg border border-cream-dark/60 bg-white px-3 py-1.5 text-[12px] font-semibold text-charcoal/80 shadow-sm transition hover:bg-cream-mid/40"
-          >
-            All orders
-          </Link>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Link
+              href={`/super-admin/operations/failures?commerceOrderId=${encodeURIComponent(order.id)}`}
+              className="rounded-lg border border-cream-dark/60 bg-white px-3 py-1.5 text-[12px] font-semibold text-charcoal/80 shadow-sm transition hover:bg-cream-mid/40"
+            >
+              Failures inbox
+            </Link>
+            <Link
+              href={`/super-admin/live-activity?commerceOrderId=${encodeURIComponent(order.id)}&filter=PAYMENTS`}
+              className="rounded-lg border border-cream-dark/60 bg-white px-3 py-1.5 text-[12px] font-semibold text-charcoal/80 shadow-sm transition hover:bg-cream-mid/40"
+            >
+              Live activity
+            </Link>
+            <Link
+              href="/super-admin/order-operations"
+              className="rounded-lg border border-cream-dark/60 bg-white px-3 py-1.5 text-[12px] font-semibold text-charcoal/80 shadow-sm transition hover:bg-cream-mid/40"
+            >
+              All orders
+            </Link>
+          </div>
         }
       />
 
@@ -252,7 +301,7 @@ export default async function SuperAdminOrderDetailPage(props: PageProps) {
         {order.customerId ? (
           <p className="mb-3">
             <Link
-              href={`/super-admin/customer-operations/${order.customerId}`}
+              href={`/super-admin/users/customers/${order.customerId}`}
               className="inline-flex rounded-lg border border-cream-dark/60 bg-white px-3 py-1.5 text-[12px] font-semibold text-charcoal/80 shadow-sm transition hover:bg-cream-mid/40"
             >
               Open customer operations
@@ -271,7 +320,7 @@ export default async function SuperAdminOrderDetailPage(props: PageProps) {
           <div className="flex flex-wrap gap-x-4 gap-y-2">
             {order.customerId ? (
               <Link
-                href={`/super-admin/customer-operations/${order.customerId}`}
+                href={`/super-admin/users/customers/${order.customerId}`}
                 className="text-[12px] font-semibold text-teal-dark underline-offset-2 hover:underline"
               >
                 Customer
@@ -315,7 +364,12 @@ export default async function SuperAdminOrderDetailPage(props: PageProps) {
               <ul className="space-y-2">
                 {relatedIncidents.map((inc) => (
                   <li key={inc.id} className="text-[12px] text-charcoal/80">
-                    <span className="font-medium">{inc.title}</span>
+                    <Link
+                      href={`/super-admin/incidents?highlight=${encodeURIComponent(inc.id)}`}
+                      className="font-semibold text-teal-dark hover:underline"
+                    >
+                      {inc.title}
+                    </Link>
                     <span className="text-charcoal/45">
                       {" "}
                       · {inc.severity} · {inc.status}
@@ -462,7 +516,21 @@ export default async function SuperAdminOrderDetailPage(props: PageProps) {
             <h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-charcoal/45 mb-2">
               Webhook / sync hints
             </h3>
-            {webhookSyncLines.length === 0 ? (
+
+            {webhookOpsEvents.length > 0 ? (
+              <div className="mb-4 rounded-lg border border-cream-dark/45 bg-white/85 p-3 space-y-2">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-charcoal/50">
+                  Webhook operational signals (OperationalActivityEvent)
+                </p>
+                <ul className="divide-y divide-cream-dark/30">
+                  {webhookOpsEvents.map((row) => (
+                    <OperationalActivityEventRow key={row.id} row={row} />
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            {webhookSyncLines.length === 0 && webhookOpsEvents.length === 0 ? (
               <div className="space-y-2 text-[13px] text-charcoal/65 leading-relaxed">
                 <p>
                   No webhook or sync audit fields surfaced from <span className="font-mono">CommerceOrder.metadata</span>{" "}
@@ -471,21 +539,21 @@ export default async function SuperAdminOrderDetailPage(props: PageProps) {
                 </p>
                 <p>
                   <Link
-                    href="/super-admin/live-activity"
+                    href={`/super-admin/live-activity?commerceOrderId=${encodeURIComponent(order.id)}`}
                     className="font-semibold text-charcoal underline decoration-charcoal/25 hover:decoration-charcoal/60"
                   >
                     Live Operations
                   </Link>{" "}
-                  — use integration health and presence tools while onsite webhook auditing matures.
+                  — scoped to this order when opened from Order operations links.
                 </p>
               </div>
-            ) : (
+            ) : webhookSyncLines.length > 0 ? (
               <ul className="space-y-1.5 text-[12px] text-charcoal/80 font-mono leading-snug">
                 {webhookSyncLines.map((line) => (
                   <li key={line}>{line}</li>
                 ))}
               </ul>
-            )}
+            ) : null}
           </div>
 
           <div>
@@ -643,7 +711,7 @@ export default async function SuperAdminOrderDetailPage(props: PageProps) {
 
       <OperationalCard
         title="Operational timeline"
-        meta={`operational_activity_events · filtered (${TIMELINE_TYPES.join(", ")})`}
+        meta={`operational_activity_events · ${ORDER_DETAIL_TIMELINE_TYPES.length} canonical types`}
       >
         {timelineEvents.length === 0 ? (
           <div className="space-y-2 text-[13px] text-charcoal/70 leading-relaxed">

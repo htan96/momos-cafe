@@ -6,6 +6,7 @@ import OperationalCard from "@/components/governance/OperationalCard";
 import OperationalMetadataJumpLinks from "@/components/governance/OperationalMetadataJumpLinks";
 import StatusPill, { type StatusPillVariant } from "@/components/governance/StatusPill";
 import type { OperationalFailureDetail } from "@/lib/operations/failures/queryOperationalFailures";
+import { RECOVERY_RESEND_EMAIL_TOOLTIP } from "@/lib/operations/failures/recoveryActions";
 import { X } from "lucide-react";
 
 function severityPillVariant(sev: string): StatusPillVariant {
@@ -38,6 +39,8 @@ export default function FailureDetailPanel({ eventId, detail, loading, onClose, 
   const [triageError, setTriageError] = useState<string | null>(null);
   const [showRaw, setShowRaw] = useState(false);
   const [notes, setNotes] = useState("");
+  const [recoveryBusy, setRecoveryBusy] = useState<string | null>(null);
+  const [recoveryMessage, setRecoveryMessage] = useState<string | null>(null);
 
   const metadataForLinks = detail
     ? { entities: detail.entityIds, ...detail.entityIds }
@@ -162,8 +165,11 @@ export default function FailureDetailPanel({ eventId, detail, loading, onClose, 
                           <span className="font-mono text-[11px] text-charcoal/50">{inc.type}</span>
                         </div>
                         <p className="mt-1 font-semibold text-charcoal">{inc.title}</p>
-                        <Link href="/super-admin/incidents" className="text-[12px] text-teal-dark font-semibold hover:underline">
-                          Open incidents view
+                        <Link
+                          href={`/super-admin/incidents?highlight=${encodeURIComponent(inc.id)}`}
+                          className="text-[12px] text-teal-dark font-semibold hover:underline"
+                        >
+                          Open in incidents
                         </Link>
                       </li>
                     ))}
@@ -187,43 +193,153 @@ export default function FailureDetailPanel({ eventId, detail, loading, onClose, 
                 </OperationalCard>
               ) : null}
 
+              {detail.recoveryShipment ? (
+                <OperationalCard title="Label recovery target" meta="Resolved shipment id">
+                  <p className="text-[12px] text-charcoal/70 leading-relaxed">{detail.recoveryShipment.contractLine}</p>
+                  <p className="mt-2 text-[11px] font-mono text-charcoal/80 break-all">
+                    shipmentId · {detail.recoveryShipment.shipmentId}
+                  </p>
+                </OperationalCard>
+              ) : null}
+
               {detail.recoveryActions.length > 0 ? (
-                <OperationalCard title="Recovery actions" meta="Contracts only">
-                  <ul className="space-y-2">
+                <OperationalCard title="Recovery actions" meta="Super-admin gated where live">
+                  <ul className="space-y-3">
                     {detail.recoveryActions.map((action) => {
-                      const isLiveRoute = action.handler === "route" && action.routePath;
-                      const orderId = detail.entityIds.commerceOrderId ?? detail.entityIds.orderId;
-                      const href =
-                        action.id === "retry_shippo_label" && orderId
-                          ? `${action.routePath}?orderId=${orderId}`
-                          : action.routePath;
+                      const superPath = action.superAdminApiPath;
+                      const isSuperApi = action.handler === "super_admin_api" && superPath;
+                      const isLegacyRoute = action.handler === "route" && action.routePath;
+                      const shippoId = detail.recoveryShipment?.shipmentId ?? detail.entityIds.shipmentId;
+                      const shippoBody = JSON.stringify(
+                        {
+                          shipmentId: shippoId ?? undefined,
+                          commerceOrderId:
+                            !shippoId
+                              ? detail.entityIds.commerceOrderId ?? detail.entityIds.orderId ?? undefined
+                              : undefined,
+                        },
+                        null,
+                        2
+                      );
+
+                      const squareBody = JSON.stringify(
+                        {
+                          squarePaymentId: detail.recoveryHints.squarePaymentId ?? undefined,
+                          paymentRecordId: detail.recoveryHints.paymentRecordId ?? undefined,
+                          commerceOrderId: detail.recoveryHints.commerceOrderId ?? undefined,
+                          sourceFailureEventId: eventId,
+                        },
+                        null,
+                        2
+                      );
+                      const squareRecoveryReady =
+                        Boolean(detail.recoveryHints.squarePaymentId) ||
+                        Boolean(detail.recoveryHints.paymentRecordId) ||
+                        Boolean(detail.recoveryHints.commerceOrderId);
+
+                      async function runSuper(path: string, body?: string) {
+                        setRecoveryBusy(action.id);
+                        setRecoveryMessage(null);
+                        try {
+                          const res = await fetch(path, {
+                            method: action.httpMethod ?? "POST",
+                            headers: { "Content-Type": "application/json" },
+                            credentials: "same-origin",
+                            body,
+                          });
+                          const json = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
+                          if (!res.ok) {
+                            throw new Error(json.message ?? json.error ?? `HTTP ${res.status}`);
+                          }
+                          setRecoveryMessage(`${action.label} requested · ok`);
+                        } catch (e) {
+                          setRecoveryMessage(e instanceof Error ? e.message : "Request failed");
+                        } finally {
+                          setRecoveryBusy(null);
+                        }
+                      }
 
                       return (
-                        <li key={action.id} className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-[13px] font-semibold text-charcoal">{action.label}</p>
-                            <p className="text-[12px] text-charcoal/60">{action.description}</p>
+                        <li key={action.id} className="rounded-lg border border-cream-dark/45 bg-cream-mid/10 p-3 space-y-2">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-[13px] font-semibold text-charcoal">{action.label}</p>
+                              <p className="text-[12px] text-charcoal/60">{action.description}</p>
+                            </div>
+                            {isSuperApi && action.id === "retry_shippo_label" ? (
+                              <button
+                                type="button"
+                                disabled={Boolean(recoveryBusy) || (!shippoId && !detail.entityIds.commerceOrderId && !detail.entityIds.orderId)}
+                                onClick={() => void runSuper(superPath!, shippoBody)}
+                                className="shrink-0 rounded-lg border border-teal/30 bg-teal/[0.08] px-2.5 py-1 text-[11px] font-semibold text-teal-dark hover:bg-teal/[0.14] disabled:opacity-40"
+                              >
+                                {recoveryBusy === action.id ? "Running…" : "POST retry"}
+                              </button>
+                            ) : isSuperApi && action.id === "rerun_catalog_sync" ? (
+                              <button
+                                type="button"
+                                disabled={Boolean(recoveryBusy)}
+                                onClick={() => void runSuper(superPath!, "{}")}
+                                className="shrink-0 rounded-lg border border-teal/30 bg-teal/[0.08] px-2.5 py-1 text-[11px] font-semibold text-teal-dark hover:bg-teal/[0.14] disabled:opacity-40"
+                              >
+                                {recoveryBusy === action.id ? "Running…" : "Run sync"}
+                              </button>
+                            ) : isSuperApi &&
+                              (action.id === "retry_webhook_reconcile" || action.id === "retry_payment_reconcile") ? (
+                              <button
+                                type="button"
+                                disabled={Boolean(recoveryBusy) || !squareRecoveryReady}
+                                onClick={() => void runSuper(superPath!, squareBody)}
+                                className="shrink-0 rounded-lg border border-teal/30 bg-teal/[0.08] px-2.5 py-1 text-[11px] font-semibold text-teal-dark hover:bg-teal/[0.14] disabled:opacity-40"
+                              >
+                                {recoveryBusy === action.id ? "Running…" : "POST reconcile"}
+                              </button>
+                            ) : isLegacyRoute ? (
+                              <span
+                                className="shrink-0 rounded-lg border border-cream-dark/60 px-2.5 py-1 text-[11px] font-semibold text-charcoal/40"
+                                title="Prefer super-admin recovery route — ops console uses a different credential surface"
+                              >
+                                Legacy ops route
+                              </span>
+                            ) : (
+                              <span
+                                className="shrink-0 rounded-lg border border-cream-dark/60 px-2.5 py-1 text-[11px] font-semibold text-charcoal/40 cursor-help"
+                                title={
+                                  action.id === "resend_email"
+                                    ? RECOVERY_RESEND_EMAIL_TOOLTIP
+                                    : "Coming soon — idempotent retry handler not wired"
+                                }
+                              >
+                                Coming soon
+                              </span>
+                            )}
                           </div>
-                          {isLiveRoute && href ? (
-                            <Link
-                              href={href}
-                              className="shrink-0 rounded-lg border border-teal/30 bg-teal/[0.08] px-2.5 py-1 text-[11px] font-semibold text-teal-dark hover:bg-teal/[0.14]"
-                              title="Opens existing ops route — verify order context before retrying"
-                            >
-                              Open route
-                            </Link>
-                          ) : (
-                            <span
-                              className="shrink-0 rounded-lg border border-cream-dark/60 px-2.5 py-1 text-[11px] font-semibold text-charcoal/40 cursor-not-allowed"
-                              title="Coming soon — idempotent retry handler not wired"
-                            >
-                              Coming soon
-                            </span>
-                          )}
+                          {action.id === "retry_shippo_label" ? (
+                            <pre className="text-[10px] font-mono text-charcoal/70 whitespace-pre-wrap break-all bg-white/60 rounded-md p-2 border border-cream-dark/35">
+                              {action.httpMethod ?? "POST"} {superPath}
+                              {"\n"}
+                              {shippoBody}
+                            </pre>
+                          ) : null}
+                          {action.id === "rerun_catalog_sync" ? (
+                            <pre className="text-[10px] font-mono text-charcoal/70 whitespace-pre-wrap bg-white/60 rounded-md p-2 border border-cream-dark/35">
+                              {action.httpMethod ?? "POST"} {superPath}
+                              {"\n"}
+                              {`{}`}
+                            </pre>
+                          ) : null}
+                          {action.id === "retry_webhook_reconcile" || action.id === "retry_payment_reconcile" ? (
+                            <pre className="text-[10px] font-mono text-charcoal/70 whitespace-pre-wrap break-all bg-white/60 rounded-md p-2 border border-cream-dark/35">
+                              {action.httpMethod ?? "POST"} {superPath}
+                              {"\n"}
+                              {squareBody}
+                            </pre>
+                          ) : null}
                         </li>
                       );
                     })}
                   </ul>
+                  {recoveryMessage ? <p className="text-[12px] text-charcoal/70 mt-2">{recoveryMessage}</p> : null}
                 </OperationalCard>
               ) : null}
 

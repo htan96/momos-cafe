@@ -1,18 +1,17 @@
 /**
- * Operational messaging extension surface — SES inbound/outbound orchestration lands here later.
+ * Operational messaging extension surface — SES inbound/outbound threading + persistence.
  *
- * Data model anchors (already in Prisma):
- * - EmailThread — customer ↔ order conversation shell (optional commerceOrderId, customerId).
- * - EmailMessage — individual inbound/outbound records with fulfillmentGroupId hints.
- * - NotificationEvent — append-only bus for transactional + ops notifications.
+ * Production inbound entry points:
+ * - `POST /api/email/inbound` — Svix‑verified **Resend** (`persistInboundEmailEvent` → `ingestOperationalInboundEmail`).
+ * - `POST /api/email/inbound-ses` — **Amazon SNS** (verified signing cert) + optional internal JSON forwarder (`INTERNAL_API_SECRET`).
  *
- * Keep payment, fulfillment, and messaging adapters loosely coupled: emit events rather than importing senders directly.
+ * Unified persistence: `lib/email/ingestOperationalInboundEmail.ts`.
  */
 
 
-/** Future: SES receipt handler normalizes payloads into EmailMessage rows + ConversationParticipant linkage. */
+/** @deprecated SES inbound ingestion lives at `POST /api/email/inbound-ses`; see `docs/ses-inbound-operational.md`. */
 export async function ingestInboundSesPlaceholder(_payload: unknown): Promise<void> {
-  // Extension: correlate In-Reply-To / References RFC headers → EmailThread.providerThreadKey
+  void _payload;
 }
 
 /** Future: connect customer-sent mail to FulfillmentGroup + CommerceOrder timelines. */

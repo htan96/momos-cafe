@@ -8,6 +8,7 @@ import StatusPill from "@/components/governance/StatusPill";
 import SuperAdminEmptyPanel from "@/components/super-admin/SuperAdminEmptyPanel";
 import {
   filterLiveActivityEvents,
+  LIVE_ACTIVITY_FILTER_IDS,
   type LiveActivityFilterId,
 } from "@/lib/liveActivity/liveActivityFilters";
 import { formatAbsoluteTimestamp } from "@/lib/liveActivity/formatActivityTime";
@@ -29,6 +30,9 @@ const MAX_POLL_MS = 30_000;
 type Props = {
   initialFeed: LiveActivityFeedResponse;
   initialSnapshots: LiveActivitySnapshotsResponse;
+  commerceOrderId?: string;
+  incidentId?: string;
+  initialServerFilter?: LiveActivityFilterId;
 };
 
 function mergeEvents(existing: LiveActivityEvent[], incoming: LiveActivityEvent[]): LiveActivityEvent[] {
@@ -66,10 +70,28 @@ function surfacePillVariant(state: LiveActivitySurfaceState): "ok" | "warning" |
   }
 }
 
-export default function LiveActivityWorkspace({ initialFeed, initialSnapshots }: Props) {
+export default function LiveActivityWorkspace({
+  initialFeed,
+  initialSnapshots,
+  commerceOrderId,
+  incidentId,
+  initialServerFilter,
+}: Props) {
+  const commerceScope = commerceOrderId?.trim() ?? "";
+  const incidentRaw = incidentId?.trim() ?? "";
+  const incidentScope =
+    incidentRaw.length >= 10 && /^[a-z][a-z0-9_-]*$/i.test(incidentRaw) ? incidentRaw : "";
+
   const [events, setEvents] = useState<LiveActivityEvent[]>(initialFeed.events);
   const [snapshots, setSnapshots] = useState<LiveActivitySnapshotsResponse>(initialSnapshots);
-  const [filter, setFilter] = useState<LiveActivityFilterId>("ALL");
+  const initialChip =
+    initialServerFilter &&
+    LIVE_ACTIVITY_FILTER_IDS.includes(initialServerFilter as LiveActivityFilterId) &&
+    initialServerFilter !== "ALL"
+      ? initialServerFilter
+      : ("ALL" as LiveActivityFilterId);
+
+  const [filter, setFilter] = useState<LiveActivityFilterId>(initialChip);
   const [searchQuery, setSearchQuery] = useState("");
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [paused, setPaused] = useState(false);
@@ -93,8 +115,14 @@ export default function LiveActivityWorkspace({ initialFeed, initialSnapshots }:
     const params = new URLSearchParams();
     params.set("limit", "50");
     if (filter !== "ALL") params.set("filter", filter);
+    if (commerceScope && /^[0-9a-f-]{36}$/i.test(commerceScope)) {
+      params.set("commerceOrderId", commerceScope);
+    }
+    if (incidentScope) {
+      params.set("incidentId", incidentScope);
+    }
     return params.toString();
-  }, [filter]);
+  }, [filter, commerceScope, incidentScope]);
 
   const fetchSnapshots = useCallback(async () => {
     setSnapshotsLoading(true);
@@ -235,12 +263,41 @@ export default function LiveActivityWorkspace({ initialFeed, initialSnapshots }:
           }
         >
           <div className="space-y-4">
+            {commerceScope ? (
+              <p className="text-[12px] text-charcoal/60 rounded-lg border border-cream-dark/40 bg-white/70 px-3 py-2">
+                Server scope ·{" "}
+                <Link
+                  href={`/super-admin/order-operations/${commerceScope}`}
+                  className="font-mono text-teal-dark font-semibold hover:underline break-all"
+                  title={commerceScope}
+                >
+                  commerceOrderId {commerceScope.slice(0, 8)}…
+                </Link>
+              </p>
+            ) : null}
+
+            {incidentScope ? (
+              <p className="text-[12px] text-charcoal/60 rounded-lg border border-cream-dark/40 bg-white/70 px-3 py-2">
+                Feed scoped ·{" "}
+                <Link
+                  href={`/super-admin/incidents?highlight=${encodeURIComponent(incidentScope)}`}
+                  className="font-mono text-teal-dark font-semibold hover:underline break-all"
+                  title={incidentScope}
+                >
+                  incident {incidentScope.slice(0, 10)}…
+                </Link>{" "}
+                <span className="normal-case tracking-normal font-sans font-normal text-[11px] text-charcoal/45">
+                  (only OperationalActivityEvent ids stored on incident source_event_ids)
+                </span>
+              </p>
+            ) : null}
+
             <div className="flex flex-wrap items-center gap-3 justify-between">
               <ActivityFilterBar
                 filter={filter}
                 searchQuery={searchQuery}
-                onFilterChange={setFilter}
                 onSearchChange={setSearchQuery}
+                onFilterChange={setFilter}
               />
               <div className="flex flex-wrap items-center gap-2 shrink-0">
                 <label className="flex items-center gap-2 text-[12px] text-charcoal/70">

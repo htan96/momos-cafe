@@ -12,8 +12,7 @@ import {
   type GovernanceControlKey,
 } from "@/lib/governance/controlKeys";
 import { loadGovernanceControlRowsUncached } from "@/lib/governance/governanceControls";
-import SuperAdminEmptyPanel from "@/components/super-admin/SuperAdminEmptyPanel";
-import { Layers } from "lucide-react";
+
 
 /** Avoid Postgres access during `next build` — page bootstraps via Prisma only at request time. */
 export const dynamic = "force-dynamic";
@@ -55,7 +54,14 @@ async function bootstrapGovernanceControls(): Promise<GovernanceControlBootstrap
   });
 }
 
-export default async function SuperAdminPlatformFeatureControlsPage() {
+export default async function SuperAdminPlatformFeatureControlsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ notice?: string }>;
+}) {
+  const sp = searchParams ? await searchParams : {};
+  const notice = typeof sp.notice === "string" ? sp.notice.trim() : "";
+
   const initialGovernanceFeatures = await bootstrapGovernanceFeatures();
   const initialGovernanceControls = await bootstrapGovernanceControls();
 
@@ -67,6 +73,12 @@ export default async function SuperAdminPlatformFeatureControlsPage() {
         subtitle="Operational kill switches are enforced at the API boundary. Surface toggles here govern authenticated platform UX — no invented rollout metrics."
       />
 
+      {notice === "platform-notifications-deferred" ?
+        <div className="rounded-xl border border-cream-dark/60 bg-white/90 px-4 py-3 text-[13px] text-charcoal/75 shadow-sm">
+          Outbound broadcast drafting still lives elsewhere — notifications were redirected here from a retired sidebar stub. Governance controls below remain authoritative for kill-switch posture.
+        </div>
+      : null}
+
       <OperationalCard
         title="Operational governance"
         meta="PlatformGovernanceControl · enforced 403s · AppSetting write-through"
@@ -74,14 +86,14 @@ export default async function SuperAdminPlatformFeatureControlsPage() {
         <GovernanceControlsPanel initial={initialGovernanceControls} />
       </OperationalCard>
 
-      <OperationalCard title="Operational mode presets" meta="Not configured">
-        <SuperAdminEmptyPanel
-          icon={Layers}
-          eyebrow="Roadmap"
-          title="No saved operational modes yet"
-          description="Curated degrade / read-only bundles will appear here after product defines them in Postgres-backed configuration. Until then rely on granular governance controls above — not illustrative toggle rows."
-        />
-      </OperationalCard>
+      <div id="operational-presets" className="-scroll-mt-28">
+        <OperationalCard title="Operational mode presets" meta="Roadmap · not persisted">
+          <p className="text-[13px] text-charcoal/70 leading-relaxed">
+            Saved degrade / bundles are{" "}
+            <span className="font-semibold text-charcoal">not configured</span> — rely on granular controls above rather than scripted preset rows until Postgres-backed configuration ships.
+          </p>
+        </OperationalCard>
+      </div>
 
       <OperationalCard
         title="Governance-controlled platform surfaces"

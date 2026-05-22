@@ -7,7 +7,12 @@ export type NotificationRetryPolicy = {
 
 /** Result of processing a single notification row. */
 export type ProcessResult =
-  | { ok: true; notificationId: string }
+  | {
+      ok: true;
+      notificationId: string;
+      /** SES / provider id when delegated channel surfaced one (surfaced onto NotificationEvent payload). */
+      providerMessageId?: string | null;
+    }
   | { ok: false; notificationId: string; retryable: boolean; errorCode: string; message: string };
 
 /** Dead-letter shape when retries are exhausted. */

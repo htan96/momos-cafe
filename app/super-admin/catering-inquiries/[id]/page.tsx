@@ -43,7 +43,7 @@ export default async function SuperAdminCateringInquiryDetailPage(props: PagePro
             href="/super-admin/live-activity"
             className="rounded-lg border border-cream-dark/60 bg-white px-3 py-1.5 text-[12px] font-semibold text-charcoal/80 shadow-sm transition hover:bg-cream-mid/40"
           >
-            Live operations
+            Live activity
           </Link>
         }
       />
@@ -52,7 +52,7 @@ export default async function SuperAdminCateringInquiryDetailPage(props: PagePro
         {linkedCustomer ? (
           <p className="text-[13px] text-charcoal/75">
             <Link
-              href={`/super-admin/customer-operations/${linkedCustomer.id}`}
+              href={`/super-admin/users/customers/${linkedCustomer.id}`}
               className="inline-flex rounded-lg border border-cream-dark/60 bg-white px-3 py-1.5 text-[12px] font-semibold text-charcoal/80 shadow-sm transition hover:bg-cream-mid/40"
             >
               Open customer operations

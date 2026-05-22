@@ -197,8 +197,7 @@ export default function CheckoutPanel({
 
   const ensureCommerceOrder = useCallback(async (): Promise<string | null> => {
     const elig = validateCartEligibilityFromAdminSettings(new Date(), allLines, settings);
-    const payMerch = elig.eligibleLines.filter((l): l is UnifiedMerchLine => l.kind === "merch");
-    if (payMerch.length === 0) return commerceOrderId ?? null;
+    if (elig.eligibleLines.length === 0) return commerceOrderId ?? null;
     if (commerceOrderId) return commerceOrderId;
     const res = await fetch("/api/orders", {
       method: "POST",
@@ -208,9 +207,24 @@ export default function CheckoutPanel({
         lines: elig.eligibleLines.map((l) => ({ ...l })),
       }),
     });
-    const data = (await res.json().catch(() => ({}))) as { ok?: boolean; orderId?: string; error?: unknown };
+    const data = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      orderId?: string;
+      error?: unknown;
+      message?: string;
+    };
     if (!res.ok) {
-      showToast("We couldn’t save your order. Please try again.");
+      const detail =
+        typeof data.message === "string"
+          ? data.message
+          : typeof data.error === "string"
+            ? data.error
+            : "";
+      showToast(
+        detail.trim().length > 0
+          ? `We couldn't save your order: ${detail}`
+          : "We couldn't save your order. Please try again."
+      );
       return null;
     }
     const id = typeof data.orderId === "string" ? data.orderId : null;

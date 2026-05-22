@@ -134,6 +134,8 @@ export type LiveActivitySnapshotsResponse = {
     lateOrStuckFulfillment: number;
     pendingOrchestrationEvents: number;
   };
+  /** Square PSP webhooks reconciled locally with no PaymentRecord match (delivery receipt snapshot for same incident window). */
+  orphanWebhookReceiptWindowCount: number;
 };
 
 /**

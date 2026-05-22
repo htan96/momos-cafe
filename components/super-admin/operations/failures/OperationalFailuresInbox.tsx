@@ -95,14 +95,35 @@ export default function OperationalFailuresInbox({ activeIncidents }: Props) {
   const severity = searchParams.get("severity") ?? "";
   const page = searchParams.get("page") ?? "1";
 
+  const commerceOrderId = searchParams.get("commerceOrderId") ?? "";
+  const failureIncidentId = searchParams.get("incidentId") ?? "";
+  const failureCustomerId = searchParams.get("customerId") ?? "";
+  const paymentRecordId = searchParams.get("paymentRecordId") ?? "";
+  const shipmentId = searchParams.get("shipmentId") ?? "";
+
   const queryString = useMemo(() => {
     const p = new URLSearchParams();
     if (subtype) p.set("subtype", subtype);
     if (lifecycle) p.set("lifecycle", lifecycle);
     if (severity) p.set("severity", severity);
+    if (commerceOrderId) p.set("commerceOrderId", commerceOrderId);
+    if (failureIncidentId) p.set("incidentId", failureIncidentId);
+    if (failureCustomerId) p.set("customerId", failureCustomerId);
+    if (paymentRecordId) p.set("paymentRecordId", paymentRecordId);
+    if (shipmentId) p.set("shipmentId", shipmentId);
     p.set("page", page);
     return p.toString();
-  }, [subtype, lifecycle, severity, page]);
+  }, [
+    subtype,
+    lifecycle,
+    severity,
+    commerceOrderId,
+    failureIncidentId,
+    failureCustomerId,
+    paymentRecordId,
+    shipmentId,
+    page,
+  ]);
 
   const setPage = useCallback(
     (nextPage: number) => {
@@ -203,14 +224,47 @@ export default function OperationalFailuresInbox({ activeIncidents }: Props) {
                   {inc.type.replace(/_/g, " ")}
                 </StatusPill>
                 <span>{inc.title}</span>
-                <Link href="/super-admin/incidents" className="text-teal-dark font-semibold text-[12px] hover:underline">
-                  View incidents
+                <Link
+                  href={`/super-admin/incidents?highlight=${encodeURIComponent(inc.id)}`}
+                  className="text-teal-dark font-semibold text-[12px] hover:underline"
+                >
+                  View incident ledger
                 </Link>
               </li>
             ))}
           </ul>
         </div>
       ) : null}
+
+      {failureIncidentId.trim().length ?
+        <div className="rounded-xl border border-teal-dark/30 bg-teal/[0.08] px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-[13px] text-charcoal/85">
+            Inbox narrowed to OperationalIncident{" "}
+            <code className="font-mono text-[11px] break-all">{failureIncidentId}</code>.
+          </p>
+          <div className="flex flex-wrap gap-2 text-[12px] font-semibold text-teal-dark">
+            <Link
+              className="hover:underline"
+              href={`/super-admin/incidents?highlight=${encodeURIComponent(failureIncidentId)}`}
+            >
+              Highlight ledger row
+            </Link>
+            <Link
+              className="hover:underline"
+              href={`/super-admin/live-activity?incidentId=${encodeURIComponent(failureIncidentId)}`}
+            >
+              Scoped live activity
+            </Link>
+            <button
+              type="button"
+              className="rounded-full border border-cream-dark/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-charcoal/70 hover:bg-white"
+              onClick={() => setFilter("incidentId", "")}
+            >
+              Clear incident scope
+            </button>
+          </div>
+        </div>
+      : null}
 
       <OperationalCard title="Filters" meta="Live query — no fabricated rows">
         <div className="flex flex-wrap gap-2">
@@ -326,6 +380,7 @@ export default function OperationalFailuresInbox({ activeIncidents }: Props) {
                     </div>
                     <div className="flex flex-wrap gap-1.5 shrink-0">
                       <StatusPill variant="neutral">{row.category}</StatusPill>
+                      {row.webhookReceiptId ? <StatusPill variant="neutral">Receipt</StatusPill> : null}
                       {row.classification.retryable ? (
                         <StatusPill variant="neutral">Retryable</StatusPill>
                       ) : null}

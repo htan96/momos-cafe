@@ -100,5 +100,7 @@ export const config = {
     "/api/payments/:path*",
     "/api/email/send",
     "/api/email/send/:path*",
+    "/api/internal/email/ses-smoke-send",
+    "/api/internal/webhooks/ses-notification",
   ],
 };

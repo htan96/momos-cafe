@@ -16,7 +16,7 @@ export default function SuperAdminSettingsHealthPage() {
       <GovPageHeader
         eyebrow="System"
         title="Service health"
-        subtitle="No synthetic mesh probes ship here yet — this page stays descriptive until real monitoring lands."
+        subtitle="Uses static env-shape checks (`NEXT_PUBLIC_*` presence, impersonation secrets) plus candid copy — not live synthetic probes."
       />
 
       <OperationalCard title="Service status" meta="Honest default">

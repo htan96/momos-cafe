@@ -78,6 +78,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "invalid_scope" }, { status: 400 });
   }
 
+  const justification = String((body as { justification?: string }).justification ?? "").trim();
+  if (justification.length < 10) {
+    return NextResponse.json(
+      {
+        error: "invalid_justification",
+        code: "JUSTIFICATION_REQUIRED",
+        message: "Provide justification (minimum 10 characters).",
+      },
+      { status: 400 }
+    );
+  }
+
   if (scope === "admin") {
     return NextResponse.json(
       {
@@ -144,6 +156,11 @@ export async function POST(request: Request) {
     );
   }
 
+  const linkedCustomer = await prisma.customer.findFirst({
+    where: { email: { equals: targetEmail, mode: "insensitive" } },
+    select: { id: true },
+  });
+
   const token = await signImpersonationPayload(
     {
       actorSub: user.sub,
@@ -167,12 +184,15 @@ export async function POST(request: Request) {
     targetType: "user",
     targetId: cognitoUser.sub,
     targetName: targetEmail,
-    description: "Impersonation session started",
+    description: `Impersonation session started (${scope})`,
+    reason: justification,
     metadata: {
       scope,
       source: "api.super-admin.impersonation.start",
       ledgerId,
       sessionPublicId,
+      justificationChars: justification.length,
+      ...(linkedCustomer?.id ? { customerId: linkedCustomer.id } : {}),
     },
     ipAddress,
   });
@@ -190,6 +210,12 @@ export async function POST(request: Request) {
       ledgerId,
       sessionPublicId,
       ...(cognitoUser.sub ? { targetSub: cognitoUser.sub } : {}),
+      ...(linkedCustomer?.id ?
+        {
+          customerId: linkedCustomer.id,
+          entities: { customerId: linkedCustomer.id },
+        }
+      : {}),
     },
     source: "api.super-admin.impersonation.start",
   });

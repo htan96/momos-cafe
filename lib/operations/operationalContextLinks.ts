@@ -31,9 +31,10 @@ export function readOperationalMetadataEntityIds(metadata: unknown): {
   orderId: string | null;
   customerId: string | null;
   shipmentId: string | null;
+  paymentRecordId: string | null;
 } {
   if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
-    return { commerceOrderId: null, orderId: null, customerId: null, shipmentId: null };
+    return { commerceOrderId: null, orderId: null, customerId: null, shipmentId: null, paymentRecordId: null };
   }
   const o = metadata as Record<string, unknown>;
   const entities =
@@ -47,7 +48,8 @@ export function readOperationalMetadataEntityIds(metadata: unknown): {
   const orderId = readUuidFromRecord(merge, ["orderId", "order_id"]);
   const customerId = readUuidFromRecord(merge, ["customerId", "customer_id"]);
   const shipmentId = readUuidFromRecord(merge, ["shipmentId", "shipment_id"]);
-  return { commerceOrderId, orderId, customerId, shipmentId };
+  const paymentRecordId = readUuidFromRecord(merge, ["paymentRecordId", "payment_record_id"]);
+  return { commerceOrderId, orderId, customerId, shipmentId, paymentRecordId };
 }
 
 export function buildOperationalMetadataJumpLinks(metadata: unknown): OperationalMetadataJumpLink[] {
@@ -60,7 +62,7 @@ export function buildOperationalMetadataJumpLinks(metadata: unknown): Operationa
   }
 
   if (customerId) {
-    links.push({ href: `/super-admin/customer-operations/${customerId}`, label: "Open customer" });
+    links.push({ href: `/super-admin/users/customers/${customerId}`, label: "Open customer" });
   }
 
   if (shipmentId) {

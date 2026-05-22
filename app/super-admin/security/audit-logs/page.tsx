@@ -4,7 +4,15 @@ import OperationalCard from "@/components/governance/OperationalCard";
 import EmptyGovState from "@/components/governance/EmptyGovState";
 import { loadRecentGovernanceAuditRows } from "@/lib/governance/governanceAuditDisplay";
 
-export default async function SuperAdminSecurityAuditLogsPage() {
+
+export default async function SuperAdminSecurityAuditLogsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ notice?: string }>;
+}) {
+  const sp = searchParams ? await searchParams : {};
+  const notice = typeof sp.notice === "string" ? sp.notice.trim() : "";
+
   const rows = await loadRecentGovernanceAuditRows(100);
 
   return (
@@ -14,6 +22,14 @@ export default async function SuperAdminSecurityAuditLogsPage() {
         title="Audit logs"
         subtitle="Append-only GovernanceAuditEvent stream — newest 100 reads. Structured filters ship with the backlog; nothing here impersonates segmentation."
       />
+
+      {notice === "security-events-deferred" ?
+        <OperationalCard title="About security KPI tiles" meta="Transparency">
+          <p className="text-[13px] text-charcoal/75 leading-relaxed">
+            Dedicated threat-feed panels stay deferred — we redirect the old sidebar entry here so auditors see candid copy instead of empty chrome. Incident response stays with provider consoles plus this audited stream.
+          </p>
+        </OperationalCard>
+      : null}
 
       <OperationalCard
         title="Governance timeline"

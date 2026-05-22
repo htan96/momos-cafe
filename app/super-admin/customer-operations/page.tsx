@@ -47,7 +47,7 @@ export default async function SuperAdminCustomerOperationsPage() {
       <GovPageHeader
         eyebrow="Platform · Customers"
         title="Customer operations"
-        subtitle="Live `Customer` rows from Postgres — newest 80 by `updated_at`. Counts and last order come from the `orders` relation on `CommerceOrder`."
+        subtitle='Live Customer rows from Postgres — canonical dossiers live under `/super-admin/users/customers`; this pane remains a coarse "recent 80" feed by updated_at.'
         actions={
           <Link
             href="/super-admin/users/customers"
@@ -82,7 +82,7 @@ export default async function SuperAdminCustomerOperationsPage() {
                     <tr key={c.id} className="bg-white/80">
                       <td className="px-3 py-2">
                         <Link
-                          href={`/super-admin/customer-operations/${c.id}`}
+                          href={`/super-admin/users/customers/${c.id}`}
                           className="font-mono text-[12px] text-teal-dark hover:underline"
                           title={c.id}
                         >

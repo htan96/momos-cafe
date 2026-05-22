@@ -1,37 +1,13 @@
 import { NextResponse } from "next/server";
-import { Resend } from "resend";
-import type { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
 import { jsonError } from "@/lib/server/apiErrors";
 import { rateLimitHit, clientIp } from "@/lib/server/rateLimitMemory";
-import { appendNotificationEvent } from "@/lib/notifications/notificationEvents";
-import { emitPlatformEvent } from "@/lib/platform/events/emitPlatformEvent";
-import { PLATFORM_EVENT_SUBTYPE } from "@/lib/platform/events/taxonomy";
-import { OperationalActivitySeverity } from "@prisma/client";
+import { sendTransactionalOutbound } from "@/lib/email/sendTransactionalOutbound";
 
-/** Staff/system outbound transactional send — protected by orchestration middleware */
+/** Staff/system outbound transactional send — protected by orchestration middleware (`INTERNAL_API_SECRET`). */
 export async function POST(req: Request) {
   const ip = clientIp(req);
   if (rateLimitHit(`email:send:${ip}`, { windowMs: 60_000, max: 30 })) {
     return jsonError(429, "RATE_LIMITED", "Too many requests");
-  }
-
-  const apiKey = process.env.RESEND_API_KEY?.trim();
-  const from = process.env.RESEND_FROM_EMAIL?.trim() ?? "orders@momosvallejo.com";
-  if (!apiKey) {
-    console.error("[email/send] RESEND_API_KEY missing");
-    void emitPlatformEvent({
-      subtype: PLATFORM_EVENT_SUBTYPE.SYSTEM_EMAIL_SEND_FAILED,
-      category: "SYSTEM_EVENT",
-      lifecycle: "failed",
-      severity: OperationalActivitySeverity.error,
-      actorType: "service",
-      message: "Outbound email aborted — RESEND_API_KEY missing",
-      detail: { stage: "config", httpStatus: 503, code: "EMAIL_UNCONFIGURED" },
-      source: { handler: "POST app/api/email/send" },
-      sourceTag: "api.email.send",
-    });
-    return jsonError(503, "EMAIL_UNCONFIGURED", "Outbound email not configured");
   }
 
   let body: {
@@ -41,6 +17,9 @@ export async function POST(req: Request) {
     html?: string;
     commerceOrderId?: string | null;
     threadId?: string | null;
+    replyTo?: string | null;
+    correlationId?: string | null;
+    idempotencyKey?: string | null;
   };
   try {
     body = (await req.json()) as typeof body;
@@ -59,115 +38,40 @@ export async function POST(req: Request) {
     return jsonError(400, "VALIDATION_ERROR", "to, subject, and text or html required");
   }
 
-  let threadId = body.threadId?.trim() || null;
-  const commerceOrderId = body.commerceOrderId?.trim() || null;
+  const result = await sendTransactionalOutbound({
+    to: cleaned,
+    subject,
+    text,
+    html,
+    commerceOrderId: body.commerceOrderId?.trim(),
+    threadId: body.threadId?.trim(),
+    replyTo: body.replyTo?.trim() ?? undefined,
+    correlationId: body.correlationId?.trim() ?? undefined,
+    idempotencyKey: body.idempotencyKey?.trim() ?? undefined,
+    suppressPlatformEvents: false,
+  });
 
-  try {
-    if (!threadId && commerceOrderId) {
-      const t = await prisma.emailThread.findFirst({
-        where: { commerceOrderId },
-        orderBy: { updatedAt: "desc" },
-      });
-      threadId = t?.id ?? null;
-    }
-
-    if (!threadId) {
-      return jsonError(
-        400,
-        "THREAD_CONTEXT_REQUIRED",
-        "Provide threadId or commerceOrderId so outbound mail stays threaded"
-      );
-    }
-
-    const outbound = await prisma.emailMessage.create({
-      data: {
-        threadId,
-        direction: "outbound",
-        fromEmail: from,
-        toEmails: cleaned as unknown as Prisma.InputJsonValue,
-        subject,
-        textBody: text ?? null,
-        htmlBody: html ?? null,
-        deliveryStatus: "queued",
-      },
+  if (result.ok) {
+    const legacySesAlias =
+      result.transport === "ses" ? { sesMessageId: result.providerMessageId } : {};
+    const legacyResendAlias =
+      result.transport === "resend" ? { resendEmailId: result.providerMessageId } : {};
+    return NextResponse.json({
+      ok: true,
+      transport: result.transport,
+      threadId: result.threadId,
+      messageId: result.outboundMessageId,
+      providerMessageId: result.providerMessageId,
+      ...legacySesAlias,
+      /** Historical Resend-sent rows replay only. */
+      ...legacyResendAlias,
     });
-
-    const resend = new Resend(apiKey);
-    const sendPayload =
-      text && html
-        ? { from, to: cleaned, subject, text, html }
-        : html
-          ? { from, to: cleaned, subject, html }
-          : { from, to: cleaned, subject, text: text! };
-
-    const { data, error } = await resend.emails.send(sendPayload);
-
-    if (error) {
-      await prisma.emailMessage.update({
-        where: { id: outbound.id },
-        data: {
-          deliveryStatus: "failed",
-          rawPayload: { resendError: error } as Prisma.InputJsonValue,
-        },
-      });
-      console.error("[email/send] Resend error", error);
-      void emitPlatformEvent({
-        subtype: PLATFORM_EVENT_SUBTYPE.SYSTEM_EMAIL_SEND_FAILED,
-        category: "SYSTEM_EVENT",
-        lifecycle: "failed",
-        severity: OperationalActivitySeverity.warning,
-        actorType: "service",
-        message: "Resend rejected outbound staff email payload",
-        entities: commerceOrderId ? { commerceOrderId } : {},
-        detail: {
-          stage: "resend_transport",
-          code: error.name ?? "RESEND_REJECTED",
-          providerMessage:
-            typeof error.message === "string" ? error.message.slice(0, 400) : String(error),
-        },
-        legacyFlatMetadata: { threadId },
-        source: { handler: "POST app/api/email/send" },
-        sourceTag: "api.email.send",
-      });
-      return jsonError(502, "RESEND_REJECTED", error.message ?? "Resend rejected send");
-    }
-
-    await prisma.emailMessage.update({
-      where: { id: outbound.id },
-      data: {
-        providerMessageId: data?.id,
-        deliveryStatus: "sent",
-      },
-    });
-
-    await appendNotificationEvent(
-      "email.outbound.sent",
-      {
-        threadId,
-        messageId: outbound.id,
-        resendEmailId: data?.id ?? null,
-        to: cleaned,
-      } as Prisma.InputJsonValue
-    );
-
-    return NextResponse.json({ ok: true, threadId, messageId: outbound.id, resendEmailId: data?.id });
-  } catch (e) {
-    console.error("[email/send POST]", e);
-    void emitPlatformEvent({
-      subtype: PLATFORM_EVENT_SUBTYPE.SYSTEM_EMAIL_SEND_FAILED,
-      category: "SYSTEM_EVENT",
-      lifecycle: "failed",
-      severity: OperationalActivitySeverity.error,
-      actorType: "service",
-      message: "Unhandled error while orchestrating transactional email send",
-      detail: {
-        stage: "handler",
-        httpStatus: 500,
-        errorName: e instanceof Error ? e.name : typeof e,
-      },
-      source: { handler: "POST app/api/email/send" },
-      sourceTag: "api.email.send",
-    });
-    return jsonError(500, "EMAIL_SEND_FAILED", "Could not send email");
   }
+
+  return jsonError(
+    result.httpStatus,
+    result.platformCode,
+    result.customerMessage ?? result.platformCode,
+    result.detail
+  );
 }

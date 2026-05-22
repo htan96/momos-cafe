@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-cognito-identity-provider": "^3.1045.0",
+    "@aws-sdk/client-sesv2": "^3.962.0",
     "@prisma/client": "^6.19.0",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -33,7 +34,6 @@
     "prisma": "^6.19.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
-    "resend": "^6.12.3",
     "shippo": "^2.18.0",
     "square": "^44.0.1",
     "svix": "^1.93.0",

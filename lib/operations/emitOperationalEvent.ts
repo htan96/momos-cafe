@@ -82,9 +82,12 @@ export function emitPaymentTerminalEvent(args: {
   squarePaymentId: string;
   squareStatus: string;
   amountCents: number;
+  /** Webhook delivery receipt row when this transition was driven by a correlated HTTP delivery. */
+  receiptId?: string | null;
   tx?: Prisma.TransactionClient;
 }): Promise<string | null> {
   const isOk = args.kind === "succeeded";
+  const rid = args.receiptId?.trim();
   return emitOperationalEvent({
     type: isOk ? OPERATIONAL_EVENT_TYPES.PAYMENT_SUCCEEDED : OPERATIONAL_EVENT_TYPES.PAYMENT_FAILED,
     severity: isOk ? OperationalActivitySeverity.info : OperationalActivitySeverity.warning,
@@ -98,6 +101,16 @@ export function emitPaymentTerminalEvent(args: {
       squarePaymentId: args.squarePaymentId,
       squareStatus: args.squareStatus,
       amountCents: args.amountCents,
+      ...(rid
+        ? {
+            receiptId: rid,
+            detail: { receiptId: rid },
+            entities: {
+              commerceOrderId: args.commerceOrderId ?? undefined,
+              paymentRecordId: args.paymentRecordId,
+            },
+          }
+        : {}),
     },
     source: "webhooks.square",
     tx: args.tx,

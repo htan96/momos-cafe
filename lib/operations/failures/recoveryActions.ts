@@ -1,13 +1,13 @@
 /**
- * Recovery action registry — contracts only for Phase 5.
+ * Recovery action registry — contracts for Operations → Failures detail panel.
  *
- * Idempotency: each handler MUST accept a stable idempotency key derived from
- * `{actionId}:{entityId}:{failureEventId}` and reject duplicate side effects within a TTL window.
+ * Idempotency: each handler SHOULD accept a stable idempotency key derived from
+ * `{actionId}:{entityId}:{failureEventId}` once side-effect routes land.
  *
- * Audit: successful retries MUST append `GovernanceAuditEvent` (super_admin actor) and MAY emit
- * a platform event with lifecycle `processing` → `succeeded` | `failed`.
+ * Audit: successful retries append `GovernanceAuditEvent` on super-admin routes
+ * (`/api/super-admin/operations/recovery/*`).
  */
-export type RecoveryActionHandler = "stub" | "route";
+export type RecoveryActionHandler = "stub" | "route" | "super_admin_api";
 
 export type RecoveryActionDefinition = {
   id: string;
@@ -16,39 +16,52 @@ export type RecoveryActionDefinition = {
   requiredPermission: "super_admin";
   idempotencyKeyHint: string;
   handler: RecoveryActionHandler;
-  /** Populated when handler === 'route' */
+  /** Populated when handler === 'route' (legacy ops session paths) */
   routePath?: string;
+  /** Preferred super-admin JSON API (session cookie auth) */
+  superAdminApiPath?: string;
+  httpMethod?: "POST" | "GET" | "PATCH";
   /** Failure subtypes this action applies to (empty = all retryable) */
   applicableSubtypes?: string[];
 };
+
+export const RECOVERY_RESEND_EMAIL_TOOLTIP =
+  "`POST /api/email/send` expects explicit to/subject/html and a thread id (or commerceOrderId to discover a thread). There is no allow-listed template idempotency path — staff must resend from the email console to avoid duplicate customer mail.";
 
 export const RECOVERY_ACTIONS: RecoveryActionDefinition[] = [
   {
     id: "retry_shippo_label",
     label: "Retry Shippo label",
-    description: "Re-attempt label purchase for the linked shipment/order.",
+    description: "Re-attempt label purchase for the linked shipment/order (super-admin audited).",
     requiredPermission: "super_admin",
     idempotencyKeyHint: "retry_shippo_label:{shipmentId}:{eventId}",
-    handler: "route",
-    routePath: "/api/ops/shipping/purchase-label",
+    handler: "super_admin_api",
+    superAdminApiPath: "/api/super-admin/operations/recovery/shippo-label",
+    httpMethod: "POST",
     applicableSubtypes: ["shipment.label.failed"],
   },
   {
     id: "retry_webhook_reconcile",
     label: "Reconcile webhook",
-    description: "Replay Square webhook processing for the correlation id.",
+    description:
+      "Re-fetch Square payment by id / payment record id and rerun local reconcile (read-only PSP GET; audited).",
     requiredPermission: "super_admin",
     idempotencyKeyHint: "retry_webhook_reconcile:{webhookEventId}:{eventId}",
-    handler: "stub",
+    handler: "super_admin_api",
+    superAdminApiPath: "/api/super-admin/operations/recovery/square-payment-lookup",
+    httpMethod: "POST",
     applicableSubtypes: ["payment.webhook.processing_failed", "payment.square.orphan_webhook"],
   },
   {
     id: "retry_payment_reconcile",
     label: "Reconcile payment",
-    description: "Re-fetch Square payment state for the commerce order.",
+    description:
+      "Re-fetch Square payment for the commerce order / payment row and rerun local reconcile (read-only PSP GET; audited).",
     requiredPermission: "super_admin",
     idempotencyKeyHint: "retry_payment_reconcile:{commerceOrderId}:{eventId}",
-    handler: "stub",
+    handler: "super_admin_api",
+    superAdminApiPath: "/api/super-admin/operations/recovery/square-payment-lookup",
+    httpMethod: "POST",
     applicableSubtypes: ["payment.failed", "payment.register.failed"],
   },
   {
@@ -63,14 +76,31 @@ export const RECOVERY_ACTIONS: RecoveryActionDefinition[] = [
   {
     id: "rerun_catalog_sync",
     label: "Rerun catalog sync",
-    description: "Trigger Square catalog hydration.",
+    description: "Trigger Square catalog hydration (super-admin; bypasses internal secret header).",
     requiredPermission: "super_admin",
     idempotencyKeyHint: "rerun_catalog_sync:{eventId}",
-    handler: "route",
-    routePath: "/api/square/catalog/sync",
+    handler: "super_admin_api",
+    superAdminApiPath: "/api/super-admin/operations/recovery/catalog-sync",
+    httpMethod: "POST",
     applicableSubtypes: ["menu.sync.failed"],
   },
 ];
+
+export type RecoveryActionExecutionRequest = {
+  actionId: string;
+  /** Super-admin recovery routes only today */
+  shipmentId?: string;
+  commerceOrderId?: string;
+  failureEventId?: string;
+};
+
+/**
+ * Placeholder for eventual server-orchestrated recovery fan-out. Today individual
+ * routes own side effects; callers should prefer `superAdminApiPath` fetches.
+ */
+export async function executeRecoveryAction(_request: RecoveryActionExecutionRequest): Promise<never> {
+  throw new Error("executeRecoveryAction is not wired — call /api/super-admin/operations/recovery/* directly");
+}
 
 export function recoveryActionsForSubtype(subtype: string): RecoveryActionDefinition[] {
   return RECOVERY_ACTIONS.filter(

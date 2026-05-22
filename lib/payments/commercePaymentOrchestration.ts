@@ -2,10 +2,37 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { validateOrderStatusTransition } from "@/lib/commerce/orderLifecycle";
 import { appendNotificationEvent } from "@/lib/notifications/notificationEvents";
-import { emitPaymentTerminalEvent } from "@/lib/operations/emitOperationalEvent";
+import {
+  emitOperationalEvent,
+  emitPaymentTerminalEvent,
+} from "@/lib/operations/emitOperationalEvent";
+import { OPERATIONAL_EVENT_TYPES } from "@/lib/operations/operationalEventTypes";
 import { emitPlatformEvent } from "@/lib/platform/events/emitPlatformEvent";
+import type { PlatformEventMetadataV1 } from "@/lib/platform/events/metadata";
 import { PLATFORM_EVENT_SUBTYPE } from "@/lib/platform/events/taxonomy";
+import {
+  extractSquarePaymentWebhookEnvelope,
+  inferLocalIdsFromPeekedWebhook,
+} from "@/lib/webhooks/peekSquarePaymentFromWebhook";
 import { OperationalActivitySeverity } from "@prisma/client";
+
+export type SquarePaymentWebhookReconcileContext = {
+  receiptId?: string | null;
+  correlation?: PlatformEventMetadataV1["correlation"];
+};
+
+export type SquarePaymentWebhookReconcileResult = {
+  ok: boolean;
+  detail?: string;
+  /** No `payment.*` envelope — reconcile intentionally skipped */
+  nonPaymentEnvelope: boolean;
+  /** Ran the transactional payment matching path */
+  reconcileRan: boolean;
+  /** Emitted `payment.square.orphan_webhook` platform event */
+  orphanEmitted: boolean;
+  commerceOrderId: string | null;
+  paymentRecordId: string | null;
+};
 
 export async function registerPendingCommercePayment(input: {
   commerceOrderId: string;
@@ -17,7 +44,7 @@ export async function registerPendingCommercePayment(input: {
     throw new Error("INVALID_IDEMPOTENCY_KEY");
   }
 
-  return prisma.$transaction(async (tx) => {
+  const trx = await prisma.$transaction(async (tx) => {
     const existing = await tx.paymentRecord.findUnique({
       where: { idempotencyKey: key },
       include: { order: true },
@@ -27,8 +54,10 @@ export async function registerPendingCommercePayment(input: {
         throw new Error("IDEMPOTENCY_KEY_ORDER_MISMATCH");
       }
       return {
+        created: false as const,
         payment: { id: existing.id },
         orderStatus: existing.order?.status ?? "unknown",
+        registeredAmountCents: undefined as number | undefined,
       };
     }
 
@@ -75,38 +104,30 @@ export async function registerPendingCommercePayment(input: {
 
     const refreshed = await tx.commerceOrder.findUnique({ where: { id: order.id } });
     return {
+      created: true as const,
       payment: { id: payment.id },
       orderStatus: refreshed?.status ?? "pending_payment",
+      registeredAmountCents: amt,
     };
   });
-}
 
-function extractPaymentEnvelope(body: Record<string, unknown>): {
-  squarePaymentId: string;
-  status: string;
-  referenceId?: string;
-} | null {
-  const data = body.data as Record<string, unknown> | undefined;
-  const obj = data?.object as Record<string, unknown> | undefined;
-  const payment = (obj?.payment ?? obj) as Record<string, unknown> | undefined;
-
-  const id = typeof payment?.id === "string" ? payment.id : undefined;
-  const status = typeof payment?.status === "string" ? payment.status : undefined;
-  const referenceId =
-    typeof payment?.reference_id === "string"
-      ? payment.reference_id
-      : typeof payment?.referenceId === "string"
-        ? payment.referenceId
-        : undefined;
-
-  if (!id || !status) return null;
-
-  const rootType = typeof body.type === "string" ? body.type : "";
-  if (rootType && !/^payment\./i.test(rootType)) {
-    return null;
+  if (trx.created) {
+    void emitOperationalEvent({
+      type: OPERATIONAL_EVENT_TYPES.PAYMENT_PENDING_REGISTERED,
+      severity: OperationalActivitySeverity.info,
+      actorType: "customer",
+      message: `Pending commerce payment shell registered (${trx.payment.id.slice(0, 8)}…)`,
+      metadata: {
+        commerceOrderId: input.commerceOrderId,
+        paymentRecordId: trx.payment.id,
+        amountCents: trx.registeredAmountCents ?? input.amountCents,
+        idempotencyKey: input.idempotencyKey.trim(),
+      },
+      source: "registerPendingCommercePayment",
+    });
   }
 
-  return { squarePaymentId: id, status, referenceId };
+  return { payment: trx.payment, orderStatus: trx.orderStatus };
 }
 
 function paymentRecordSquareStatus(status: string): {
@@ -126,13 +147,21 @@ function paymentRecordSquareStatus(status: string): {
 }
 
 /** Idempotent webhook handler — links Square payments back to `PaymentRecord` + advances order when appropriate */
-export async function reconcileSquarePaymentWebhook(rawBody: Record<string, unknown>): Promise<{
-  ok: boolean;
-  detail?: string;
-}> {
-  const extracted = extractPaymentEnvelope(rawBody);
+export async function reconcileSquarePaymentWebhook(
+  rawBody: Record<string, unknown>,
+  ctx?: SquarePaymentWebhookReconcileContext
+): Promise<SquarePaymentWebhookReconcileResult> {
+  const extracted = extractSquarePaymentWebhookEnvelope(rawBody);
   if (!extracted) {
-    return { ok: true, detail: "ignored_non_payment_event" };
+    return {
+      ok: true,
+      detail: "ignored_non_payment_event",
+      nonPaymentEnvelope: true,
+      reconcileRan: false,
+      orphanEmitted: false,
+      commerceOrderId: null,
+      paymentRecordId: null,
+    };
   }
 
   const { squarePaymentId, status, referenceId } = extracted;
@@ -148,6 +177,8 @@ export async function reconcileSquarePaymentWebhook(rawBody: Record<string, unkn
 
   let pendingTerminalEmit: PendingTerminal | undefined;
   let orphanWebhookEmit: { squarePaymentId: string; status: string; referenceId: string | null } | undefined;
+  let matchedCommerceOrderId: string | null = null;
+  let matchedPaymentRecordId: string | null = null;
 
   await prisma.$transaction(async (tx) => {
     let record =
@@ -179,6 +210,9 @@ export async function reconcileSquarePaymentWebhook(rawBody: Record<string, unkn
       );
       return;
     }
+
+    matchedCommerceOrderId = record.orderId ?? null;
+    matchedPaymentRecordId = record.id;
 
     const prevStatus = record.status;
     const mapped = paymentRecordSquareStatus(status);
@@ -235,6 +269,11 @@ export async function reconcileSquarePaymentWebhook(rawBody: Record<string, unkn
   });
 
   if (orphanWebhookEmit) {
+    const inferred = await inferLocalIdsFromPeekedWebhook({
+      squarePaymentId: orphanWebhookEmit.squarePaymentId,
+      referenceId: orphanWebhookEmit.referenceId ?? undefined,
+    });
+    const receiptId = ctx?.receiptId?.trim();
     void emitPlatformEvent({
       subtype: PLATFORM_EVENT_SUBTYPE.PAYMENT_SQUARE_ORPHAN_WEBHOOK,
       category: "PAYMENT_EVENT",
@@ -242,19 +281,44 @@ export async function reconcileSquarePaymentWebhook(rawBody: Record<string, unkn
       severity: OperationalActivitySeverity.warning,
       actorType: "service",
       message: "Square webhook payment could not be matched to a pending PaymentRecord",
+      correlation: ctx?.correlation ?? {},
+      entities: {
+        commerceOrderId: inferred.commerceOrderId ?? undefined,
+        paymentRecordId: inferred.paymentRecordId ?? undefined,
+      },
       detail: {
         squarePaymentId: orphanWebhookEmit.squarePaymentId,
         squareStatus: orphanWebhookEmit.status,
         referenceId: orphanWebhookEmit.referenceId,
+        ...(receiptId ? { receiptId } : {}),
       },
       source: { handler: "reconcileSquarePaymentWebhook" },
       sourceTag: "webhooks.square",
     });
+
+    return {
+      ok: true,
+      nonPaymentEnvelope: false,
+      reconcileRan: false,
+      orphanEmitted: true,
+      commerceOrderId: inferred.commerceOrderId,
+      paymentRecordId: inferred.paymentRecordId,
+    };
   }
 
   if (pendingTerminalEmit) {
-    await emitPaymentTerminalEvent(pendingTerminalEmit);
+    await emitPaymentTerminalEvent({
+      ...pendingTerminalEmit,
+      receiptId: ctx?.receiptId ?? null,
+    });
   }
 
-  return { ok: true };
+  return {
+    ok: true,
+    nonPaymentEnvelope: false,
+    reconcileRan: true,
+    orphanEmitted: false,
+    commerceOrderId: pendingTerminalEmit?.commerceOrderId ?? matchedCommerceOrderId,
+    paymentRecordId: pendingTerminalEmit?.paymentRecordId ?? matchedPaymentRecordId,
+  };
 }

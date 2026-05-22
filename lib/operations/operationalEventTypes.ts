@@ -3,6 +3,8 @@ import type { PlatformEventSubtype } from "@/lib/platform/events/taxonomy";
 /** Event `type` values persisted to `OperationalActivityEvent.type` (only types emitted by the app). */
 export const OPERATIONAL_EVENT_TYPES = {
   ORDER_CREATED: "order.created",
+  /** Pending `PaymentRecord` created (checkout register / Square charge not yet finalized). */
+  PAYMENT_PENDING_REGISTERED: "payment.pending_registered",
   PAYMENT_SUCCEEDED: "payment.succeeded",
   PAYMENT_FAILED: "payment.failed",
   AUTH_LOGIN: "auth.login",

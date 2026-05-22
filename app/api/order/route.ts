@@ -21,8 +21,11 @@ import {
 import { verifySquarePaymentCaptured } from "@/lib/verifySquarePayment";
 import { parseUnifiedCartLines } from "@/lib/commerce/parseUnifiedCartLines";
 import { getCustomerSession } from "@/lib/auth/getCustomerSession";
+import { prisma } from "@/lib/prisma";
+import { registerPendingCommercePayment } from "@/lib/payments/commercePaymentOrchestration";
 import { reconcileCommerceOrderAfterStorefrontPayment } from "@/lib/server/reconcileCommerceCheckout";
 import { persistStorefrontShipmentSelection } from "@/lib/server/persistStorefrontShipment";
+import { isUnifiedCommerceCheckoutEnabled } from "@/lib/server/unifiedCommerceCheckout";
 import type { UnifiedMerchLine } from "@/types/commerce";
 import { getMaintenanceFlags } from "@/lib/app-settings/settings";
 import { maintenanceModeJsonResponse } from "@/lib/maintenance/unifiedCartMaintenance";
@@ -256,6 +259,15 @@ function squareOrderCreateIdempotencyKey(checkoutCorrelationId: string): string 
     .update(`square-orders-create:${checkoutCorrelationId}`)
     .digest("base64url")
     .slice(0, SQUARE_PAYMENT_IDEMPOTENCY_KEY_MAX);
+}
+
+/** Stable `PaymentRecord.idempotencyKey` tying `checkoutAttemptId` to a storefront `commerceOrder`. */
+function commercePaymentShellIdempotencyKey(commerceOrderId: string, checkoutAttemptId: unknown): string {
+  const attempt =
+    typeof checkoutAttemptId === "string" && checkoutAttemptId.trim().length > 0 ? checkoutAttemptId.trim() : "none";
+  return createHash("sha256")
+    .update(`commerce-pay-shell:${commerceOrderId}:${attempt}`)
+    .digest("hex");
 }
 
 function isUniqueViolation(err: unknown): boolean {
@@ -601,6 +613,22 @@ export async function POST(request: Request) {
       );
     }
 
+    const unifiedCommerceCheckout = isUnifiedCommerceCheckoutEnabled();
+    let registeredCommercePaymentShellId: string | null = null;
+
+    /** Require a draft commerce shell + fulfillment groups before charging Square (when DB persist is enabled). */
+    if (unifiedCommerceCheckout && totalCents > 0 && !commerceOrderId && persistOrdersToDb) {
+      return NextResponse.json(
+        {
+          error:
+            "This checkout could not confirm your storefront order draft. Refresh checkout so we can recreate it, then try again.",
+          code: "commerce_order_required",
+          orderId,
+        },
+        { status: 422 }
+      );
+    }
+
     const customerPayload = { name, phone, email, notes: notes || undefined };
     const estimatedPickupAtIso = estimatedPickupAt.toISOString();
     const scheduledForIso =
@@ -666,10 +694,67 @@ export async function POST(request: Request) {
 
     const idempotencyKey = squarePaymentIdempotencyKey;
 
+    if (
+      unifiedCommerceCheckout &&
+      totalCents > 0 &&
+      commerceOrderId &&
+      persistOrdersToDb
+    ) {
+      try {
+        await prisma.commerceOrder.update({
+          where: { id: commerceOrderId },
+          data: { totalCents },
+        });
+        const shellKey = commercePaymentShellIdempotencyKey(commerceOrderId, checkoutAttemptId);
+        const reg = await registerPendingCommercePayment({
+          commerceOrderId,
+          idempotencyKey: shellKey,
+          amountCents: totalCents,
+        });
+        registeredCommercePaymentShellId = reg.payment.id;
+      } catch (regErr: unknown) {
+        const msg = regErr instanceof Error ? regErr.message : String(regErr);
+        console.error("[Order] Unified commerce pending payment register failed", {
+          cafeOrderCorrelationId: orderId,
+          commerceOrderId,
+          totalCents,
+          detail: squareErrorForLog(regErr),
+        });
+        void emitOperationalEvent({
+          type: OPERATIONAL_EVENT_TYPES.PAYMENT_FAILED,
+          severity: OperationalActivitySeverity.warning,
+          actorType: "customer",
+          message: `Legacy checkout commerce payment shell register failed (${orderId.slice(0, 8)}…)`,
+          metadata: {
+            flow: "legacy_cafe_api_order",
+            cafeOrderCorrelationId: orderId,
+            commerceOrderId,
+            registerError: msg.slice(0, 240),
+            phase: "register_pending_commerce_payment",
+          },
+          source: "api.order",
+        });
+        const code =
+          msg.includes("ORDER_NOT_FOUND") ? "checkout_draft_not_found" : "commerce_pay_register_failed";
+        const hint =
+          msg.includes("ORDER_NOT_FOUND")
+            ? "Your checkout draft expired or was cleared. Refresh checkout and try again."
+            : msg.startsWith("ORDER_NOT_PAYABLE")
+              ? "This storefront order isn’t payable in its current state. Refresh checkout and try again."
+              : "Checkout couldn’t start payment bookkeeping. Refresh checkout or try again in a minute.";
+        return NextResponse.json(
+          { error: hint, code, commerceOrderId, orderId },
+          { status: msg.includes("ORDER_NOT_FOUND") ? 404 : 422 }
+        );
+      }
+    }
+
     console.log("[Order] Payment started", {
       orderId,
       totalCents,
       squareOrderId: squareOrderId ?? null,
+      commerceOrderId: commerceOrderId ?? null,
+      commercePaymentShellId: registeredCommercePaymentShellId ?? null,
     });
     const paymentPayload: {
       sourceId: string;
@@ -677,6 +762,8 @@ export async function POST(request: Request) {
       amountMoney: { amount: bigint; currency: "USD" };
       locationId: string;
       orderId?: string;
+      /** Square payment `reference_id` → reconciles webhook to `PaymentRecord.id` (`peekSquarePaymentFromWebhook`). */
+      referenceId?: string;
       autocomplete: boolean;
       note: string;
     } = {
@@ -689,6 +776,9 @@ export async function POST(request: Request) {
     };
     if (squareOrderId) {
       paymentPayload.orderId = squareOrderId;
+    }
+    if (registeredCommercePaymentShellId) {
+      paymentPayload.referenceId = registeredCommercePaymentShellId;
     }
 
     if (ORDER_DEBUG) {
@@ -828,6 +918,21 @@ export async function POST(request: Request) {
       paymentId,
       paymentVerified,
     });
+
+    if (registeredCommercePaymentShellId && persistOrdersToDb && paymentId) {
+      try {
+        await prisma.paymentRecord.update({
+          where: { id: registeredCommercePaymentShellId },
+          data: { squarePaymentId: paymentId },
+        });
+      } catch (e: unknown) {
+        console.warn("[Order] Failed to eagerly link PaymentRecord.squarePaymentId", {
+          paymentRecordId: registeredCommercePaymentShellId,
+          paymentId,
+          error: squareErrorForLog(e),
+        });
+      }
+    }
 
     let persistedToDatabase = false;
     if (persistOrdersToDb) {

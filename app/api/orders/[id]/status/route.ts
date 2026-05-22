@@ -1,13 +1,21 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import {
+  COMMERCE_ORDER_STATUSES,
   validateOrderStatusTransition,
   type CommerceOrderStatus,
-  COMMERCE_ORDER_STATUSES,
 } from "@/lib/commerce/orderLifecycle";
+import {
+  assertOperationalCommerceOrderMutation,
+  loadOpsSessionForOrderMutation,
+} from "@/lib/server/commerceOrderApiAuth";
 
-/** PATCH coarse commerce order status — validated transitions only */
+/** PATCH coarse commerce order status — ops/internal only (never public storefront). */
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const session = await loadOpsSessionForOrderMutation();
+  const auth = assertOperationalCommerceOrderMutation(req, session, "orders:write");
+  if (!auth.ok) return auth.response;
+
   const { id } = await ctx.params;
   let body: { status?: string };
   try {

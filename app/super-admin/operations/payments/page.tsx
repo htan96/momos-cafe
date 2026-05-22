@@ -3,6 +3,11 @@ import { WebhookProcessingStatus } from "@prisma/client";
 import GovPageHeader from "@/components/governance/GovPageHeader";
 import OperationalCard from "@/components/governance/OperationalCard";
 import StatusPill, { type StatusPillVariant } from "@/components/governance/StatusPill";
+import OperationalBreadcrumbs from "@/components/super-admin/operations/OperationalBreadcrumbs";
+import OperationalCrossLinks from "@/components/super-admin/operations/OperationalCrossLinks";
+import OperationalEscalationBanner from "@/components/super-admin/operations/OperationalEscalationBanner";
+import { orphanSquarePaymentOperationalContext } from "@/components/super-admin/operations/operationalIncidentPresets";
+import { superAdminOperationsBreadcrumbs } from "@/components/super-admin/operations/superAdminOperationsBreadcrumbs";
 import { buildSquareDashboardLinks } from "@/lib/commerce/squareOperationalVisibility";
 import { PLATFORM_EVENT_SUBTYPE } from "@/lib/platform/events/taxonomy";
 import { WEBHOOK_OPS_EVENT_TYPES } from "@/lib/operations/queryWebhookOpsActivityForCommerceOrder";
@@ -137,9 +142,19 @@ export default async function SuperAdminOperationalPaymentsPage({
 
   const nextPage = pageNum + 1;
   const prevPage = pageNum > 1 ? pageNum - 1 : null;
+  const orphanDrillIn = orphanSquarePaymentOperationalContext();
+  const orphanEscalated = orphanReceipts.length + orphanOpsEvents.length > 0;
 
   return (
     <div className="space-y-8">
+      <OperationalBreadcrumbs segments={superAdminOperationsBreadcrumbs("Payments")} className="-mb-2" />
+
+      <OperationalEscalationBanner forceShow={orphanEscalated} title="Incident drill-in · orphan webhook path">
+        <p>
+          There are orphan Square webhook receipts or orphan <span className="font-semibold font-mono">payment.square</span> activity rows in the trailing window.
+          Follow the playbook below before invoking recovery endpoints.
+        </p>
+      </OperationalEscalationBanner>
       <GovPageHeader
         eyebrow="Platform · Payments"
         title="Payments operations"
@@ -279,6 +294,7 @@ export default async function SuperAdminOperationalPaymentsPage({
           cleared signature checks but could not be matched to <span className="font-mono">payment_records</span>. Use
           Failures inbox recovery or the super-admin reconcile route with a Square payment id.
         </p>
+        <OperationalCrossLinks context={orphanDrillIn} className="mb-6" />
         {orphanReceipts.length === 0 && orphanOpsEvents.length === 0 ? (
           <p className="text-[13px] text-charcoal/62">No orphan rows in the trailing week.</p>
         ) : (

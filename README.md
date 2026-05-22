@@ -29,6 +29,10 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
+## Operational runbooks
+
+Super Admin incident playbooks live in **`docs/runbooks/`** ([index](docs/runbooks/README.md)).
+
 ## Customer auth & sessions
 
 After sign-in, password-completion, explicit refresh (`POST /api/auth/cognito/refresh`), or a **silent** refresh from `GET /api/auth/cognito/session` when the ID token expired, we upsert a Prisma **`Customer`** with `externalAuthSubject` = Cognito `sub`.

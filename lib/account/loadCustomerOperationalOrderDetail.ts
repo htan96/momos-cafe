@@ -12,7 +12,7 @@ import {
   type CustomerOrderCommunicationRowDto,
 } from "@/lib/account/loadCustomerOrderCommunications";
 import { OPS_ENTITY_UUID_RE } from "@/lib/operations/operationalContextLinks";
-import type { OperationalRefundCase, OperationalSupportIssue, Prisma } from "@prisma/client";
+import type { OperationalActivityEvent, OperationalRefundCase, OperationalSupportIssue, Prisma } from "@prisma/client";
 
 const loadCustomerOperationalOrderDetailInclude = {
   ...accountOrderInclude,
@@ -58,6 +58,8 @@ export type CustomerSanitizedRefundCase = Pick<
 export type LoadedCustomerOperationalOrderDetail = {
   order: LoadedCustomerOperationalOrder;
   operationalActivity: CustomerOperationalTimelineEventDto[];
+  /** Raw rows backing `operationalActivity` + shipment-scoped derivation (carrier milestones). */
+  operationalActivityRecords: OperationalActivityEvent[];
   communications: CustomerOrderCommunicationRowDto[];
 };
 
@@ -106,6 +108,7 @@ export async function loadCustomerOperationalOrderDetail(
   return {
     order,
     operationalActivity: mapActivityRowsToCustomerTimeline(activityRows),
+    operationalActivityRecords: activityRows,
     communications,
   };
 }

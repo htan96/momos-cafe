@@ -527,11 +527,33 @@ model WebhookDeliveryReceipt {
   payloadHash        String?                  @map("payload_hash")
   opsEventId         String?                  @map("ops_event_id")
 
+  replayAudits OperationalWebhookReplayAudit[]
+
   @@index([provider, receivedAt(sort: Desc)], map: "webhook_delivery_receipts_provider_received_at_idx")
   @@index([commerceOrderId, receivedAt(sort: Desc)], map: "webhook_delivery_receipts_commerce_order_received_at_idx")
   @@index([paymentRecordId, receivedAt(sort: Desc)], map: "webhook_delivery_receipts_payment_received_at_idx")
   @@index([provider, externalEventId], map: "webhook_delivery_receipts_provider_external_event_idx")
   @@map("webhook_delivery_receipts")
+}
+
+/// Append-only log for super-admin manual webhook reconciliation / dry-run previews (distinct from GovernanceAuditEvent).
+model OperationalWebhookReplayAudit {
+  id         String                  @id @default(cuid())
+  receiptId  String?                 @map("receipt_id")
+  receipt    WebhookDeliveryReceipt? @relation(fields: [receiptId], references: [id], onDelete: SetNull)
+  provider   String                  @map("provider")
+  dryRun     Boolean                 @map("dry_run")
+  confirmed  Boolean                 @map("confirmed")
+  actorSub   String                  @map("actor_sub")
+  actorEmail String?                 @map("actor_email")
+  /// Terminal bucket: success | skipped | error | dry_run_only
+  outcome    String                  @map("outcome")
+  detail     Json                    @map("detail")
+  createdAt  DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([receiptId], map: "operational_webhook_replay_audits_receipt_idx")
+  @@index([createdAt(sort: Desc)], map: "operational_webhook_replay_audits_created_idx")
+  @@map("operational_webhook_replay_audits")
 }
 
 enum OperationalFailureTriageState {

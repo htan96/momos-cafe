@@ -4,7 +4,7 @@ import type { LucideIcon } from "lucide-react";
 type Props = {
   icon: LucideIcon;
   title: string;
-  subtitle?: string;
+  subtitle?: ReactNode;
   actions?: ReactNode;
 };
 
@@ -19,7 +19,7 @@ export default function SuperAdminSectionIntro({ icon: Icon, title, subtitle, ac
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-charcoal/40">Super admin</p>
           <h1 className="mt-1 font-display text-2xl text-teal-dark tracking-tight">{title}</h1>
           {subtitle ? (
-            <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-charcoal/65">{subtitle}</p>
+            <div className="mt-2 max-w-2xl text-[13px] leading-relaxed text-charcoal/65">{subtitle}</div>
           ) : null}
         </div>
       </div>

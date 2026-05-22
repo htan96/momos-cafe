@@ -9,15 +9,22 @@ import CustomerShipmentCard from "@/components/customer/CustomerShipmentCard";
 import { formatMoney } from "@/lib/commerce/fulfillmentPreview";
 import { assertCustomerPlatformLayout } from "@/lib/auth/cognito/assertRoleInLayout";
 import { resolveCommerceCustomerId } from "@/lib/account/effectiveAccountContext";
-import { loadCustomerCommerceOrder, mapToDashboardBrief } from "@/lib/account/dashboardData";
 import {
-  buildCustomerOrderTimeline,
+  deriveCustomerShipmentOperationalSteps,
+} from "@/lib/account/customerOrderOperationalPresentation";
+import {
+  loadCustomerOperationalOrderDetail,
+  listCustomerRefundCasesForOrder,
+  listCustomerSupportIssuesForOrder,
+} from "@/lib/account/loadCustomerOperationalOrderDetail";
+import { mapToDashboardBrief } from "@/lib/account/dashboardData";
+import {
   formatOrderInstant,
   orderDisplayNumber,
   pipelineLabel,
+  type CustomerTimelineEvent,
 } from "@/lib/account/orderPresentation";
 import type { CustomerStatusVariant } from "@/components/customer/CustomerStatusChip";
-import type { CustomerTimelineStep } from "@/components/customer/CustomerTimeline";
 
 type PageProps = { params: Promise<{ orderId: string }> };
 
@@ -42,37 +49,6 @@ function shipmentStatusVariant(
   return "shipped";
 }
 
-function shipmentTimelineSteps(args: {
-  id: string;
-  createdAt: Date;
-  shippedAt: Date | null;
-  updatedAt: Date;
-}): CustomerTimelineStep[] {
-  const steps: CustomerTimelineStep[] = [
-    {
-      id: `${args.id}-prep`,
-      title: "Preparing label & handoff",
-      meta: formatOrderInstant(args.createdAt),
-      tone: "done",
-    },
-  ];
-  if (args.shippedAt) {
-    steps.push({
-      id: `${args.id}-shipped`,
-      title: "Shipped",
-      meta: formatOrderInstant(args.shippedAt),
-      tone: "done",
-    });
-  }
-  steps.push({
-    id: `${args.id}-latest`,
-    title: "Latest carrier touchpoint",
-    meta: formatOrderInstant(args.updatedAt),
-    tone: "current",
-  });
-  return steps;
-}
-
 export default async function AccountOrderDetailPage({ params }: PageProps) {
   const session = await assertCustomerPlatformLayout();
   const { orderId } = await params;
@@ -86,19 +62,30 @@ export default async function AccountOrderDetailPage({ params }: PageProps) {
     notFound();
   }
 
-  const row = await loadCustomerCommerceOrder(customerRowId, orderId);
-  if (!row) notFound();
+  const pack = await loadCustomerOperationalOrderDetail(customerRowId, orderId);
+  if (!pack) notFound();
 
-  const brief = mapToDashboardBrief(row);
-  const timeline = buildCustomerOrderTimeline(brief);
-  const num = orderDisplayNumber(row.id);
+  const { order, operationalActivity, operationalActivityRecords, communications } = pack;
+  const brief = mapToDashboardBrief(order);
+  const num = orderDisplayNumber(order.id);
 
-  const shipmentBlocks = row.fulfillmentGroups.flatMap((g) =>
+  const activityAsTimeline: CustomerTimelineEvent[] = operationalActivity.map((e, i, arr) => ({
+    id: e.id,
+    at: e.at,
+    title: e.title,
+    detail: e.detail,
+    tone: i === arr.length - 1 ? "current" : "done",
+  }));
+
+  const shipmentBlocks = order.fulfillmentGroups.flatMap((g) =>
     g.shipments.map((s) => ({
       groupLabel: g.pipeline,
       shipment: s,
     }))
   );
+
+  const supportRows = listCustomerSupportIssuesForOrder(order);
+  const refundRows = listCustomerRefundCasesForOrder(order);
 
   return (
     <>
@@ -114,15 +101,15 @@ export default async function AccountOrderDetailPage({ params }: PageProps) {
         title="Here’s where things stand"
         subtitle={
           <>
-            Café pickup, shop treats, and anything headed out by mail — one calm page with timing and tracking when
-            it&apos;s available.
+            Status updates on this page reflect what we’ve recorded in our systems — fulfillment, payments, shipping
+            scans we receive, and notes we mark as customer-visible.
           </>
         }
         illustrationAccentClassName="bg-gold/30"
         aside={
           <div className="text-left lg:text-right">
             <p className="font-display text-3xl text-charcoal tracking-tight tabular-nums">
-              {formatMoney(row.totalCents / 100)}
+              {formatMoney(order.totalCents / 100)}
             </p>
             <p className="mt-2 text-[12px] uppercase tracking-[0.2em] text-charcoal/45">
               Updated {brief.updatedAt.toLocaleString()}
@@ -131,17 +118,63 @@ export default async function AccountOrderDetailPage({ params }: PageProps) {
         }
       />
 
-      <div className={`grid gap-10 ${row.items.length > 0 ? "lg:grid-cols-[1fr,minmax(0,280px)]" : ""}`}>
+      <div className={`grid gap-10 ${order.items.length > 0 ? "lg:grid-cols-[1fr,minmax(0,280px)]" : ""}`}>
         <div className="flex flex-col gap-10">
           <CustomerPanel title="Fulfillment stages" eyebrow="How we’re assembling this visit" paddingClassName="p-0">
             <div className="px-1 pb-1 md:px-2">
-              <OrderFulfillmentTree fulfillmentGroups={row.fulfillmentGroups} />
+              <OrderFulfillmentTree fulfillmentGroups={order.fulfillmentGroups} />
             </div>
           </CustomerPanel>
 
-          <CustomerPanel title="Timeline" eyebrow="Beat by beat">
-            <CustomerOrderTimeline events={timeline} />
+          <CustomerPanel title="Recorded activity" eyebrow="From our operations log">
+            {activityAsTimeline.length === 0 ? (
+              <p className="text-[14px] text-charcoal/65 leading-relaxed px-1 md:px-2">
+                When milestones are recorded (payment, fulfillment moves, shipping labels, carrier scans, support
+                updates tied to this order), they will appear here — we don’t invent steps.
+              </p>
+            ) : (
+              <div className="px-1 pb-1 md:px-2">
+                <CustomerOrderTimeline events={activityAsTimeline} />
+              </div>
+            )}
           </CustomerPanel>
+
+          {supportRows.length > 0 ? (
+            <CustomerPanel title="Support" eyebrow="Open coordination">
+              <ul className="space-y-4">
+                {supportRows.map((s) => (
+                  <li key={s.id} className="rounded-xl border border-cream-dark/80 bg-cream/35 px-4 py-4 md:px-5">
+                    <p className="text-[13px] font-semibold text-charcoal">{s.title}</p>
+                    <p className="mt-1 text-[13px] text-charcoal/68">{s.statusLabel}</p>
+                    <p className="mt-3 text-[11px] uppercase tracking-[0.12em] text-charcoal/45">
+                      Updated {formatOrderInstant(s.updatedAt)}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </CustomerPanel>
+          ) : null}
+
+          {refundRows.length > 0 ? (
+            <CustomerPanel title="Refunds" eyebrow="Ledger updates from our team">
+              <ul className="space-y-4">
+                {refundRows.map((r) => (
+                  <li key={r.id} className="rounded-xl border border-cream-dark/80 bg-cream/35 px-4 py-4 md:px-5">
+                    <p className="text-[13px] font-semibold text-charcoal">{r.statusLabel}</p>
+                    {r.amountCents != null && r.amountCents > 0 ? (
+                      <p className="mt-1 text-[13px] text-charcoal/80 tabular-nums">
+                        Amount {formatMoney(r.amountCents / 100)}
+                      </p>
+                    ) : null}
+                    <p className="mt-2 text-[13px] text-charcoal/70 leading-relaxed">{r.reason}</p>
+                    <p className="mt-3 text-[11px] uppercase tracking-[0.12em] text-charcoal/45">
+                      Updated {formatOrderInstant(r.updatedAt)}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </CustomerPanel>
+          ) : null}
 
           <CustomerPanel title="Shipments & tracking" eyebrow="En route details">
             {shipmentBlocks.length === 0 ? (
@@ -158,33 +191,37 @@ export default async function AccountOrderDetailPage({ params }: PageProps) {
                     trackingMasked={maskTracking(s.trackingNumber)}
                     status={shipmentStatusVariant(s.status, groupLabel)}
                     delayed={s.status.toLowerCase().includes("delay")}
-                    timeline={shipmentTimelineSteps({
-                      id: s.id,
-                      createdAt: s.createdAt,
-                      shippedAt: s.shippedAt,
-                      updatedAt: s.updatedAt,
-                    })}
+                    timeline={deriveCustomerShipmentOperationalSteps(s.id, operationalActivityRecords)}
                   />
                 ))}
               </div>
             )}
           </CustomerPanel>
 
-          <CustomerPanel title="Notes we’ve sent" eyebrow="Communications">
-            <div className="space-y-4">
-              <CommunicationRow
-                subject="Order confirmation"
-                preview="We’ve received every line item — kitchen and shop lanes are aligned."
-                when={formatOrderInstant(row.createdAt)}
-                channel="Email"
-              />
-              <CommunicationRow
-                subject="When tracking appears"
-                preview="You’ll see carrier scans mirrored here the moment they publish — no extra apps required."
-                when="Helpful tip"
-                channel="System"
-              />
-            </div>
+          <CustomerPanel title="Communications" eyebrow="Email & customer-visible notes">
+            {communications.length === 0 ? (
+              <p className="text-[14px] text-charcoal/65 leading-relaxed">
+                When we email you about this order — or leave a note flagged as customer-visible — it will show up here.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {communications.map((c) => (
+                  <CommunicationRow
+                    key={c.id}
+                    subject={c.subjectLine}
+                    preview={c.preview || "—"}
+                    when={formatOrderInstant(c.occurredAt)}
+                    channel={
+                      c.kind === "staff_note" ?
+                        "Momos note"
+                      : c.kind === "email_out" ?
+                        "Email · from us"
+                      : "Email · to us"
+                    }
+                  />
+                ))}
+              </div>
+            )}
           </CustomerPanel>
 
           <CustomerPanel title="Receipts & invoices" eyebrow="Paperwork, softly offered">
@@ -211,11 +248,11 @@ export default async function AccountOrderDetailPage({ params }: PageProps) {
           </CustomerPanel>
         </div>
 
-        {row.items.length > 0 ? (
+        {order.items.length > 0 ? (
           <aside className="lg:sticky lg:top-24 h-fit">
             <CustomerPanel title="Items in this visit" eyebrow="What you selected" paddingClassName="p-5 md:p-6">
               <ul className="space-y-3 text-[13px] text-charcoal/85">
-                {row.items.map((it) => (
+                {order.items.map((it) => (
                   <li key={it.id} className="flex justify-between gap-3">
                     <span className="min-w-0">
                       <span className="font-semibold">{it.quantity}×</span> {it.title}

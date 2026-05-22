@@ -6,6 +6,7 @@ import {
   OPERATIONAL_RULE_WINDOW_MS,
   WEBHOOK_FAILURE_TYPES,
 } from "@/lib/operations/incidentDetection";
+import { OPERATIONAL_OPS_FULFILLMENT_GROUP_STALE_ORDER_UPDATE_MS } from "@/lib/operations/semantics/constants";
 import { OPERATIONAL_INCIDENT_ACTIVE_STATUSES } from "@/lib/operations/incidentTypes";
 import { OPERATIONAL_EVENT_TYPES } from "@/lib/operations/operationalEventTypes";
 import { INTEGRATION_HEALTH_DISPLAY_ORDER } from "@/lib/operations/integrationHealth/types";
@@ -74,7 +75,7 @@ export async function queryLiveActivitySnapshots(): Promise<LiveActivitySnapshot
         status: { notIn: ["completed", "cancelled"] },
         order: {
           status: { in: ["paid", "partially_fulfilled"] },
-          updatedAt: { lt: new Date(now.getTime() - 36 * 60 * 60 * 1000) },
+          updatedAt: { lt: new Date(now.getTime() - OPERATIONAL_OPS_FULFILLMENT_GROUP_STALE_ORDER_UPDATE_MS) },
         },
       },
     }),

@@ -159,8 +159,10 @@ function paidTimestamp(order: DashboardOrderBrief): Date | null {
 }
 
 /**
- * Synthetic customer timeline — merges coarse order state, fulfillment, shipments, payments.
- * (Future: NotificationEvent log + inbound email timestamps.)
+ * Legacy synthetic timeline — merges coarse order state, fulfillment, shipments, and payments.
+ *
+ * Storefront **order detail** should use **`loadCustomerOperationalOrderDetail`** (persisted
+ * `OperationalActivityEvent` + comms graphs) rather than improvising chronological steps here.
  */
 export function buildCustomerOrderTimeline(order: DashboardOrderBrief): CustomerTimelineEvent[] {
   const events: CustomerTimelineEvent[] = [];

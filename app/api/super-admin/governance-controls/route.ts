@@ -56,6 +56,9 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
+  const gate = await requireSuperStaffJson();
+  if (gate) return gate;
+
   const delegation = await resolveSuperStaffDelegation();
   if (!delegation.jwtUser || !isSuperAdmin(delegation.authorityGroups)) {
     return NextResponse.json({ error: "forbidden", code: "FORBIDDEN" }, { status: 403 });

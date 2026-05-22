@@ -10,9 +10,12 @@ import {
 } from "./processorContract";
 import { deliverOutboundEmail } from "@/lib/email/deliverOutboundEmail";
 import { notificationTypeSupportsOutboundEmail } from "@/lib/email/notificationEmailBridge";
+import {
+  NOTIFICATION_OUTBOX_ATTEMPT_HARD_CAP,
+  STALE_NOTIFICATION_PROCESSING_LEASE_MS,
+} from "./notificationOutboxConstants";
 
-/** Max single-flight lease before another worker clears and retries (~15 minutes). */
-const STALE_PROCESSING_LEASE_MS = 15 * 60 * 1000;
+export { NOTIFICATION_OUTBOX_ATTEMPT_HARD_CAP, STALE_NOTIFICATION_PROCESSING_LEASE_MS } from "./notificationOutboxConstants";
 
 /**
  * NotificationEvent lifecycle (`processed_at` terminal, `started_processing_at` lease):
@@ -164,7 +167,7 @@ export async function processNotificationOutbox(
   const processor = opts.processor ?? skeletonNotificationProcessor;
   const retryPolicy = opts.retryPolicy ?? DEFAULT_NOTIFICATION_RETRY_POLICY;
   const now = new Date();
-  const staleCutoff = new Date(now.getTime() - STALE_PROCESSING_LEASE_MS);
+  const staleCutoff = new Date(now.getTime() - STALE_NOTIFICATION_PROCESSING_LEASE_MS);
 
   await clearStaleProcessingLocks(staleCutoff);
 
@@ -182,7 +185,7 @@ export async function processNotificationOutbox(
   let deadLettered = 0;
   let skippedDuplicateLease = 0;
 
-  const maxOutboundAttempts = Math.min(5, retryPolicy.maxAttempts);
+  const maxOutboundAttempts = Math.min(NOTIFICATION_OUTBOX_ATTEMPT_HARD_CAP, retryPolicy.maxAttempts);
 
   for (const row of rows) {
     const meta = readProcessMetadata(row.payload);

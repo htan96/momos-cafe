@@ -5,6 +5,7 @@ export const PLATFORM_ENTITY_KEYS = [
   "commerceOrderId",
   "cafeOrderId",
   "paymentRecordId",
+  "fulfillmentGroupId",
   "shipmentId",
   "incidentId",
   "impersonationSessionId",

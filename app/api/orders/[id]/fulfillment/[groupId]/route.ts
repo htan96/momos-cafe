@@ -4,20 +4,27 @@ import { prisma } from "@/lib/prisma";
 import type { FulfillmentPipeline } from "@/types/commerce";
 import {
   validateFulfillmentTransition,
-  type CommerceOrderStatus,
   validateOrderStatusTransition,
+  type CommerceOrderStatus,
 } from "@/lib/commerce/orderLifecycle";
 import { emitPlatformEvent } from "@/lib/platform/events/emitPlatformEvent";
 import { PLATFORM_EVENT_SUBTYPE } from "@/lib/platform/events/taxonomy";
+import {
+  assertOperationalCommerceOrderMutation,
+  loadOpsSessionForOrderMutation,
+} from "@/lib/server/commerceOrderApiAuth";
 
 /**
- * PATCH fulfillment group status — validates pipeline-specific transitions.
- * Internal orchestration hook (protect later with auth/service tokens).
+ * PATCH fulfillment group status — ops/internal tooling only (same validation as PATCH /api/ops/fulfillment/.../transition).
  */
 export async function PATCH(
   req: Request,
   ctx: { params: Promise<{ id: string; groupId: string }> }
 ) {
+  const session = await loadOpsSessionForOrderMutation();
+  const auth = assertOperationalCommerceOrderMutation(req, session, "fulfillment:write");
+  if (!auth.ok) return auth.response;
+
   const { id: orderId, groupId } = await ctx.params;
   let body: { status?: string };
   try {
@@ -44,10 +51,7 @@ export async function PATCH(
 
     const check = validateFulfillmentTransition(pipeline, group.status, nextStatus);
     if (!check.ok) {
-      return NextResponse.json(
-        { error: "illegal_transition", reason: check.reason },
-        { status: 422 }
-      );
+      return NextResponse.json({ error: "illegal_transition", reason: check.reason }, { status: 422 });
     }
 
     const updated = await prisma.fulfillmentGroup.update({
@@ -55,7 +59,6 @@ export async function PATCH(
       data: { status: nextStatus },
     });
 
-    /** Opportunistically advance coarse order status when groups complete */
     await maybeAdvanceAggregateOrderStatus(orderId);
 
     void emitPlatformEvent({
@@ -63,8 +66,13 @@ export async function PATCH(
       subtype: PLATFORM_EVENT_SUBTYPE.FULFILLMENT_GROUP_STATUS_CHANGED,
       lifecycle: "processing",
       severity: OperationalActivitySeverity.info,
-      actorType: "service",
-      actorId: "orders.fulfillment_api",
+      actorType: session ?
+        session.roleBadge === "super_admin" ?
+          "super_admin"
+        : "admin"
+      : "service",
+      actorId: session?.sub ?? "internal_secret",
+      actorName: session?.email ?? "internal",
       message: `Fulfillment group ${group.pipeline} → ${nextStatus}`,
       entities: {
         commerceOrderId: orderId,

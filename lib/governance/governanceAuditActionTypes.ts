@@ -25,6 +25,10 @@ export const GOVERNANCE_AUDIT_ACTION_TYPES = [
   "OPERATIONAL_REFUND_CASE_UPDATED",
   /** Ops desk internal coordination note pinned to timelines. */
   "OPERATIONAL_COMMUNICATION_NOTE_CREATED",
+  "OPERATIONS_WEBHOOK_RECEIPT_REPLAY",
+  "OPERATIONS_WEBHOOK_RECEIPT_REPLAY_FORCE",
+  /** Ops/super-admin: release stale `started_processing_at` lease or deliberate dead-letter rewind (risky — see docs on route). */
+  "OPERATIONS_NOTIFICATION_EVENT_OPERATOR_REQUEUE",
 ] as const;
 
 export type GovernanceAuditActionType = (typeof GOVERNANCE_AUDIT_ACTION_TYPES)[number];

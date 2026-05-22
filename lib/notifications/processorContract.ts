@@ -1,3 +1,8 @@
+import {
+  OPERATIONAL_NOTIFICATION_OUTBOX_RETRY_BASE_DELAY_MS,
+  OPERATIONAL_NOTIFICATION_OUTBOX_RETRY_MAX_ATTEMPTS,
+} from "@/lib/operations/semantics/constants";
+
 /** Retry policy for notification outbox processing. */
 export type NotificationRetryPolicy = {
   maxAttempts: number;
@@ -44,6 +49,6 @@ export type NotificationProcessor = {
 };
 
 export const DEFAULT_NOTIFICATION_RETRY_POLICY: NotificationRetryPolicy = {
-  maxAttempts: 5,
-  baseDelayMs: 60_000,
+  maxAttempts: OPERATIONAL_NOTIFICATION_OUTBOX_RETRY_MAX_ATTEMPTS,
+  baseDelayMs: OPERATIONAL_NOTIFICATION_OUTBOX_RETRY_BASE_DELAY_MS,
 };

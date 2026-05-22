@@ -8,6 +8,7 @@ import { patchWebhookDeliveryReceipt, upsertWebhookDeliveryReceipt } from "@/lib
 import { readCorrelationRequestId } from "@/lib/webhooks/squareWebhookParse";
 import { reconcileShippoWebhook, resolveShippoWebhookPeekLink } from "@/lib/webhooks/shippo/reconcileShippoWebhook";
 import { peekShippoWebhookEnvelope, peekShippoWebhookRoot } from "@/lib/webhooks/shippo/shippoWebhookParse";
+import { rejectShippoWebhookIfProductionMisconfigured } from "@/lib/webhooks/shippo/shippoInboundProductionGate";
 import { readShippoSignatureHeader, verifyShippoWebhookSignature } from "@/lib/webhooks/shippo/verifyShippoWebhookSignature";
 
 export const runtime = "nodejs";
@@ -30,12 +31,15 @@ async function peekCommerceOrderSafe(body: Record<string, unknown>): Promise<str
 }
 
 /**
- * Shippo webhook — verifies HMAC whenever `SHIPPO_WEBHOOK_SECRET` is configured.
+ * Production fail-closed when `SHIPPO_WEBHOOK_SECRET` is unset (`503`). Non-production may still accept traffic without HMAC for local development only — do not point production Shippo subscriptions at such environments.
  * Mirrors Square receipt semantics (`WebhookDeliveryReceipt`) while remaining **public** (`middleware.ts` skips this path).
  *
  * Replay idempotency: identical `(provider, external_event_id)` + payload hash skips reconcile work once `processed`.
  */
 export async function POST(req: Request) {
+  const misconfigured = rejectShippoWebhookIfProductionMisconfigured();
+  if (misconfigured) return misconfigured;
+
   const raw = await req.text();
   const payloadHash = sha256HexUtf8(raw);
   const correlationRequestId = readCorrelationRequestId(req);

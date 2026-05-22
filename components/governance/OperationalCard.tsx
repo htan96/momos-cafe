@@ -4,12 +4,15 @@ type Props = {
   children: React.ReactNode;
   footer?: React.ReactNode;
   className?: string;
+  /** Anchor for in-page jump links (`#fragment`). */
+  id?: string;
 };
 
-export default function OperationalCard({ title, meta, children, footer, className = "" }: Props) {
+export default function OperationalCard({ title, meta, children, footer, className = "", id }: Props) {
   return (
     <section
-      className={`rounded-2xl border border-cream-dark/70 bg-white/[0.94] shadow-[0_1px_0_rgba(45,107,107,0.06),0_12px_32px_-18px_rgba(46,42,37,0.18)] ${className}`}
+      id={id}
+      className={`rounded-2xl border border-cream-dark/70 bg-white/[0.94] shadow-[0_1px_0_rgba(45,107,107,0.06),0_12px_32px_-18px_rgba(46,42,37,0.18)] ${id ? "scroll-mt-[4.5rem]" : ""} ${className}`}
     >
       <header className="border-b border-cream-dark/55 px-5 py-4 md:px-6">
         <div className="flex flex-wrap items-baseline justify-between gap-2">

@@ -1,10 +1,11 @@
 import type { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
 import {
-  classifyFulfillmentProgram,
   OPS_FULFILLMENT_PROGRAM,
+  classifyFulfillmentProgram,
   type OpsFulfillmentProgram,
 } from "@/lib/ops/fulfillmentPrograms";
+import { OPERATIONAL_OPS_FULFILLMENT_GROUP_STALE_ORDER_UPDATE_MS } from "@/lib/operations/semantics/constants";
+import { prisma } from "@/lib/prisma";
 
 const terminal = ["completed", "cancelled"] as const;
 
@@ -44,7 +45,7 @@ function enrichProgram(row: OpsFulfillmentGroupLoaded): OpsFulfillmentGroupEnric
 
 /** Dashboard queues — best-effort without fulfillment audit history. */
 export async function opsLoadTodayQueues() {
-  const stuckCutoff = new Date(Date.now() - 36 * 60 * 60 * 1000);
+  const stuckCutoff = new Date(Date.now() - OPERATIONAL_OPS_FULFILLMENT_GROUP_STALE_ORDER_UPDATE_MS);
 
   const lateOrStuckRaw = await prisma.fulfillmentGroup.findMany({
     where: {

@@ -1,10 +1,14 @@
-import type { OperationalActivityEvent } from "@prisma/client";
-import type { OperationalRefundCaseStatus, OperationalSupportIssueStatus } from "@prisma/client";
+import type {
+  OperationalActivityEvent,
+  OperationalRefundCaseStatus,
+  OperationalSupportIssueStatus,
+} from "@prisma/client";
 import type { Prisma } from "@prisma/client";
-import { PLATFORM_EVENT_SUBTYPE } from "@/lib/platform/events/taxonomy";
+import type { CustomerTimelineStep } from "@/components/customer/CustomerTimeline";
+import { groupStatusHeadline, pipelineLabel, formatOrderInstant } from "@/lib/account/orderPresentation";
 import { isPlatformEventMetadataV1 } from "@/lib/platform/events/metadata";
 import { OPERATIONAL_EVENT_TYPES } from "@/lib/operations/operationalEventTypes";
-import { groupStatusHeadline, pipelineLabel } from "@/lib/account/orderPresentation";
+import { PLATFORM_EVENT_SUBTYPE } from "@/lib/platform/events/taxonomy";
 
 /** Activity `OperationalActivityEvent.type` values surfaced on the storefront order detail timeline. */
 export const CUSTOMER_SAFE_OPERATIONAL_ACTIVITY_TYPES: readonly string[] = [
@@ -108,7 +112,10 @@ export function presentCustomerOperationalActivityEvent(row: OperationalActivity
       }
       case OPERATIONAL_EVENT_TYPES.SHIPMENT_LABEL_CREATED:
         base.title = "Shipping label printed";
-        if (detail.carrier) base.detail = `${String(detail.carrier)} shipment`;
+        {
+          const car = (detail.carrier ?? m.carrier) as unknown;
+          if (typeof car === "string" && car.trim()) base.detail = `${car.trim()} shipment`;
+        }
         break;
       case PLATFORM_EVENT_SUBTYPE.SHIPMENT_TRACKING_UPDATED:
       case PLATFORM_EVENT_SUBTYPE.SHIPMENT_IN_TRANSIT:
@@ -208,4 +215,53 @@ export function mapActivityRowsToCustomerTimeline(
   rows: OperationalActivityEvent[]
 ): CustomerOperationalTimelineEventDto[] {
   return rows.map(presentCustomerOperationalActivityEvent);
+}
+
+function readShipmentIdFromMetadata(metadata: unknown): string | null {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return null;
+  const m = metadata as Record<string, unknown>;
+  const se = m.entities;
+  if (se && typeof se === "object" && !Array.isArray(se)) {
+    const sid = (se as Record<string, unknown>).shipmentId;
+    if (typeof sid === "string" && sid.trim()) return sid.trim();
+  }
+  const flat = m.shipmentId;
+  if (typeof flat === "string" && flat.trim()) return flat.trim();
+  return null;
+}
+
+const CUSTOMER_TIMELINE_SHIPMENT_ACTIVITY = new Set<string>([
+  OPERATIONAL_EVENT_TYPES.SHIPMENT_LABEL_CREATED,
+  PLATFORM_EVENT_SUBTYPE.SHIPMENT_TRACKING_UPDATED,
+  PLATFORM_EVENT_SUBTYPE.SHIPMENT_IN_TRANSIT,
+  PLATFORM_EVENT_SUBTYPE.SHIPMENT_OUT_FOR_DELIVERY,
+  PLATFORM_EVENT_SUBTYPE.SHIPMENT_DELIVERED,
+  PLATFORM_EVENT_SUBTYPE.SHIPMENT_EXCEPTION,
+  PLATFORM_EVENT_SUBTYPE.SHIPMENT_RETURNED,
+  PLATFORM_EVENT_SUBTYPE.SHIPMENT_FAILURE,
+]);
+
+/**
+ * Only **persisted** `OperationalActivityEvent` rows for this shipment (label + carrier subtypes).
+ * Returns an empty list when nothing was emitted — callers must not fabricate placeholders.
+ */
+export function deriveCustomerShipmentOperationalSteps(
+  shipmentId: string,
+  rows: OperationalActivityEvent[]
+): CustomerTimelineStep[] {
+  const ours = rows
+    .filter((r) => readShipmentIdFromMetadata(r.metadata) === shipmentId)
+    .filter((r) => CUSTOMER_TIMELINE_SHIPMENT_ACTIVITY.has(r.type))
+    .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+
+  return ours.map((r, idx) => {
+    const dto = presentCustomerOperationalActivityEvent(r);
+    const isLast = idx === ours.length - 1;
+    return {
+      id: r.id,
+      title: dto.title,
+      meta: formatOrderInstant(r.createdAt),
+      tone: isLast ? "current" : "done",
+    };
+  });
 }

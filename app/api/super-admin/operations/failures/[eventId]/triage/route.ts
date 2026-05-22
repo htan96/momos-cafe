@@ -3,6 +3,7 @@ import type { OperationalFailureTriageState } from "@prisma/client";
 import { OperationalActivitySeverity } from "@prisma/client";
 import {
   governanceAuditActorForSuperStaff,
+  requireSuperStaffJson,
   resolveSuperStaffDelegation,
 } from "@/lib/auth/cognito/requireSuperStaff";
 import { isSuperAdmin } from "@/lib/auth/cognito/roles";
@@ -23,6 +24,9 @@ const TRIAGE_STATES: OperationalFailureTriageState[] = [
 type RouteContext = { params: Promise<{ eventId: string }> };
 
 export async function PATCH(request: Request, context: RouteContext) {
+  const gate = await requireSuperStaffJson();
+  if (gate) return gate;
+
   const delegation = await resolveSuperStaffDelegation();
   if (!delegation.jwtUser || !isSuperAdmin(delegation.authorityGroups)) {
     return NextResponse.json({ error: "forbidden", code: "FORBIDDEN" }, { status: 403 });

@@ -44,6 +44,7 @@ const ORDER_CONSOLE_CORE_TYPES = [
   OPERATIONAL_EVENT_TYPES.PAYMENT_SUCCEEDED,
   OPERATIONAL_EVENT_TYPES.PAYMENT_FAILED,
   OPERATIONAL_EVENT_TYPES.SHIPMENT_LABEL_CREATED,
+  OPERATIONAL_EVENT_TYPES.FULFILLMENT_APPROVED,
   PLATFORM_EVENT_SUBTYPE.PAYMENT_WEBHOOK_PROCESSING_FAILED,
   PLATFORM_EVENT_SUBTYPE.PAYMENT_SQUARE_ORPHAN_WEBHOOK,
   PLATFORM_EVENT_SUBTYPE.PAYMENT_REGISTER_FAILED,
@@ -139,6 +140,10 @@ export type OperationalOrderConsoleSnapshot = {
   refundCases: OperationalConsoleRefundCase[];
   relatedIncidents: Awaited<ReturnType<typeof prisma.operationalIncident.findMany>>;
   legacyCafeOrders: CafeOrder[];
+  shippingLabelPolicy: {
+    /** Mirrors `SHIPPO_REQUIRE_FULFILLMENT_APPROVAL` — surfaced to SSR clients for label UX. */
+    requireFulfillmentApprovalForShippoLabels: boolean;
+  };
 };
 
 function dedupeActivityById(events: OperationalActivityEvent[]): OperationalActivityEvent[] {
@@ -355,6 +360,10 @@ export async function loadOperationalOrderConsole(
     refundCases,
     relatedIncidents,
     legacyCafeOrders,
+    shippingLabelPolicy: {
+      requireFulfillmentApprovalForShippoLabels:
+        process.env.SHIPPO_REQUIRE_FULFILLMENT_APPROVAL?.trim() === "true",
+    },
   };
 }
 

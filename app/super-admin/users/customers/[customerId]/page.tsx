@@ -44,11 +44,12 @@ export default async function SuperAdminUserCustomerDossierPage(props: PageProps
     cateringInquiries,
     timelineRows,
     openIncidentCount,
+    presenceEvaluatedAtMs,
   } = detail;
 
   const displayName = displayNameFromAuth(customer.authMetadata);
 
-  const now = Date.now();
+  const now = presenceEvaluatedAtMs;
   const presenceRecentCutoff = new Date(now - PRESENCE_RECENT_MS);
   const presenceRecent = presenceSessions.filter(
     (s) => s.lastActivityAt >= presenceRecentCutoff && s.isActive && !s.terminatedAt
@@ -262,7 +263,7 @@ export default async function SuperAdminUserCustomerDossierPage(props: PageProps
               on start/end. Banner renders above super-admin/workspace chrome via{" "}
               <span className="font-mono">OperationalPerspectiveBanner</span>.
             </p>
-            <StartCustomerImpersonation prefilledEmail={emailTrim} />
+            <StartCustomerImpersonation key={emailTrim ?? "__none__"} prefilledEmail={emailTrim} />
           </>
         : (
           <p className="text-[13px] text-charcoal/60 leading-relaxed">

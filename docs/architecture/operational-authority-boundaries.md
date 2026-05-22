@@ -14,7 +14,7 @@ This document maps **who can invoke** operational HTTP surfaces, which **auth pr
 
 **Middleware caveat**
 
-`middleware.ts` **`config.matcher`** includes `/api/ops/*`, `/ops/*`, and page prefixes like `/super-admin/*`, but **does not** include `/api/super-admin/*`. Routes under **`/api/super-admin/...`** rely on **handler-level** guards only (no Cognito middleware envelope for that path pattern).
+`middleware.ts` **`config.matcher`** includes **`/api/ops/*`** and page prefixes like **`/super-admin/*`**, **`/admin/*`**, but **does not** include **`/api/super-admin/*`**. Routes under **`/api/super-admin/...`** rely on **handler-level** guards only (no Cognito middleware envelope for that path pattern).
 
 For **how corresponding pages group in the super-admin sidebar**, see [`super-admin-information-architecture.md`](./super-admin-information-architecture.md).
 

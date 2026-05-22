@@ -178,6 +178,8 @@ export default async function SuperAdminShipmentDetailPage(props: PageProps) {
   const rateId = shipment.selectedShippoRateId?.trim() ?? "";
   const tracking = shipment.trackingNumber?.trim() ?? "";
   const canPurchaseLabel = Boolean(rateId) && !tracking;
+  const fulfillmentApprovalRequired =
+    process.env.SHIPPO_REQUIRE_FULFILLMENT_APPROVAL?.trim() === "true";
 
   return (
     <div className="space-y-8">
@@ -369,10 +371,15 @@ export default async function SuperAdminShipmentDetailPage(props: PageProps) {
           {canPurchaseLabel ? (
             <div className="rounded-lg border border-cream-dark/50 bg-cream-mid/10 p-3">
               <p className="mb-2 text-[12px] text-charcoal/65">
-                A Shippo rate is saved and tracking is not set — you can purchase a label via the existing ops endpoint (requires Cognito
-                session with <span className="font-mono">shipping:write</span>, same as the Ops console).
+                A Shippo rate is saved and tracking is not set — you can purchase a label via the staffed admin console (requires Cognito
+                session with <span className="font-mono">shipping:write</span> hitting <span className="font-mono">POST /api/ops/shipping/purchase-label</span>).
               </p>
-              <OpsPurchaseShippoLabelButton shipmentId={shipment.id} rateIdPresent={canPurchaseLabel} />
+              <OpsPurchaseShippoLabelButton
+                shipmentId={shipment.id}
+                rateIdPresent={canPurchaseLabel}
+                fulfillmentApprovalRequired={fulfillmentApprovalRequired}
+                fulfillmentApprovedAt={shipment.fulfillmentGroup.fulfillmentApprovedAt}
+              />
             </div>
           ) : (
             <p className="text-[13px] text-charcoal/65">
@@ -381,9 +388,9 @@ export default async function SuperAdminShipmentDetailPage(props: PageProps) {
             </p>
           )}
           <p className="text-[12px] text-charcoal/55 leading-relaxed border-t border-cream-dark/35 pt-3">
-            Manual tracking rows and the parcel queue are implemented under the Ops shell — open{" "}
-            <Link href="/ops/shipping" className="font-semibold text-teal-dark hover:underline">
-              /ops/shipping
+            Manual tracking rows and the parcel queue now live under the staff admin console — open{" "}
+            <Link href="/admin/shipping" className="font-semibold text-teal-dark hover:underline">
+              /admin/shipping
             </Link>{" "}
             to create manual <span className="font-mono">Shipment</span> rows or work the queue. There is no void-label API in this
             codebase; nothing else to wire here.

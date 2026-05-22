@@ -40,6 +40,7 @@ export default function OrderConsoleCommunicationsNoteForm({
     try {
       const res = await fetch("/api/ops/communications/notes", {
         method: "POST",
+        credentials: "include",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           commerceOrderId,

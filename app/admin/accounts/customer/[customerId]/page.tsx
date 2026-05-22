@@ -85,7 +85,10 @@ export default async function AdminAccountCustomerDetailPage(props: PageProps) {
             <p className="text-[13px] text-charcoal/75 mb-3">
               Super-admin impersonation flows are audited; scoped to customer storefront routes.
             </p>
-            <StartCustomerImpersonation prefilledEmail={customer.email} />
+            <StartCustomerImpersonation
+              key={customer.email.trim() ?? "__none__"}
+              prefilledEmail={customer.email}
+            />
           </div>
         ) : null}
 

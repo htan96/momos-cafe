@@ -3,6 +3,9 @@ import {
   CognitoIdentityProviderClient,
 } from "@aws-sdk/client-cognito-identity-provider";
 import { getCognitoConfig } from "@/lib/auth/cognito/config";
+import {
+  buildCognitoIdpAdminClientConfig,
+} from "@/lib/auth/cognito/cognitoIdpAdminClientConfig";
 
 export type CognitoUserLookup = {
   username: string;
@@ -23,7 +26,7 @@ export async function adminGetUserByEmail(email: string): Promise<CognitoUserLoo
   const region = cfg.region;
   const userPoolId = cfg.userPoolId;
 
-  const client = new CognitoIdentityProviderClient({ region });
+  const client = new CognitoIdentityProviderClient(buildCognitoIdpAdminClientConfig(region));
   try {
     const res = await client.send(
       new AdminGetUserCommand({

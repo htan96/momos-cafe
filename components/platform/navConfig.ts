@@ -18,7 +18,7 @@ export const ADMIN_PLATFORM_NAV: PlatformNavItem[] = [
   { section: "Overview", href: "/admin", label: "Dashboard" },
   { section: "Fulfillment", href: "/admin/fulfillment", label: "Fulfillment" },
   { href: "/admin/shipping", label: "Shipping" },
-  { href: "/admin/order-lookup", label: "Orders" },
+  { href: "/admin/orders", label: "Orders" },
   { href: "/admin/catering-orders", label: "Catering" },
   { href: "/admin/catering-inquiries", label: "Catering inquiries" },
   { section: "Customers & menu", href: "/admin/accounts", label: "Accounts" },

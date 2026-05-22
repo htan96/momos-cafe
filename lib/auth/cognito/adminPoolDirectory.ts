@@ -9,14 +9,19 @@ import {
 import type { CognitoEnvConfig } from "@/lib/auth/cognito/config";
 import { CUSTOMER_POOL_GROUP_NAME, adminAddUserToGroup } from "@/lib/auth/cognito/cognitoClient";
 import type { CognitoGroup } from "@/lib/auth/cognito/types";
+import {
+  buildCognitoIdpAdminClientConfig,
+  cognitoIdpAdminClientCacheKey,
+} from "@/lib/auth/cognito/cognitoIdpAdminClientConfig";
 
 const clients = new Map<string, CognitoIdentityProviderClient>();
 
 function client(cfg: CognitoEnvConfig): CognitoIdentityProviderClient {
-  let c = clients.get(cfg.region);
+  const key = cognitoIdpAdminClientCacheKey(cfg.region);
+  let c = clients.get(key);
   if (!c) {
-    c = new CognitoIdentityProviderClient({ region: cfg.region });
-    clients.set(cfg.region, c);
+    c = new CognitoIdentityProviderClient(buildCognitoIdpAdminClientConfig(cfg.region));
+    clients.set(key, c);
   }
   return c;
 }

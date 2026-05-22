@@ -132,6 +132,9 @@ export type OperationalIdentitySearchResult = {
     degraded: boolean;
     scannedUsers: number;
     scanCapped: boolean;
+    failureKind?: string | null;
+    explicitStaticIamKeysConfigured?: boolean;
+    awsCredentialChainEnvHint?: boolean;
     errorCode?: string;
     errorDetail?: string;
   };
@@ -228,6 +231,9 @@ export async function searchOperationalIdentityCandidates(trimmedQuery: string):
       degraded: scanOutcome.degraded,
       scannedUsers: scanOutcome.scannedUsers,
       scanCapped: scanOutcome.scanCapped,
+      explicitStaticIamKeysConfigured: scanOutcome.explicitStaticIamKeysConfigured,
+      awsCredentialChainEnvHint: scanOutcome.awsCredentialChainEnvHint,
+      ...(scanOutcome.failureKind != null ? { failureKind: scanOutcome.failureKind } : {}),
       ...(scanOutcome.errorCode ? { errorCode: scanOutcome.errorCode } : {}),
       ...(scanOutcome.errorDetail ? { errorDetail: scanOutcome.errorDetail } : {}),
     };

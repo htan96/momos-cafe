@@ -165,9 +165,9 @@ export default async function SuperAdminShippingOperationsPage() {
       </OperationalCard>
 
       <p className="text-[12px] text-charcoal/55 leading-relaxed">
-        Label purchase and manual tracking are implemented in the staff Ops console and `POST /api/ops/shipping/*` routes — open{" "}
-        <Link href="/ops/shipping" className="font-semibold text-teal-dark hover:underline">
-          /ops/shipping
+        Label purchase and manual tracking ship with the staffed admin routes (`/admin/shipping`) and legacy `POST /api/ops/shipping/*` handlers — open{" "}
+        <Link href="/admin/shipping" className="font-semibold text-teal-dark hover:underline">
+          /admin/shipping
         </Link>{" "}
         when you need the full queue and forms. This page is a read-mostly governance view with a purchase shortcut on the shipment
         detail screen when a saved Shippo rate is on file.

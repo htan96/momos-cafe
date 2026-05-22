@@ -12,6 +12,8 @@ export const OPERATIONAL_EVENT_TYPES = {
   MAINTENANCE_UPDATED: "maintenance.updated",
   CUSTOMER_REGISTERED: "customer.registered",
   SHIPMENT_LABEL_CREATED: "shipment.label_created",
+  /** RETAIL fulfillment group acknowledgement before gated Shippo purchases (staff-driven). */
+  FULFILLMENT_APPROVED: "fulfillment.approved",
   PLATFORM_FEATURE_TOGGLED: "platform.feature_toggled",
   GOVERNANCE_CONTROL_UPDATED: "governance.control_updated",
   AUTH_LOGOUT: "auth.logout",

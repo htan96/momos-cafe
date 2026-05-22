@@ -28,7 +28,7 @@
  *
  * ### Route protection
  * - `COGNITO_PROTECTED_PREFIXES` lists extra path prefixes gated in `middleware.ts` (default `/account,/admin,/super-admin`).
- * - **`/ops` and `/api/ops`** always require Cognito with `admin` or `super_admin`, regardless of that env list.
+ * - **`/api/ops/**`** always runs through the Cognito JWT gate and requires `admin` or `super_admin`, regardless of `COGNITO_PROTECTED_PREFIXES`.
  * - When you change prefixes, **extend `middleware.ts` `config.matcher`** with matching patterns (matchers are static);
  *   non-`/api` matched paths skip the internal orchestration secret gate.
  * - Storefront Cognito sign-in UI is `/login`; `/auth/cognito/login` redirects there for bookmarks.

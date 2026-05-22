@@ -103,6 +103,8 @@ async function handler(req: Request) {
     shipmentId: resolved.shipmentId,
     actor: { sub: actorSub, actorType: "super_admin" },
     emitSourceTag: "api.super-admin.operations.recovery.shippo-label",
+    /** Break-glass: bypass optional `SHIPPO_REQUIRE_FULFILLMENT_APPROVAL` confirmation gate — audited in this handler. */
+    skipFulfillmentApprovalCheck: true,
   });
 
   if (!result.ok) {

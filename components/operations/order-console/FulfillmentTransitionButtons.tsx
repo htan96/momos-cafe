@@ -21,7 +21,7 @@ export default function FulfillmentTransitionButtons({
   pipeline: FulfillmentPipeline;
   status: string;
   canFulfillmentWrite: boolean;
-  /** `ops` — dark console styling for `/ops/*` surfaces. */
+  /** `ops` variant — darker chrome for cramped rows (historical Ops palette naming). */
   variant?: "default" | "ops";
 }) {
   const router = useRouter();
@@ -57,6 +57,7 @@ export default function FulfillmentTransitionButtons({
     try {
       const res = await fetch(`/api/ops/fulfillment/${encodeURIComponent(groupId)}/transition`, {
         method: "PATCH",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orderId, status: nextStatus }),
       });

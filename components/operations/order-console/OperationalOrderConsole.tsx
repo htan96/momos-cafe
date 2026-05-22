@@ -16,7 +16,7 @@ import {
   severityPillVariant,
   WebhookReceiptStatusPill,
 } from "@/components/operations/order-console/orderTimelineTokens";
-import FulfillmentTransitionButtons from "@/components/operations/order-console/FulfillmentTransitionButtons";
+import FulfillmentRowActions from "@/components/operations/FulfillmentRowActions";
 import OrderConsoleCommunicationsSection from "@/components/operations/order-console/OrderConsoleCommunicationsSection";
 import OrderConsoleSupportRefundPanels from "@/components/operations/order-console/OrderConsoleSupportRefundPanels";
 import OrderConsoleSuperAdminRecoveryClient from "@/components/operations/order-console/OrderConsoleSuperAdminRecoveryClient";
@@ -36,7 +36,7 @@ export default function OperationalOrderConsole({
   snapshot,
   flags,
 }: {
-  audience: "ops" | "super_admin";
+  audience: "admin" | "super_admin";
   snapshot: OperationalOrderConsoleSnapshot;
   flags: OperationalOrderConsoleFlags;
 }) {
@@ -45,7 +45,7 @@ export default function OperationalOrderConsole({
   const baseSquareLinks = buildSquareDashboardLinks(linkEnv);
   const orderSquareLinks = buildSquareDashboardLinks(linkEnv, { squareOrderId: snapshot.orderSquareOrderId });
   const hasSquareConsoleBase = Boolean(baseSquareLinks.transactions);
-  const allOrdersHref = audience === "ops" ? "/ops/orders" : "/super-admin/order-operations";
+  const allOrdersHref = audience === "admin" ? "/admin/orders" : "/super-admin/order-operations";
 
   const cust = customerLines(order);
   const hasRetailPipeline = order.fulfillmentGroups.some((g) => g.pipeline.trim().toUpperCase() === "RETAIL");
@@ -198,11 +198,12 @@ export default function OperationalOrderConsole({
                       {(() => {
                         const pipe = normalizePipeline(g.pipeline);
                         return pipe ?
-                            <FulfillmentTransitionButtons
+                            <FulfillmentRowActions
                               orderId={order.id}
                               groupId={g.id}
                               pipeline={pipe}
                               status={g.status}
+                              fulfillmentApprovedAt={g.fulfillmentApprovedAt}
                               canFulfillmentWrite={flags.canFulfillmentWrite}
                             />
                           : null;
@@ -241,6 +242,10 @@ export default function OperationalOrderConsole({
                             <OpsPurchaseShippoLabelButton
                               shipmentId={latestShip.id}
                               rateIdPresent={Boolean(latestShip.selectedShippoRateId)}
+                              fulfillmentApprovalRequired={
+                                snapshot.shippingLabelPolicy.requireFulfillmentApprovalForShippoLabels
+                              }
+                              fulfillmentApprovedAt={g.fulfillmentApprovedAt}
                             />
                           : flags.canShippingWrite ?
                             <p className="text-[12px] text-charcoal/50">
@@ -258,11 +263,12 @@ export default function OperationalOrderConsole({
                         const pipe = normalizePipeline(g.pipeline);
                         return pipe ?
                             <div className="pt-3">
-                              <FulfillmentTransitionButtons
+                              <FulfillmentRowActions
                                 orderId={order.id}
                                 groupId={g.id}
                                 pipeline={pipe}
                                 status={g.status}
+                                fulfillmentApprovedAt={g.fulfillmentApprovedAt}
                                 canFulfillmentWrite={flags.canFulfillmentWrite}
                               />
                             </div>
@@ -495,7 +501,7 @@ export default function OperationalOrderConsole({
               <span className="text-[11px] uppercase text-charcoal/40">Communication</span>
               {order.emailThreads.length ?
                 order.emailThreads.map((t) => (
-                  <Link key={t.id} href={`/ops/communications/${t.id}`} className="font-mono text-[11px] text-teal-dark hover:underline">
+                  <Link key={t.id} href={`/admin/communications/${t.id}`} className="font-mono text-[11px] text-teal-dark hover:underline">
                     {t.subjectSnapshot?.slice(0, 32) ?? t.id.slice(0, 8)}…
                   </Link>
                 ))

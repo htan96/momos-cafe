@@ -233,6 +233,10 @@ model FulfillmentGroup {
   order             CommerceOrder     @relation(fields: [orderId], references: [id], onDelete: Cascade)
   pipeline          String            @map("pipeline")
   status            String            @default("pending") @map("status")
+  /// Staff acknowledgement before Shippo purchase when `SHIPPO_REQUIRE_FULFILLMENT_APPROVAL=true` (nullable until set).
+  fulfillmentApprovedAt DateTime?      @map("fulfillment_approved_at") @db.Timestamptz(6)
+  /// Cognito `sub` of staff who confirmed (same session as PATCH `confirm_fulfillment`).
+  fulfillmentApprovedBy String?      @map("fulfillment_approved_by") @db.VarChar(128)
   estimatedReadyAt  DateTime?         @map("estimated_ready_at") @db.Timestamptz(6)
   pickupWindowId    String?           @map("pickup_window_id") @db.Uuid
   pickupWindow      PickupWindow?     @relation(fields: [pickupWindowId], references: [id], onDelete: SetNull)

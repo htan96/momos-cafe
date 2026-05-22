@@ -151,7 +151,10 @@ export default async function AdminAccountStaffDetailPage(props: PageProps) {
               <p className="text-[13px] text-charcoal/75">
                 Start customer-scope impersonation for this diner if they share a verified Cognito email.
               </p>
-              <StartCustomerImpersonation prefilledEmail={poolUser.email ?? null} />
+              <StartCustomerImpersonation
+                key={poolUser.email ?? "__none__"}
+                prefilledEmail={poolUser.email ?? null}
+              />
               <p className="text-[11px] text-charcoal/50">
                 Admin-scope impersonation remains deferred (middleware effective-groups not shipped).
               </p>

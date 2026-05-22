@@ -15,7 +15,7 @@ export default function CommunicationGovernanceRegistryPage() {
 
       <OperationalCard title="Operational communications map" meta="Transaction stubs · SES · PSP boundaries">
         <p className="text-[13px] text-charcoal/70 mb-6 leading-relaxed">
-          Derived from codebase sources — not a mailbox or campaign UI. Operational timelines under `/ops`/`/super-admin/order-operations`
+          Derived from codebase sources — not a mailbox or campaign UI. Operational timelines under `/admin/orders` and `/super-admin/order-operations`
           merge Momos SES application mail, Postgres email threads, webhook receipts for ses/resend adapters, queued notification
           payloads, plus internal coordination notes (<code className="text-[11px]">OperationalCommunicationNote</code>).
         </p>

@@ -180,6 +180,8 @@ export async function loadSuperAdminCustomerDossier(customerId: string) {
     cateringInquiries,
     timelineRows,
     openIncidentCount,
+    /** Wall clock on the Node snapshot used for presence “recent session” thresholds (SSR/RSC purity). */
+    presenceEvaluatedAtMs: Date.now(),
   };
 }
 

@@ -1,15 +1,17 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   async redirects() {
-    /**
-     * Transitional `/ops/**` aliases → canonical `/admin/**` where execution surfaces exist.
-     * See `docs/architecture/admin-ops-consolidation-deliverables.md`.
-     */
+    /** Legacy bookmarks from removed `/ops` App Router chrome — canonical execution lives under `/admin/*`. */
     return [
+      { source: "/ops", destination: "/admin", permanent: false },
+      { source: "/ops/orders/:path*", destination: "/admin/orders/:path*", permanent: false },
+      { source: "/ops/settings", destination: "/admin/settings/operations", permanent: false },
+      { source: "/ops/support", destination: "/admin/support", permanent: false },
+      { source: "/ops/login", destination: "/login", permanent: false },
+      { source: "/ops/login/:path*", destination: "/login", permanent: false },
       { source: "/ops/fulfillment", destination: "/admin/fulfillment", permanent: false },
       { source: "/ops/shipping", destination: "/admin/shipping", permanent: false },
-      { source: "/ops/support", destination: "/admin/support", permanent: false },
-      { source: "/ops/communications/:threadId", destination: "/admin/communications", permanent: false },
+      { source: "/ops/communications/:path*", destination: "/admin/communications/:path*", permanent: false },
       { source: "/ops/communications", destination: "/admin/communications", permanent: false },
     ];
   },

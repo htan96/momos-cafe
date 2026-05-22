@@ -2,32 +2,23 @@ import Link from "next/link";
 import OpsPageHeader from "@/components/operations/OpsPageHeader";
 import OpsPanel from "@/components/operations/OpsPanel";
 
+/** Staff redirect target from legacy `/ops/order-lookup`. */
 export default function AdminOrderLookupPage() {
   return (
     <div className="space-y-8">
-      <OpsPageHeader title="Order lookup" subtitle="Search is not routed through this scaffold — operational truth lives behind the guarded ops console orders list." />
+      <OpsPageHeader title="Order lookup" subtitle="Commerce UUID search — open the staffed orders inbox for SSR timelines." />
 
-      <OpsPanel title="Jump to tooling" eyebrow="Live read models">
+      <OpsPanel title="Operational truth" eyebrow="/admin/orders">
         <p className="text-[13px] text-charcoal/70 mb-6">
-          Use the ops workspace to page real Commerce orders, shipments, refunds, and activities with auth-gated loaders.
+          Every row opens <span className="font-mono text-[13px]">OperationalOrderConsole</span> timelines (payments · fulfillment ·
+          webhooks · comms stubs) without bouncing through the storefront.
         </p>
         <Link
-          href="/ops/orders"
+          href="/admin/orders"
           className="inline-flex rounded-lg border border-teal-dark/35 bg-teal/[0.07] px-4 py-2.5 text-[12px] font-semibold uppercase tracking-[0.12em] text-teal-dark hover:bg-teal/15 transition-colors"
         >
-          Ops · orders →
+          Staff orders inbox →
         </Link>
-      </OpsPanel>
-
-      <OpsPanel title="Operational timeline preview" eyebrow="Not loaded here">
-        <p className="text-[13px] text-charcoal/62 leading-relaxed">
-          Selecting an individual order attaches `OperationalActivityEvent`, webhook receipts, refunds, shipments, internal comms —
-          hydrate those via{" "}
-          <Link href="/ops/orders" className="text-teal-dark font-semibold hover:underline underline-offset-4">
-            /ops/orders
-          </Link>
-          .
-        </p>
       </OpsPanel>
     </div>
   );

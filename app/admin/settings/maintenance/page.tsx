@@ -18,31 +18,30 @@ export default function AdminMaintenanceSettingsPage() {
 
   const display = optimistic ?? flags;
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/admin/app-settings", { cache: "no-store" });
-      if (!res.ok) {
-        const j = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(j.error ?? `Request failed (${res.status})`);
-      }
-      const data = (await res.json()) as Flags;
-      setFlags({
-        shopEnabled: data.shopEnabled,
-        menuEnabled: data.menuEnabled,
-      });
-      setOptimistic(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load settings");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    void load();
-  }, [load]);
+    async function hydrateFromServerSnapshot() {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch("/api/admin/app-settings", { cache: "no-store" });
+        if (!res.ok) {
+          const j = (await res.json().catch(() => ({}))) as { error?: string };
+          throw new Error(j.error ?? `Request failed (${res.status})`);
+        }
+        const data = (await res.json()) as Flags;
+        setFlags({
+          shopEnabled: data.shopEnabled,
+          menuEnabled: data.menuEnabled,
+        });
+        setOptimistic(null);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Could not load settings");
+      } finally {
+        setLoading(false);
+      }
+    }
+    void hydrateFromServerSnapshot();
+  }, []);
 
   const persist = useCallback(
     async (patch: Partial<Flags>) => {

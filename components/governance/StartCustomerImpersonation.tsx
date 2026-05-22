@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 const MIN_REASON = 10;
 
@@ -16,13 +16,6 @@ export default function StartCustomerImpersonation({ prefilledEmail = null }: Pr
   const [justification, setJustification] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    const next = prefilledEmail?.trim() ?? "";
-    if (next) {
-      setEmail(next);
-    }
-  }, [prefilledEmail]);
 
   async function onStart(e: React.FormEvent) {
     e.preventDefault();

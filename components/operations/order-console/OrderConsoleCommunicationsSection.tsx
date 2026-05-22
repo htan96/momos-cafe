@@ -17,7 +17,7 @@ function CommunicationRow({ row }: { row: CommunicationTimelineEntryDto }) {
         <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-charcoal/45">
           <time dateTime={row.ts}>{formatTs(row.ts)}</time>
           <span className="rounded-full border border-cream-dark/50 px-2 py-[1px] text-[10px]">Email</span>
-          <Link href={`/ops/communications/${row.threadId}`} className="font-mono normal-case text-teal-dark hover:underline">
+          <Link href={`/admin/communications/${row.threadId}`} className="font-mono normal-case text-teal-dark hover:underline">
             thread · {row.threadId.slice(0, 8)}…
           </Link>
         </div>

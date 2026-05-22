@@ -38,6 +38,26 @@ function authorityLabelFromScope(scope: StatusOk["scope"]): string {
   return scope === "admin" ? "Super Admin (delegated ops)" : "Super Admin";
 }
 
+/** Isolated ticking clock — keeps interval `setState` out of banner `useEffect` scope for lint / compiler hooks. */
+function ImpersonationDurationClock({ startedAt }: { startedAt: string }) {
+  const startedMs = Date.parse(startedAt);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 15_000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const durationLabel =
+    Number.isFinite(startedMs) ? formatLedgerDuration(now - startedMs) : "—";
+
+  return (
+    <>
+      Session <span className="font-medium text-gold/90">{durationLabel}</span>
+    </>
+  );
+}
+
 function shouldOfferGovernanceSwitcher(pathname: string): boolean {
   if (
     pathname === "/login" ||
@@ -49,7 +69,6 @@ function shouldOfferGovernanceSwitcher(pathname: string): boolean {
   ) {
     return false;
   }
-  if (pathname.startsWith("/ops")) return false;
   return true;
 }
 
@@ -60,55 +79,55 @@ export default function OperationalPerspectiveBanner() {
   const router = useRouter();
   const pathname = usePathname() ?? "";
   const [data, setData] = useState<StatusOk | null>(null);
-  const [now, setNow] = useState(() => Date.now());
 
-  const load = useCallback(async () => {
-    try {
-      const res = await fetch("/api/super-admin/impersonation/status", { credentials: "include" });
-      if (!res.ok) {
-        setData(null);
-        return;
+  useEffect(() => {
+    let cancelled = false;
+
+    async function refreshImpersonationEnvelope() {
+      try {
+        const res = await fetch("/api/super-admin/impersonation/status", { credentials: "include" });
+        if (cancelled) return;
+        if (!res.ok) {
+          if (!cancelled) setData(null);
+          return;
+        }
+        const j = (await res.json()) as {
+          active?: boolean;
+          actor?: StatusOk["actor"];
+          target?: StatusOk["target"];
+          scope?: string;
+          startedAt?: string;
+          ledgerId?: string;
+        };
+        if (cancelled) return;
+        if (
+          j.active &&
+          j.actor &&
+          j.target &&
+          (j.scope === "customer" || j.scope === "admin") &&
+          j.startedAt
+        ) {
+          setData({
+            active: true,
+            actor: j.actor,
+            target: j.target,
+            scope: j.scope,
+            startedAt: j.startedAt,
+            ledgerId: j.ledgerId,
+          });
+        } else if (!cancelled) {
+          setData(null);
+        }
+      } catch {
+        if (!cancelled) setData(null);
       }
-      const j = (await res.json()) as {
-        active?: boolean;
-        actor?: StatusOk["actor"];
-        target?: StatusOk["target"];
-        scope?: string;
-        startedAt?: string;
-        ledgerId?: string;
-      };
-      if (
-        j.active &&
-        j.actor &&
-        j.target &&
-        (j.scope === "customer" || j.scope === "admin") &&
-        j.startedAt
-      ) {
-        setData({
-          active: true,
-          actor: j.actor,
-          target: j.target,
-          scope: j.scope,
-          startedAt: j.startedAt,
-          ledgerId: j.ledgerId,
-        });
-      } else {
-        setData(null);
-      }
-    } catch {
-      setData(null);
     }
+
+    void refreshImpersonationEnvelope();
+    return () => {
+      cancelled = true;
+    };
   }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  useEffect(() => {
-    if (!data) return;
-    const id = window.setInterval(() => setNow(Date.now()), 15_000);
-    return () => window.clearInterval(id);
-  }, [data]);
 
   const exit = useCallback(async () => {
     await fetch("/api/super-admin/impersonation/end", { method: "POST", credentials: "include" });
@@ -120,9 +139,6 @@ export default function OperationalPerspectiveBanner() {
   const showLensInBanner = !pathname.startsWith("/super-admin");
 
   if (!shouldOfferGovernanceSwitcher(pathname) || !data) return null;
-
-  const startedMs = Date.parse(data.startedAt);
-  const durationLabel = Number.isFinite(startedMs) ? formatLedgerDuration(now - startedMs) : "—";
 
   return (
     <aside
@@ -143,7 +159,7 @@ export default function OperationalPerspectiveBanner() {
             </span>
             {" · "}
             <span className="text-cream/70 text-[11px]">
-              Session <span className="font-medium text-gold/90">{durationLabel}</span>
+              <ImpersonationDurationClock startedAt={data.startedAt} />
             </span>
           </p>
         </div>

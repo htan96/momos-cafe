@@ -90,7 +90,6 @@ export const config = {
     "/admin/:path*",
     "/super-admin/:path*",
     "/portal/:path*",
-    "/ops/:path*",
     "/api/ops/:path*",
     "/api/orders/:path*",
     "/api/cart/:path*",

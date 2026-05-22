@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import OpsPageHeader from "@/components/ops/OpsPageHeader";
+import OpsPageHeader from "@/components/operations/OpsPageHeader";
 import OperationalOrderConsole from "@/components/operations/order-console/OperationalOrderConsole";
 import { getOpsSession } from "@/lib/ops/getOpsSession";
 import { opsCan } from "@/lib/ops/permissions";
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 const ORDER_ID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-export default async function OpsOrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function AdminOrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
   if (!ORDER_ID_RE.test(id)) notFound();
@@ -40,25 +40,28 @@ export default async function OpsOrderDetailPage({ params }: { params: Promise<{
     snapshot.metaLabels.orderLabel ?? `Commerce order · ${snapshot.order.id.slice(0, 8)}…`;
 
   return (
-    <>
+    <div className="space-y-8">
       <OpsPageHeader
         title={displayTitle}
-        description="Fulfillment nucleus for this storefront shell — mirrored with super-admin order operations."
+        subtitle="Fulfillment nucleus for this storefront row — mirrored with `/super-admin/order-operations/[id]` tooling."
         actions={
-          <Link href="/ops/orders" className="text-[12px] text-[#8FC4C4] hover:underline">
+          <Link
+            href="/admin/orders"
+            className="rounded-lg border border-cream-dark bg-white px-3 py-2 text-[12px] font-semibold text-charcoal/80 uppercase tracking-[0.1em] hover:bg-cream/80 transition-colors"
+          >
             ← All orders
           </Link>
         }
       />
 
       {!flags.canGovernanceDebug ?
-        <p className="text-[11px] text-[#c9bba8]/80 border border-[#3d3830]/80 rounded-lg px-3 py-2 mb-4">
-          Scoped recovery super-admin tooling (failures/live + audited POST retries) stays on the elevated workspace —
-          fulfilment transitions above still obey your ops IAM (`fulfillment` / `shipping`).
+        <p className="text-[12px] text-charcoal/60 border border-cream-dark/70 rounded-xl px-4 py-3 bg-white/72">
+          Super-admin audited recovery tooling stays on `/super-admin` — fulfilment confirmations and scripted transitions obey
+          the same IAM matrix from this workspace.
         </p>
       : null}
 
-      <OperationalOrderConsole audience="ops" snapshot={snapshot} flags={flags} />
-    </>
+      <OperationalOrderConsole audience="admin" snapshot={snapshot} flags={flags} />
+    </div>
   );
 }

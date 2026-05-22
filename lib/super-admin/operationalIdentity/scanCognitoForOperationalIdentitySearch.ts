@@ -1,4 +1,5 @@
 import type { CognitoEnvConfig } from "@/lib/auth/cognito/config";
+import { classifyCognitoSdkInfraFailure, type CognitoSdkInfraFailureKind } from "@/lib/auth/cognito/cognitoSdkInfraFailure";
 import {
   adminGetPoolUser,
   adminListAssignedGroupsForUser,
@@ -7,6 +8,9 @@ import {
   type ListedPoolUser,
 } from "@/lib/auth/cognito/adminPoolDirectory";
 import { adminGetUserByEmail } from "@/lib/auth/cognito/adminGetUserByEmail";
+import { cognitoAdminStaticCredentialsResolved } from "@/lib/auth/cognito/cognitoIdpAdminClientConfig";
+import { hasLikelyResolvableAwsCredentials } from "@/lib/aws/awsRuntimeEnv";
+
 import { OPERATIONAL_IDENTITY_COGNITO_SCAN_MAX_USERS } from "./constants";
 import type { OperationalPoolUserEnvelope } from "./resolvePoolUserBySub";
 
@@ -102,6 +106,12 @@ export type CognitoOperationalSearchScanOutcome = {
   degraded: boolean;
   errorCode?: string;
   errorDetail?: string;
+  /** Populated when ListUsers/hydrate failed in a classified way — never treat as empty search alone. */
+  failureKind?: CognitoSdkInfraFailureKind | null;
+  /** True when **`COGNITO_IDP_ADMIN_*`** or **`AWS_ACCESS_KEY_ID`+secret** resolved for Cognito Admin SDK wiring. */
+  explicitStaticIamKeysConfigured?: boolean;
+  /** Heuristic that *some* default credential chain MAY exist (ECS/Lambda/container env flags or paired keys). */
+  awsCredentialChainEnvHint?: boolean;
 };
 
 /** Bounded Cognito enrichment for **`searchOperationalIdentityCandidates`**. */
@@ -129,8 +139,43 @@ export async function scanCognitoForOperationalIdentitySearch(
   let scanCapped = false;
 
   let degraded = false;
+  let sawCredentialsFault = false;
+  let failureKindResolved: CognitoSdkInfraFailureKind | undefined;
   let errorCode: string | undefined;
   let errorDetail: string | undefined;
+
+  const absorbFault = (err: unknown, phase: string, extra?: Record<string, unknown>): void => {
+    const c = classifyCognitoSdkInfraFailure(err);
+    degraded = true;
+    if (c.failureKind === "credentials") {
+      sawCredentialsFault = true;
+      errorCode = c.code;
+      errorDetail = c.detail;
+    } else if (!sawCredentialsFault) {
+      failureKindResolved = c.failureKind;
+      errorCode = c.code;
+      errorDetail = c.detail;
+    }
+    dbgPayload("operational_identity_cognito_fault", {
+      phase,
+      q: queryTrimmed,
+      failureKind: c.failureKind,
+      code: c.code,
+      detail: c.detail.slice(0, 500),
+      ...extra,
+    });
+    console.warn(
+      `[operational_identity] cognito_infra_fault phase=${phase}`,
+      JSON.stringify({
+        phase,
+        classified: c.failureKind,
+        code: c.code,
+        cognitoRegion: cfg.region,
+        explicitStaticIamKeys: cognitoAdminStaticCredentialsResolved(),
+        awsCredentialChainEnvHint: hasLikelyResolvableAwsCredentials(),
+      })
+    );
+  };
 
   let filterScratch = 0;
 
@@ -152,8 +197,11 @@ export async function scanCognitoForOperationalIdentitySearch(
 
   dbgPayload("operational_identity_cognito_scan_begin", {
     q: queryTrimmed,
+    cognitoRegion: cfg.region,
     cap: OPERATIONAL_IDENTITY_COGNITO_SCAN_MAX_USERS,
     maxEnvelopes: params.maxEnvelopes,
+    explicitStaticIamKeys: cognitoAdminStaticCredentialsResolved(),
+    awsCredentialChainEnvHint: hasLikelyResolvableAwsCredentials(),
   });
 
   /** Path · UUID-ish pool username conventions. */
@@ -171,13 +219,7 @@ export async function scanCognitoForOperationalIdentitySearch(
         if (hydrated) bucketPut(hydrated, matchRank(qLower, hydrated) ?? -350);
       }
     } catch (ab: unknown) {
-      degraded = true;
-      dbgPayload("operational_identity_cognito_scan_admin_get_fault", {
-        phase: "email_lookup",
-        q: queryTrimmed,
-        errorCode: typeof ab === "object" && ab && "name" in ab ? String((ab as { name?: string }).name) : null,
-        detail: ab instanceof Error ? ab.message : String(ab),
-      });
+      absorbFault(ab, "email_lookup_admin_get_user");
     }
   }
 
@@ -212,15 +254,7 @@ export async function scanCognitoForOperationalIdentitySearch(
         if (!paginationToken) break;
       }
     } catch (fe: unknown) {
-      degraded = true;
-
-      dbgPayload("operational_identity_cognito_scan_filter_fault", {
-        q: queryTrimmed,
-        filter: filt,
-        errorCode:
-          typeof fe === "object" && fe && "name" in fe ? String((fe as { name?: string }).name) : "COGNITO_FILTER_SCAN_FAILED",
-        detail: fe instanceof Error ? fe.message : String(fe),
-      });
+      absorbFault(fe, "list_users_filter", { filter: filt });
     }
   }
 
@@ -255,18 +289,7 @@ export async function scanCognitoForOperationalIdentitySearch(
       scanCapped = true;
     }
   } catch (fuzzyFault: unknown) {
-    degraded = true;
-    errorCode =
-      typeof fuzzyFault === "object" && fuzzyFault && "name" in fuzzyFault
-        ? String((fuzzyFault as { name?: string }).name)
-        : "COGNITO_OPEN_SCAN_FAILED";
-    errorDetail = fuzzyFault instanceof Error ? fuzzyFault.message : String(fuzzyFault);
-
-    dbgPayload("operational_identity_cognito_scan_fuzzy_fault", {
-      q: queryTrimmed,
-      errorCode,
-      errorDetail,
-    });
+    absorbFault(fuzzyFault, "list_users_unfiltered");
   }
 
   dbgPayload("operational_identity_cognito_scan_end", {
@@ -275,17 +298,38 @@ export async function scanCognitoForOperationalIdentitySearch(
     scanCapped,
     uniqueHits: bestBySub.size,
     degraded,
+    sawCredentialsFault,
+    failureKindResolved: failureKindResolved ?? null,
     errorCode: errorCode ?? null,
   });
 
   const sorted = [...bestBySub.values()].sort((a, b) => a.rank - b.rank).map((x) => x.user);
-  const envelopes = await hydrateEnvelopes(cfg, sorted.slice(0, params.maxEnvelopes));
+  let envelopes: OperationalPoolUserEnvelope[] = [];
+
+  try {
+    envelopes = await hydrateEnvelopes(cfg, sorted.slice(0, params.maxEnvelopes));
+  } catch (hydrateErr: unknown) {
+    absorbFault(hydrateErr, "hydrate_groups");
+    envelopes = [];
+  }
+
+  const failureKindMerged: CognitoSdkInfraFailureKind | undefined = degraded
+    ? sawCredentialsFault
+      ? "credentials"
+      : failureKindResolved ?? "unknown"
+    : undefined;
+
+  const staticKeys = cognitoAdminStaticCredentialsResolved();
+  const chainHint = hasLikelyResolvableAwsCredentials();
 
   return {
     envelopes,
     scannedUsers,
     scanCapped,
     degraded,
+    explicitStaticIamKeysConfigured: staticKeys,
+    awsCredentialChainEnvHint: chainHint,
+    ...(failureKindMerged !== undefined ? { failureKind: failureKindMerged } : {}),
     ...(errorCode != null ? { errorCode } : {}),
     ...(errorDetail != null ? { errorDetail } : {}),
   };

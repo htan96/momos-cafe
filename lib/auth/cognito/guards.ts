@@ -26,7 +26,7 @@ import {
 } from "@/lib/auth/cognito/staffDelegatedAuthority";
 
 /**
- * Comma-separated path prefixes protected by Cognito **in addition to** `/ops` and `/api/ops` (always enforced).
+ * Comma-separated path prefixes protected by Cognito **in addition to** `/api/ops/*` (always enforced for staff callers).
  * Defaults to `/account`, `/admin`, and `/super-admin` (plus any extra entries such as `/portal` from env).
  */
 export function cognitoProtectedPrefixes(): string[] {
@@ -39,7 +39,7 @@ export function cognitoProtectedPrefixes(): string[] {
 }
 
 export function isCognitoProtectedPath(pathname: string): boolean {
-  if (pathname.startsWith("/ops") || pathname.startsWith("/api/ops")) return true;
+  if (pathname.startsWith("/api/ops")) return true;
   return cognitoProtectedPrefixes().some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
@@ -164,22 +164,22 @@ function cognitoUnconfiguredApi(): NextResponse {
   return NextResponse.json({ error: "cognito_unconfigured", code: "COGNITO_UNCONFIGURED" }, { status: 503 });
 }
 
-/** Middleware gate for Cognito JWT cookie across storefront account, admin surfaces, portal prefixes, and ops. */
+/** Middleware gate for Cognito JWT cookie across storefront account, admin surfaces, portal prefixes, and `/api/ops/*`. */
 export async function cognitoGate(request: NextRequest): Promise<NextResponse> {
   const pathname = request.nextUrl.pathname;
   const cfg = getCognitoConfig();
   const isApiOps = pathname.startsWith("/api/ops");
 
-  if (pathname.startsWith("/ops") || isApiOps) {
+  if (isApiOps) {
     if (!cfg) {
-      return isApiOps ? cognitoUnconfiguredApi() : new NextResponse("Cognito auth is not configured.", { status: 503 });
+      return cognitoUnconfiguredApi();
     }
     const { cognito, renewalCookies } = await resolveCognitoForMiddleware(request, cfg);
     const impersonationVerified =
       cognito ? await verifyImpersonationFromNextRequest(request) : null;
     const authorityGroups = delegatedStaffAuthorityGroups(cognito?.user ?? null, impersonationVerified);
     if (!cognito || !isAdmin(authorityGroups)) {
-      return withRenewalHeaders(isApiOps ? opsUnauthorizedApi() : redirectToLogin(request), renewalCookies);
+      return withRenewalHeaders(opsUnauthorizedApi(), renewalCookies);
     }
     return withRenewalHeaders(
       await nextWithForwardedPath(request, cognito, impersonationVerified),

@@ -9,6 +9,8 @@ import {
 } from "@/lib/commerce/orderLifecycle";
 import { getOpsSession } from "@/lib/ops/getOpsSession";
 import { opsCan } from "@/lib/ops/permissions";
+import { emitOperationalEvent } from "@/lib/operations/emitOperationalEvent";
+import { OPERATIONAL_EVENT_TYPES } from "@/lib/operations/operationalEventTypes";
 import { emitPlatformEvent } from "@/lib/platform/events/emitPlatformEvent";
 import { PLATFORM_EVENT_SUBTYPE } from "@/lib/platform/events/taxonomy";
 
@@ -52,17 +54,94 @@ export async function PATCH(
   }
 
   const { groupId } = await ctx.params;
-  let body: { orderId?: string; status?: string };
+  let body: {
+    orderId?: string;
+    status?: string;
+    action?: string;
+  };
   try {
     body = (await req.json()) as typeof body;
   } catch {
     return NextResponse.json({ error: "invalid_json" }, { status: 400 });
   }
 
+  const action = body.action?.trim();
   const orderId = body.orderId?.trim();
   const nextStatus = body.status?.trim();
-  if (!orderId || !nextStatus) {
-    return NextResponse.json({ error: "orderId_and_status_required" }, { status: 400 });
+
+  if (!orderId) {
+    return NextResponse.json({ error: "order_id_required" }, { status: 400 });
+  }
+
+  if (action === "confirm_fulfillment") {
+    if (nextStatus) {
+      return NextResponse.json({ error: "confirm_fulfillment_status_conflict" }, { status: 400 });
+    }
+
+    try {
+      const group = await prisma.fulfillmentGroup.findFirst({
+        where: { id: groupId, orderId },
+        include: { order: true },
+      });
+      if (!group) return NextResponse.json({ error: "not_found" }, { status: 404 });
+
+      if (group.pipeline !== "RETAIL") {
+        return NextResponse.json(
+          { error: "confirm_fulfillment_retail_only", message: "Only RETAIL fulfillment groups accept this action." },
+          { status: 422 }
+        );
+      }
+
+      if (group.status === "cancelled") {
+        return NextResponse.json(
+          { error: "confirm_fulfillment_cancelled_group" },
+          { status: 422 }
+        );
+      }
+
+      if (group.fulfillmentApprovedAt) {
+        return NextResponse.json({
+          ok: true,
+          group,
+          duplicate: true,
+        });
+      }
+
+      const updated = await prisma.fulfillmentGroup.update({
+        where: { id: groupId },
+        data: {
+          fulfillmentApprovedAt: new Date(),
+          fulfillmentApprovedBy: session.sub,
+        },
+      });
+
+      void emitOperationalEvent({
+        type: OPERATIONAL_EVENT_TYPES.FULFILLMENT_APPROVED,
+        severity: OperationalActivitySeverity.info,
+        actorType: session.roleBadge === "super_admin" ? "super_admin" : "admin",
+        actorId: session.sub,
+        actorName: session.email,
+        message: "Retail fulfillment acknowledged for gated label purchase workflows",
+        metadata: {
+          commerceOrderId: orderId,
+          fulfillmentGroupId: groupId,
+          entities: {
+            commerceOrderId: orderId,
+            fulfillmentGroupId: groupId,
+          },
+        },
+        source: "PATCH api/ops/fulfillment/[groupId]/transition",
+      });
+
+      return NextResponse.json({ ok: true, group: updated });
+    } catch (e) {
+      console.error("[ops fulfillment PATCH confirm]", e);
+      return NextResponse.json({ error: "confirm_failed" }, { status: 500 });
+    }
+  }
+
+  if (!nextStatus) {
+    return NextResponse.json({ error: "status_or_action_required" }, { status: 400 });
   }
 
   try {

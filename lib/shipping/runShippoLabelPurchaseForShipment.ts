@@ -53,11 +53,20 @@ export type ShipLabelPurchaseActor = {
   actorType: "super_admin" | "admin";
 };
 
+function shippoFulfillmentApprovalRequired(): boolean {
+  return process.env.SHIPPO_REQUIRE_FULFILLMENT_APPROVAL?.trim() === "true";
+}
+
 /** Core Shippo purchase + persistence — shared by `/api/ops/shipping/purchase-label` and super-admin recovery routes. */
 export async function runShippoLabelPurchaseForShipment(input: {
   shipmentId: string;
   actor: ShipLabelPurchaseActor;
   emitSourceTag: string;
+  /**
+   * Super-admin recovery intentionally bypasses the optional staff confirmation gate —
+   * see `docs/architecture/ops-to-admin-console-migration.md`.
+   */
+  skipFulfillmentApprovalCheck?: boolean;
 }): Promise<
   | { ok: true; shipment: Shipment }
   | { ok: false; httpStatus: number; errorCode: string; message?: string; logDetail?: unknown }
@@ -78,10 +87,53 @@ export async function runShippoLabelPurchaseForShipment(input: {
       status: true,
       selectedShippoRateId: true,
       metadata: true,
+      fulfillmentGroup: {
+        select: {
+          pipeline: true,
+          fulfillmentApprovedAt: true,
+          orderId: true,
+        },
+      },
     },
   });
   if (!row) {
     return { ok: false, httpStatus: 404, errorCode: "shipment_not_found" };
+  }
+
+  if (
+    shippoFulfillmentApprovalRequired() &&
+    !input.skipFulfillmentApprovalCheck &&
+    row.fulfillmentGroup?.pipeline === "RETAIL" &&
+    !row.fulfillmentGroup.fulfillmentApprovedAt
+  ) {
+    const orderId = row.fulfillmentGroup.orderId?.trim();
+    void emitPlatformEvent({
+      subtype: PLATFORM_EVENT_SUBTYPE.SHIPMENT_LABEL_PURCHASE_BLOCKED,
+      category: "SHIPMENT_EVENT",
+      lifecycle: "cancelled",
+      severity: OperationalActivitySeverity.warning,
+      actorType: input.actor.actorType,
+      actorId: input.actor.sub,
+      message: "Label purchase blocked — fulfillment not confirmed for this RETAIL group",
+      entities: {
+        ...(orderId ? { commerceOrderId: orderId } : {}),
+        ...(row.fulfillmentGroupId ? { fulfillmentGroupId: row.fulfillmentGroupId } : {}),
+        shipmentId: row.id,
+      },
+      detail: {
+        reason: "fulfillment_not_approved",
+        recoveryTag: input.emitSourceTag,
+      },
+      source: { handler: input.emitSourceTag },
+      sourceTag: input.emitSourceTag,
+    });
+    return {
+      ok: false,
+      httpStatus: 422,
+      errorCode: "fulfillment_not_approved",
+      message:
+        "Fulfillment has not been confirmed for this shipment’s group — use Confirm fulfillment before purchasing the label.",
+    };
   }
 
   const rateId = row.selectedShippoRateId?.trim();

@@ -7,12 +7,24 @@ import {
 } from "@/lib/super-admin/operationalIdentity/constants";
 import type { OperationalIdentityCandidate } from "@/lib/super-admin/operationalIdentity/types";
 
+type CognitoLookupDiag = {
+  degraded?: boolean;
+  scannedUsers?: number;
+  scanCapped?: boolean;
+  failureKind?: string | null;
+  explicitStaticIamKeysConfigured?: boolean;
+  awsCredentialChainEnvHint?: boolean;
+  errorCode?: string;
+  errorDetail?: string;
+};
+
 export default function OperationalIdentitySearchClient() {
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hint, setHint] = useState<string | null>(null);
   const [rows, setRows] = useState<OperationalIdentityCandidate[]>([]);
+  const [cognitoDiag, setCognitoDiag] = useState<CognitoLookupDiag | null>(null);
 
   const handleSearch = useCallback(async () => {
     const qt = q.trim();
@@ -21,17 +33,20 @@ export default function OperationalIdentitySearchClient() {
 
     if (qt.length === 0) {
       setRows([]);
+      setCognitoDiag(null);
       return;
     }
 
     if (qt.length < OPERATIONAL_IDENTITY_SEARCH_MIN_Q) {
       setHint(`Type at least ${OPERATIONAL_IDENTITY_SEARCH_MIN_Q} characters.`);
       setRows([]);
+      setCognitoDiag(null);
       return;
     }
 
     setLoading(true);
     try {
+      setCognitoDiag(null);
       const qs = encodeURIComponent(qt.slice(0, 128));
       const res = await fetch(`/api/super-admin/operations/operational-identity/search?q=${qs}`, {
         cache: "no-store",
@@ -44,25 +59,35 @@ export default function OperationalIdentitySearchClient() {
       const body = (await res.json()) as {
         hint?: string;
         cognitoConfigured?: boolean;
-        cognitoLookup?: {
-          degraded?: boolean;
-          scannedUsers?: number;
-          scanCapped?: boolean;
-          errorCode?: string;
-          errorDetail?: string;
-        };
+        cognitoLookup?: CognitoLookupDiag;
         candidates?: OperationalIdentityCandidate[];
       };
+      const lookup = body.cognitoLookup;
+      setCognitoDiag(lookup ?? null);
       const hintPieces: string[] = [];
       if (body.hint) hintPieces.push(body.hint);
-      if (body.cognitoLookup?.degraded) {
-        const code = body.cognitoLookup.errorCode ?? "COGNITO_DEGRADED";
-        const scanned = typeof body.cognitoLookup.scannedUsers === "number" ? `${body.cognitoLookup.scannedUsers}` : "?";
-        const cap = body.cognitoLookup.scanCapped ? ` · scan capped (${scanned} rows examined)` : ` · inspected ${scanned} rows`;
-        hintPieces.push(`Cognito search degraded (${code}${cap}).`);
-      } else if (body.cognitoLookup?.scanCapped) {
+      if (lookup?.failureKind === "credentials") {
+        hintPieces.push(
+          "Cognito Admin API could not load AWS credentials (CredentialsProviderError). Set `COGNITO_IDP_ADMIN_ACCESS_KEY_ID` + `COGNITO_IDP_ADMIN_SECRET_ACCESS_KEY` for a narrow IAM user with `cognito-idp:ListUsers` + `AdminGetUser` + `AdminListGroupsForUser`, or set paired `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`, or run on AWS with an instance/task/Lambda role that includes those actions."
+        );
+      } else if (lookup?.failureKind === "access_denied") {
+        hintPieces.push(
+          "Cognito returned access denied — verify IAM policy allows `cognito-idp:ListUsers` and related admin reads on this user pool in the deployment region."
+        );
+      } else if (lookup?.failureKind === "throttling") {
+        hintPieces.push("Cognito throttled the directory scan — retry shortly or reduce search frequency.");
+      } else if (lookup?.failureKind === "invalid_parameter") {
+        hintPieces.push(
+          `Cognito rejected a filter/query parameter (${lookup.errorDetail ?? ""}).`.trim()
+        );
+      } else if (lookup?.degraded) {
+        const code = lookup.errorCode ?? "COGNITO_DEGRADED";
+        const scanned = typeof lookup.scannedUsers === "number" ? `${lookup.scannedUsers}` : "?";
+        const cap = lookup.scanCapped ? ` · scan capped (${scanned} rows enumerated)` : ` · inspected ${scanned} Cognito rows`;
+        hintPieces.push(`Cognito scan degraded (${code}${cap}).`);
+      } else if (lookup?.scanCapped) {
         const scanned =
-          typeof body.cognitoLookup.scannedUsers === "number" ? `${body.cognitoLookup.scannedUsers}` : "several hundred";
+          typeof lookup.scannedUsers === "number" ? `${lookup.scannedUsers}` : "several hundred";
         hintPieces.push(`Cognito scan hit hard cap (${scanned}+ rows enumerated).`);
       }
       if (body.cognitoConfigured === false) hintPieces.push("User pool variables missing — results are prisma-only.");
@@ -193,7 +218,10 @@ export default function OperationalIdentitySearchClient() {
         })}
       </ul>
 
-      {!loading && rows.length === 0 && q.trim().length >= OPERATIONAL_IDENTITY_SEARCH_MIN_Q ? (
+      {!loading &&
+      rows.length === 0 &&
+      q.trim().length >= OPERATIONAL_IDENTITY_SEARCH_MIN_Q &&
+      !cognitoDiag?.degraded ? (
         <p className="text-[13px] text-charcoal/55">No matches — try fuller email snippet or UUID.</p>
       ) : null}
     </div>

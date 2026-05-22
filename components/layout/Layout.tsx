@@ -16,10 +16,6 @@ import { HeaderSubNavProvider } from "@/context/HeaderSubNavContext";
 export default function Layout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
-  if (pathname.startsWith("/ops")) {
-    return <>{children}</>;
-  }
-
   if (isPlatformPath(pathname)) {
     return (
       <CartProvider>

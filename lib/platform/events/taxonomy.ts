@@ -20,6 +20,8 @@ export const PLATFORM_EVENT_SUBTYPE = {
   PAYMENT_SQUARE_ORPHAN_WEBHOOK: "payment.square.orphan_webhook",
   SHIPMENT_QUOTE_FAILED: "shipment.quote.failed",
   SHIPMENT_LABEL_FAILED: "shipment.label.failed",
+  /** Retail Shippo gate: staff attempted label purchase before Confirm fulfillment (`SHIPPO_REQUIRE_FULFILLMENT_APPROVAL`). */
+  SHIPMENT_LABEL_PURCHASE_BLOCKED: "shipment.label_purchase_blocked",
   /** Carrier / Shippo tracking ingest — provider-agnostic Commerce `Shipment` timelines. */
   SHIPMENT_TRACKING_UPDATED: "shipment.tracking_updated",
   SHIPMENT_IN_TRANSIT: "shipment.in_transit",

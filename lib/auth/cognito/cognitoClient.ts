@@ -21,6 +21,10 @@ import {
 import { cognitoSecretHash } from "@/lib/auth/cognito/secretHash";
 import { decodeCognitoIdTokenUnsafe } from "@/lib/auth/cognito/tokens";
 import { isMfaRelatedChallenge } from "@/lib/auth/cognito/mfa";
+import {
+  buildCognitoIdpAdminClientConfig,
+  cognitoIdpAdminClientCacheKey,
+} from "@/lib/auth/cognito/cognitoIdpAdminClientConfig";
 
 /** Self-service sign-ups are assigned pool group `customer` via `provisionCustomerGroupBestEffort`. */
 export const CUSTOMER_POOL_GROUP_NAME = "customer" as const;
@@ -28,10 +32,11 @@ export const CUSTOMER_POOL_GROUP_NAME = "customer" as const;
 const clients = new Map<string, CognitoIdentityProviderClient>();
 
 function client(cfg: CognitoEnvConfig): CognitoIdentityProviderClient {
-  let c = clients.get(cfg.region);
+  const key = cognitoIdpAdminClientCacheKey(cfg.region);
+  let c = clients.get(key);
   if (!c) {
-    c = new CognitoIdentityProviderClient({ region: cfg.region });
-    clients.set(cfg.region, c);
+    c = new CognitoIdentityProviderClient(buildCognitoIdpAdminClientConfig(cfg.region));
+    clients.set(key, c);
   }
   return c;
 }

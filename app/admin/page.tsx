@@ -1,14 +1,18 @@
 import Link from "next/link";
 import FulfillmentBatchRow from "@/components/operations/FulfillmentBatchRow";
 import OperationalAlertStrip from "@/components/operations/OperationalAlertStrip";
+import OperationalQueueCard from "@/components/operations/OperationalQueueCard";
 import OpsMetricQuiet from "@/components/operations/OpsMetricQuiet";
 import OpsPageHeader from "@/components/operations/OpsPageHeader";
 import OpsPanel from "@/components/operations/OpsPanel";
 import OpsStatusPill from "@/components/operations/OpsStatusPill";
 import ShipmentExceptionRow from "@/components/operations/ShipmentExceptionRow";
+import StateToneChip from "@/components/operations/StateToneChip";
 import WorkflowTimeline from "@/components/operations/WorkflowTimeline";
 import type { AdminQueueSummary } from "@/lib/admin/adminConsoleLoaders";
 import { loadAdminHomeDashboard } from "@/lib/admin/adminConsoleLoaders";
+import { formatUsdFromCents } from "@/lib/ops/formatUsd";
+import { opsLoadTodayQueues } from "@/lib/ops/queries";
 
 /** Primary inbox for each queue row — URLs must stay under `/admin` (Cognito + nav). */
 const QUEUE_PRIMARY_HREF: Record<string, string> = {
@@ -41,8 +45,13 @@ function prioritizeQueues(rows: AdminQueueSummary[]): AdminQueueSummary[] {
   return [...withSignal, ...quiet];
 }
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminHomePage() {
-  const dash = await loadAdminHomeDashboard();
+  const [dash, todayQueues] = await Promise.all([
+    loadAdminHomeDashboard(),
+    opsLoadTodayQueues(),
+  ]);
   const packDepth = dash.queueSummaries.find((q) => q.id === "q-pack")?.depth ?? 0;
   const labelDepth = dash.queueSummaries.find((q) => q.id === "q-label")?.depth ?? 0;
   const queued = prioritizeQueues(dash.queueSummaries);
@@ -61,6 +70,93 @@ export default async function AdminHomePage() {
           </Link>
         }
       />
+
+      <OpsPanel
+        eyebrow="Today · workload"
+        title="Live commerce slices"
+        description="Cards reuse `opsLoadTodayQueues`; deep links resolve on `/admin/orders`, `/admin/fulfillment`, or `/admin/communications`."
+      >
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="space-y-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-charcoal/45">Paid — needs fulfillment</p>
+            <div className="grid gap-2">
+              {todayQueues.paidNeedingFulfillment.length === 0 ?
+                <p className="text-[13px] text-charcoal/55">Nothing surfaced for this sampler.</p>
+              : todayQueues.paidNeedingFulfillment.slice(0, 4).map((o) => {
+                  const fg = o.fulfillmentGroups[0];
+                  const summary =
+                    o.fulfillmentGroups.length === 0
+                      ? "(no groups)"
+                      : o.fulfillmentGroups.map((x) => `${x.pipeline}:${x.status}`).slice(0, 2).join(" · ");
+                  return (
+                    <OperationalQueueCard
+                      key={o.id}
+                      href={`/admin/orders/${o.id}`}
+                      title={`Order ${o.id.slice(0, 8)}…`}
+                      subtitle={summary}
+                      meta={formatUsdFromCents(o.totalCents)}
+                      chips={
+                        <>
+                          <StateToneChip label={o.status} tone="ok" />
+                          {fg ? <StateToneChip label={fg.pipeline} tone="neutral" /> : null}
+                        </>
+                      }
+                    />
+                  );
+                })}
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-charcoal/45">Retail labels pending</p>
+            <div className="grid gap-2">
+              {todayQueues.shipmentsPendingLabel.length === 0 ?
+                <p className="text-[13px] text-charcoal/55">No untracked retail shipment rows surfaced.</p>
+              : todayQueues.shipmentsPendingLabel.slice(0, 4).map((s) => {
+                  const oid = s.fulfillmentGroup.order.id;
+                  return (
+                    <OperationalQueueCard
+                      key={s.id}
+                      href={`/admin/orders/${oid}`}
+                      title={`Shipment ${s.id.slice(0, 8)}…`}
+                      subtitle={`Order ${oid.slice(0, 8)}… · ${s.fulfillmentGroup.status}`}
+                      meta={
+                        <span className="text-right leading-tight inline-block">
+                          {formatUsdFromCents(s.fulfillmentGroup.order.totalCents)}
+                          <span className="block text-[10px] text-charcoal/48">
+                            {s.selectedShippoRateId ? "rate saved" : "no rate id"}
+                          </span>
+                        </span>
+                      }
+                      chips={
+                        <>
+                          <StateToneChip label={`ship:${s.status}`} tone="warn" />
+                          <StateToneChip label="RETAIL" tone="teal" />
+                        </>
+                      }
+                    />
+                  );
+                })}
+            </div>
+
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-charcoal/45 mt-6">Outbound comm failures</p>
+            <div className="grid gap-2">
+              {todayQueues.commFailures.length === 0 ?
+                <p className="text-[13px] text-charcoal/55">No recorded failures recently.</p>
+              : todayQueues.commFailures.slice(0, 3).map((m) => (
+                  <OperationalQueueCard
+                    key={m.id}
+                    href="/admin/communications"
+                    title={m.subject ?? "(no subject)"}
+                    subtitle={m.fromEmail}
+                    meta={new Date(m.createdAt).toLocaleString()}
+                    chips={<StateToneChip label="FAILED" tone="danger" />}
+                  />
+                ))}
+            </div>
+          </div>
+        </div>
+      </OpsPanel>
 
       <section aria-label="Incidents and error activity" className="space-y-3">
         {dash.alerts.length > 0 ? (

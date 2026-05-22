@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { WebhooksHelper } from "square";
 import { OperationalActivitySeverity, WebhookProcessingStatus } from "@prisma/client";
 import { reconcileSquarePaymentWebhook } from "@/lib/payments/commercePaymentOrchestration";
 import { emitPlatformEvent } from "@/lib/platform/events/emitPlatformEvent";
@@ -13,9 +12,17 @@ import { extractSquareRefundWebhookEnvelope } from "@/lib/webhooks/peekSquareRef
 import { inferLocalIdsFromSquareRefundPeek } from "@/lib/webhooks/inferLocalIdsFromSquareRefundPeek";
 import { reconcileOperationalRefundCaseFromSquareWebhook } from "@/lib/payments/operationalRefundWebhook";
 import { patchWebhookDeliveryReceipt, upsertWebhookDeliveryReceipt } from "@/lib/webhooks/recordWebhookDeliveryReceipt";
+import {
+  logSquareWebhookSignatureDiagnostics,
+  readSquareWebhookSignatureHeader,
+  verifySquareWebhookSignature,
+} from "@/lib/webhooks/square/verifySquareWebhookSignature";
 import { parseSquareWebhookRoot, readCorrelationRequestId } from "@/lib/webhooks/squareWebhookParse";
 
 export const runtime = "nodejs";
+
+/** Disable static/route caching — this handler must observe the live POST body from Square verbatim. */
+export const dynamic = "force-dynamic";
 
 const PROVIDER = "square";
 
@@ -27,7 +34,10 @@ async function linkOpsEventToReceipt(receiptId: string, opsEventId: string | nul
 
 /**
  * Square merchant webhook — verifies HMAC before touching payments / orders.
- * Configure notification URL in Square Developer Dashboard to match `SQUARE_WEBHOOK_NOTIFICATION_URL` exactly.
+ *
+ * **`SQUARE_WEBHOOK_NOTIFICATION_URL`** must equal the webhook subscription Notification URL **exactly** as shown in the
+ * Square Developer Dashboard (`https://`/`http://`, hostname, port if any, path, trailing slash — every character).
+ * Signing input is **`notificationUrl + rawBody`** (UTF-8) per Square; see `verifySquareWebhookSignature`.
  */
 export async function POST(req: Request) {
   const raw = await req.text();
@@ -35,19 +45,21 @@ export async function POST(req: Request) {
   const correlationRequestId = readCorrelationRequestId(req);
 
   const key = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY?.trim();
-  const notificationUrl = process.env.SQUARE_WEBHOOK_NOTIFICATION_URL?.trim();
+  const notificationUrl = process.env.SQUARE_WEBHOOK_NOTIFICATION_URL ?? "";
 
-  if (!key || !notificationUrl) {
+  if (!key?.length || !notificationUrl.trim()) {
     console.error("[webhooks/square] SQUARE_WEBHOOK_SIGNATURE_KEY or SQUARE_WEBHOOK_NOTIFICATION_URL missing");
     return NextResponse.json({ error: "webhook_unconfigured" }, { status: 503 });
   }
 
-  const sig = req.headers.get("x-square-hmacsha256-signature") ?? "";
-  const okSig = await WebhooksHelper.verifySignature({
-    requestBody: raw,
+  /** Use exact env string for signing (aside from BOM / CR-only quirks); trimming only whitespace at ends. */
+  const notificationUrlForSigning = notificationUrl.trim();
+  const sig = readSquareWebhookSignatureHeader(req);
+  const okSig = verifySquareWebhookSignature({
+    rawBody: raw,
     signatureHeader: sig,
     signatureKey: key,
-    notificationUrl,
+    notificationUrl: notificationUrlForSigning,
   });
 
   let parsed: Record<string, unknown> | null = null;
@@ -77,6 +89,16 @@ export async function POST(req: Request) {
   const mergedPaymentRecordId = signedInferred.paymentRecordId ?? refundInferred.paymentRecordId ?? null;
 
   if (!okSig) {
+    logSquareWebhookSignatureDiagnostics({
+      req,
+      correlationTag: "webhooks/square POST",
+      rawBodyUtf8Length: raw.length,
+      rawBodyPrefixChars: 240,
+      rawBody: raw,
+      signatureHeaderSeen: sig,
+      notificationUrlUsedForSigning: notificationUrlForSigning,
+    });
+    /** Best-effort event id for receipts — unchanged from `trustedRoot` when JSON already parsed. */
     let untrustedRoot = trustedRoot;
     if (!parsed) {
       try {

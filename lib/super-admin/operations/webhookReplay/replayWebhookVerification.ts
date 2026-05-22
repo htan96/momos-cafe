@@ -1,4 +1,4 @@
-import { WebhooksHelper } from "square";
+import { verifySquareWebhookSignature } from "@/lib/webhooks/square/verifySquareWebhookSignature";
 import { verifyShippoWebhookSignature } from "@/lib/webhooks/shippo/verifyShippoWebhookSignature";
 
 export type ReplaySignatureVerification =
@@ -27,8 +27,8 @@ export async function replayWebhookSignatureVerification(opts: {
     if (!hdr) {
       return { required: true, verified: false, status: "no_signature_header" };
     }
-    const ok = await WebhooksHelper.verifySignature({
-      requestBody: opts.rawBody,
+    const ok = verifySquareWebhookSignature({
+      rawBody: opts.rawBody,
       signatureHeader: hdr,
       signatureKey: key,
       notificationUrl,

@@ -78,9 +78,15 @@ export default function RootLayout({
     >
       <body className="font-sans">
         <AppProviders>
-          <Suspense fallback={<div className="min-h-dvh bg-cream text-charcoal" aria-busy="true" />}>
-            <Layout>{children}</Layout>
-          </Suspense>
+          <Layout>
+            {/* Boundaries belong inside Layout: async nested layouts (e.g. `/account/(main)`, `/admin`)
+                suspend — if Suspense wraps Layout, fallback replaces storefront chrome + PlatformShell entirely. */}
+            <Suspense
+              fallback={<div className="flex flex-1 min-h-[50vh] w-full bg-cream text-charcoal" aria-busy="true" />}
+            >
+              {children}
+            </Suspense>
+          </Layout>
         </AppProviders>
       </body>
     </html>

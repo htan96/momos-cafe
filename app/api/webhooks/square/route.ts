@@ -126,7 +126,13 @@ export async function POST(req: Request) {
       actorType: "service",
       message: "Square webhook signature verification failed",
       correlation: { requestId: correlationRequestId },
-      detail: { stage: "verify_signature", httpStatus: 401, receiptId },
+      detail: {
+        stage: "verify_signature",
+        httpStatus: 401,
+        receiptId,
+        payloadHash,
+        squareEventId: untrustedRoot.externalEventId ?? undefined,
+      },
       source: { handler: "POST app/api/webhooks/square" },
       sourceTag: "webhooks.square",
     });

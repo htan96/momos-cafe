@@ -7,8 +7,8 @@ import OperationalCard from "@/components/governance/OperationalCard";
 import OperationalMetadataJumpLinks from "@/components/governance/OperationalMetadataJumpLinks";
 import StatusPill, { type StatusPillVariant } from "@/components/governance/StatusPill";
 import SuperAdminEmptyPanel from "@/components/super-admin/SuperAdminEmptyPanel";
-import type { OperationalFailureListItem } from "@/lib/operations/failures/queryOperationalFailures";
-import type { OperationalFailureDetail } from "@/lib/operations/failures/queryOperationalFailures";
+import type { OperationalFailureDetail, OperationalFailureListItem } from "@/lib/operations/failures/queryOperationalFailures";
+import { PLATFORM_EVENT_SUBTYPE } from "@/lib/platform/events/taxonomy";
 import { TriangleAlert } from "lucide-react";
 import FailureDetailPanel from "./FailureDetailPanel";
 
@@ -61,6 +61,7 @@ const SUBTYPE_CHIPS = [
   { value: "", label: "All types" },
   { value: "payment.failed", label: "Payment" },
   { value: "payment.webhook.processing_failed", label: "Webhook" },
+  { value: PLATFORM_EVENT_SUBTYPE.SECURITY_WEBHOOK_SIGNATURE_INVALID, label: "Webhook signature" },
   { value: "shipment.quote.failed", label: "Quote" },
   { value: "shipment.label.failed", label: "Label" },
   { value: "auth.login.failed", label: "Auth" },

@@ -35,8 +35,11 @@ export async function upsertWebhookDeliveryReceipt(input: UpsertWebhookReceiptIn
       errorCode: input.errorCode ?? null,
       commerceOrderId: input.commerceOrderId ?? null,
       paymentRecordId: input.paymentRecordId ?? null,
-      opsEventId: input.opsEventId ?? null,
     };
+    /** Avoid wiping an existing linkage on delivery retries — callers omit `opsEventId` unless setting explicitly. */
+    if (input.opsEventId !== undefined) {
+      data.opsEventId = input.opsEventId;
+    }
     return prisma.webhookDeliveryReceipt.update({
       where: { id: existing.id },
       data,

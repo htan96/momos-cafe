@@ -62,6 +62,8 @@ export default function CommunicationTruthPanel({
   runbookRepoPath: string;
   generatedAtIso: string;
 }) {
+  const transportAck = report.sampleTerminalTransportAckCount ?? 0;
+  const bounceHints = report.sampleTransportAckWithPayloadBounceHintCount ?? 0;
   const transportAckBounceTelemetryUnknown = Math.max(0, transportAck - bounceHints);
 
   return (

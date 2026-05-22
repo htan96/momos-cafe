@@ -218,6 +218,32 @@ export function governanceEventToTimelineRow(event: {
     };
   }
 
+  if (t === "OPERATIONS_IDENTITY_ROLE_MEMBERSHIP_CHANGE") {
+    const meta = isRecord(event.metadata) ? event.metadata : null;
+    const action = typeof meta?.action === "string" ? meta.action : "change";
+    const gn = typeof meta?.groupName === "string" ? meta.groupName : "group";
+    const phase =
+      typeof meta?.phase === "string" ?
+        meta.phase.replace(/_/g, " ")
+      : "";
+    const tgt =
+      isRecord(meta?.target) && typeof meta.target.sub === "string"
+        ? meta.target.sub.slice(0, 10) + "…"
+        : (event.targetName ?? "subject");
+    return {
+      id: event.id,
+      actor,
+      verb: `${action} pooled ${gn}${phase ? ` (${phase})` : ""}`,
+      target: tgt,
+      relativeTime: when,
+      severity:
+        typeof meta?.phase === "string" && (meta.phase === "cognitoMutationError" || meta.phase === "cognito_unconfigured")
+          ? "warning"
+          : "neutral",
+      severityLabel: "Access",
+    };
+  }
+
   if (t === "OPERATIONAL_INCIDENT_UPDATED") {
     return {
       id: event.id,
@@ -281,8 +307,8 @@ export const ELEVATED_GOVERNANCE_PREVIEW_ACTION_TYPES: GovernanceAuditActionType
   "OPERATIONS_CATALOG_SYNC_FAILED",
   "OPERATIONS_SQUARE_PAYMENT_LOOKUP_RECONCILE",
   "CUSTOMER_COGNITO_SESSION_REVOKE_DEFERRED",
+  "OPERATIONS_IDENTITY_ROLE_MEMBERSHIP_CHANGE",
 ];
-
 export async function loadElevatedGovernanceAuditPreview(limit = 20): Promise<AuditTimelineRow[]> {
   const capped = Math.min(50, Math.max(5, limit));
   const rows = await prisma.governanceAuditEvent.findMany({

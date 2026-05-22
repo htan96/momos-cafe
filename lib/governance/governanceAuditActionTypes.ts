@@ -29,6 +29,11 @@ export const GOVERNANCE_AUDIT_ACTION_TYPES = [
   "OPERATIONS_WEBHOOK_RECEIPT_REPLAY_FORCE",
   /** Ops/super-admin: release stale `started_processing_at` lease or deliberate dead-letter rewind (risky — see docs on route). */
   "OPERATIONS_NOTIFICATION_EVENT_OPERATOR_REQUEUE",
+  /**
+   * Super-admin operations console: single Cognito pool group add/remove (before/after `AdminListGroupsForUser`).
+   * Distinct from ladder-style `ADMIN_PROMOTED` / `USER_ROLE_CHANGED` on `/api/admin/accounts/staff-role`.
+   */
+  "OPERATIONS_IDENTITY_ROLE_MEMBERSHIP_CHANGE",
 ] as const;
 
 export type GovernanceAuditActionType = (typeof GOVERNANCE_AUDIT_ACTION_TYPES)[number];

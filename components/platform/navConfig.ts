@@ -70,6 +70,12 @@ export const SUPER_ADMIN_PLATFORM_NAV: SuperAdminPlatformNavItem[] = [
   },
   {
     section: "OPERATIONS",
+    href: "/super-admin/operations/operational-identity",
+    label: "Operational identity",
+    navHelperText: "Cognito + prisma dossier · narrow group edits",
+  },
+  {
+    section: "OPERATIONS",
     href: "/super-admin/operations/readiness",
     label: "Readiness",
     navHelperText: "Env deployment scan + safety rollup",

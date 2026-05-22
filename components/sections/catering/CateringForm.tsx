@@ -189,7 +189,7 @@ export default function CateringForm({
 
       {isInline && (
         <p className="text-center text-xs text-charcoal/45 mt-2.5 font-semibold tracking-wider">
-          We&apos;ll respond within 24 hours with a custom quote.
+          Our team will follow up with menu options, pricing, and availability.
         </p>
       )}
     </div>

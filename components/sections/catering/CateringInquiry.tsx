@@ -34,10 +34,10 @@ export default function CateringInquiry() {
             <h2 className="font-display text-[clamp(38px,5.5vw,62px)] leading-none text-white mt-2 mb-4">
               Ready to Plan Your Event?
             </h2>
-            <p className="text-base text-white/78 leading-relaxed mb-3">
-              Fill out the form and we&apos;ll get back to you within 24 hours with a menu recommendation and quote. No commitment required.
+            <p className="text-base text-[#f7f6f3] leading-relaxed mb-3">
+              Fill out the form and our team will follow up with menu options, pricing, and availability for your event.
             </p>
-            <p className="text-base text-white/78 leading-relaxed mb-0">
+            <p className="text-base text-[#f7f6f3] leading-relaxed mb-0">
               Prefer to talk? We&apos;re happy to go over options by phone.
             </p>
 
@@ -60,16 +60,14 @@ export default function CateringInquiry() {
             </div>
 
             <div className="flex flex-wrap gap-2 mt-8">
-              {["Response within 24 hours", "No commitment to inquire", "Custom menus available"].map(
-                (pill) => (
-                  <span
-                    key={pill}
-                    className="bg-white/10 border border-white/20 text-white/80 text-xs py-1.5 px-3.5 rounded-full font-semibold tracking-wider"
-                  >
-                    {pill}
-                  </span>
-                )
-              )}
+              {["Custom menus available", "Serving the Bay Area", "Private & corporate events"].map((pill) => (
+                <span
+                  key={pill}
+                  className="bg-white/12 border border-white/25 text-[#fefefe] text-xs py-1.5 px-3.5 rounded-full font-semibold tracking-wider shadow-sm"
+                >
+                  {pill}
+                </span>
+              ))}
             </div>
           </motion.div>
 

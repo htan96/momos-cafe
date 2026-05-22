@@ -21,3 +21,19 @@ export const CATERING_INQUIRY_STATUS_LABELS: Record<CateringInquiryStatus, strin
   closed: "Closed",
   failed_submission: "Failed submission",
 };
+
+/** Short admin-facing explanations surfaced on catering pipeline hover (card + dropdown help). */
+export const CATERING_INQUIRY_STATUS_TOOLTIP: Record<CateringInquiryStatus, string> = {
+  new:
+    "Fresh web intake—we have the request but no staff member has replied on this thread yet.",
+  contacted:
+    "Someone on the team has reached out at least once. Keep timestamps and notes updated as it moves.",
+  quoted:
+    "A menu or estimate has been shared; we're waiting on the guest to approve, adjust, or decline.",
+  booked:
+    "The guest confirmed the event—treat like a wins column and pivot to fulfillment planning.",
+  closed:
+    "Conversation ended cleanly (timing, decline, fulfilled elsewhere, etc.).",
+  failed_submission:
+    "The public form timed out—verify details with the guest before archiving.",
+};

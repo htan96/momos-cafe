@@ -8,6 +8,7 @@ import { CateringInquiryStatus as StatusEnum } from "@prisma/client";
 import {
   CATERING_INQUIRY_STATUS_LABELS,
   CATERING_INQUIRY_STATUS_VALUES,
+  CATERING_INQUIRY_STATUS_TOOLTIP,
 } from "@/lib/catering/cateringInquiryStatus";
 
 import type { CateringInquiryDetailPayload } from "@/lib/catering/cateringInquiryDetailPayload";
@@ -54,7 +55,7 @@ export default function CateringInquiryDetailForm({
         body.lastFollowUpAt = null;
       }
 
-      const res = await fetch(`/api/admin/catering-inquiries/${inquiry.id}`, {
+      const res = await fetch(`/api/ops/catering/inquiries/${inquiry.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -76,7 +77,7 @@ export default function CateringInquiryDetailForm({
     setDeleting(true);
     setError(null);
     try {
-      const res = await fetch(`/api/admin/catering-inquiries/${inquiry.id}`, {
+      const res = await fetch(`/api/ops/catering/inquiries/${inquiry.id}`, {
         method: "DELETE",
       });
       const data = await res.json().catch(() => ({}));
@@ -167,7 +168,7 @@ export default function CateringInquiryDetailForm({
       </div>
 
       <div className="space-y-4 rounded-xl border border-cream-dark bg-cream/20 p-6">
-        <h2 className="font-display text-lg text-charcoal">Staff workflow</h2>
+        <h2 className="font-display text-lg text-charcoal">Internal updates</h2>
         {error ? <p className="text-sm font-medium text-red">{error}</p> : null}
 
         <label className="block text-sm">
@@ -183,14 +184,15 @@ export default function CateringInquiryDetailForm({
               </option>
             ))}
           </select>
+          <p className="mt-2 text-[11px] text-charcoal/55 leading-snug">{CATERING_INQUIRY_STATUS_TOOLTIP[status]}</p>
         </label>
 
         <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-charcoal">Assigned to</span>
+          <span className="mb-1 block font-semibold text-charcoal">Assign staff</span>
           <input
             value={assignedTo}
             onChange={(e) => setAssignedTo(e.target.value)}
-            placeholder="Email or Cognito sub"
+            placeholder="Who owns this (name, email, or staff id)"
             className="w-full rounded-lg border border-cream-dark bg-white px-3 py-2 text-sm text-charcoal"
           />
         </label>
@@ -204,7 +206,7 @@ export default function CateringInquiryDetailForm({
             className="w-full rounded-lg border border-cream-dark bg-white px-3 py-2 text-sm text-charcoal"
           />
           <span className="mt-1 block text-[11px] text-charcoal/50">
-            Leave blank when setting status to Contacted to stamp &ldquo;now&rdquo; automatically.
+            Leave blank when moving to &ldquo;Contacted&rdquo; to record the current time automatically.
           </span>
         </label>
 

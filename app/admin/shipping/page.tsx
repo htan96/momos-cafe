@@ -1,4 +1,8 @@
 import Link from "next/link";
+
+import ShippingOperationalCards from "@/components/admin/shipping/ShippingOperationalCards";
+import ShippingSuperAdminTechnicalPanel from "@/components/admin/shipping/ShippingSuperAdminTechnicalPanel";
+import FulfillmentBatchRow from "@/components/operations/FulfillmentBatchRow";
 import ManualShipmentForm from "@/components/operations/ManualShipmentForm";
 import OperationalQueueCard from "@/components/operations/OperationalQueueCard";
 import OpsPageHeader from "@/components/operations/OpsPageHeader";
@@ -6,141 +10,172 @@ import OpsPanel from "@/components/operations/OpsPanel";
 import OpsStatusPill from "@/components/operations/OpsStatusPill";
 import ShipmentExceptionRow from "@/components/operations/ShipmentExceptionRow";
 import StateToneChip from "@/components/operations/StateToneChip";
-import WorkflowTimeline from "@/components/operations/WorkflowTimeline";
-import { loadAdminShippingContext } from "@/lib/admin/adminConsoleLoaders";
+import { loadAdminRetailLabelsPendingBatches, loadAdminShippingContext } from "@/lib/admin/adminConsoleLoaders";
+import { assertAdminPlatformLayout } from "@/lib/auth/cognito/assertRoleInLayout";
 import { opsLoadShippingQueue } from "@/lib/ops/queries";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminShippingPage() {
-  const [ship, queue] = await Promise.all([loadAdminShippingContext(), opsLoadShippingQueue()]);
-  const lastSync = ship.settings?.lastFullSyncAt
+  const [{ showSuperAdminOperationalLens }, ship, queue, labelBatches] = await Promise.all([
+    assertAdminPlatformLayout(),
+    loadAdminShippingContext(),
+    opsLoadShippingQueue(),
+    loadAdminRetailLabelsPendingBatches(12),
+  ]);
+
+  const lastCatalogSyncPlain = ship.settings?.lastFullSyncAt
     ? new Date(ship.settings.lastFullSyncAt).toLocaleString()
-    : "No recorded sync";
+    : "None recorded yet";
 
   const groupOptions = queue.map((g) => ({
     id: g.id,
     label: `${g.order.id.slice(0, 8)}… · ${g.status} · ${g.shipments.length} shipment rows`,
   }));
 
+  const parcelReady = queue.filter((g) => g.status === "pending");
+  const inProcess = queue.filter((g) => g.status === "merch_processing");
+
+  function queueCardForGroup(g: (typeof queue)[number]) {
+    return (
+      <div key={g.id} id={g.id}>
+        <OperationalQueueCard
+          href={`/admin/orders/${g.order.id}`}
+          title={`Ship · order ${g.order.id.slice(0, 8)}…`}
+          subtitle={`${g.status} · ${g.shipments.length ? `latest ${g.shipments[0]?.carrier ?? "carrier"} · ${g.shipments[0]?.trackingNumber ?? ""}` : "no shipment rows yet"}`}
+          meta={g.order.status}
+          chips={
+            <>
+              <StateToneChip label="RETAIL" tone="teal" />
+              <StateToneChip label={g.status} tone="neutral" />
+            </>
+          }
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-10">
       <OpsPageHeader
         title="Shipping & labels"
-        subtitle="Retail parcels, exception tiles, timelines, carrier purchase endpoint (`POST /api/ops/shipping/purchase-label`), and manual `Shipment` rows."
+        subtitle="See parcels that need packing, shipments missing tracking, and carrier issues—then open each order for label tools."
+      />
+
+      {/* Admin-Focused Shipping — operational lens (parity with FulfillmentOperationalCards pattern). */}
+      <ShippingOperationalCards
+        ordersWithIssuesCount={ship.shipmentExceptionCount}
+        parcelQueueReadyCount={parcelReady.length}
+        ordersInProcessCount={inProcess.length}
+        pendingLabelCount={ship.pendingLabelCount}
       />
 
       <OpsPanel
-        title="Parcel queue · manual carrier rows"
-        eyebrow="Operational"
-        description="Same Prisma loaders as consolidated console — jump into order detail from any card for label purchase tooling."
+        title="Shipment queue"
+        eyebrow="Parcels"
+        description="Retail orders that shipped from the storefront—open one to finish packing or attach carrier tracking."
       >
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="space-y-3">
-            <h3 className="text-[13px] font-semibold text-charcoal">Retail groups in motion</h3>
-            {queue.length === 0 ?
-              <p className="text-[13px] text-charcoal/58 border border-dashed border-charcoal/[0.12] rounded-xl p-10 text-center bg-cream/40">
-                Nothing queued yet — storefront retail ship orders hydrate this list after checkout attaches shipping lines.
+          <div className="space-y-10">
+            <div id="shipping-parcel-queue" className="scroll-mt-28 space-y-3">
+              <h3 className="text-[13px] font-semibold text-charcoal">Ready for packing</h3>
+              {parcelReady.length === 0 ?
+                <p className="text-[13px] text-charcoal/58 border border-dashed border-charcoal/[0.12] rounded-xl p-8 text-center bg-cream/40">
+                  Nothing in the ready-for-packing queue right now—checkout attaches retail ship lines before rows appear here.
+                </p>
+              : <div className="space-y-2">{parcelReady.map(queueCardForGroup)}</div>}
+            </div>
+
+            <div id="shipping-in-process-queue" className="scroll-mt-28 space-y-3">
+              <h3 className="text-[13px] font-semibold text-charcoal">Being packaged</h3>
+              {inProcess.length === 0 ?
+                <p className="text-[13px] text-charcoal/58 border border-dashed border-charcoal/[0.12] rounded-xl p-8 text-center bg-cream/40">
+                  No parcels marked in progress—the team stages those states from order detail tooling.
+                </p>
+              : <div className="space-y-2">{inProcess.map(queueCardForGroup)}</div>}
+            </div>
+
+            <div id="shipping-shipped-tail" className="scroll-mt-28 space-y-3">
+              <h3 className="text-[13px] font-semibold text-charcoal">Recently shipped rows still on file</h3>
+              <p className="text-[12px] text-charcoal/52">
+                Older shipped rows sometimes linger here briefly—prioritize the two sections above for active follow-up.
               </p>
-            : <div className="space-y-2">
-                {queue.map((g) => (
-                  <div key={g.id} id={g.id}>
-                    <OperationalQueueCard
-                      href={`/admin/orders/${g.order.id}`}
-                      title={`Ship · order ${g.order.id.slice(0, 8)}…`}
-                      subtitle={`${g.status} · ${g.shipments.length ? `latest ${g.shipments[0]?.carrier ?? "carrier"} · ${g.shipments[0]?.trackingNumber ?? ""}` : "no shipment rows yet"}`}
-                      meta={g.order.status}
-                      chips={
-                        <>
-                          <StateToneChip label="RETAIL" tone="teal" />
-                          <StateToneChip label={g.status} tone="neutral" />
-                        </>
-                      }
-                    />
-                  </div>
-                ))}
-              </div>
-            }
+              {queue.every((g) => g.status !== "shipped") ?
+                <p className="text-[13px] text-charcoal/55">None in this pull.</p>
+              : <div className="space-y-2">
+                  {queue.filter((g) => g.status === "shipped").map(queueCardForGroup)}
+                </div>
+              }
+            </div>
           </div>
 
-          <div>
+          <div className="shrink-0">
             <ManualShipmentForm groupOptions={groupOptions} theme="admin" />
           </div>
         </div>
       </OpsPanel>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <OpsPanel title="Catalog mirror" eyebrow="Square storefront category">
-          <div className="flex justify-end mb-3">
-            <OpsStatusPill variant={ship.settings?.storeCategorySquareId ? "delivered" : "muted"}>Config</OpsStatusPill>
+      <div id="shipping-labels-pending" className="scroll-mt-28">
+        <OpsPanel title="Labels pending detail" eyebrow="Retail shipments">
+          <div className="space-y-3">
+            {labelBatches.length === 0 ?
+              <p className="text-[13px] text-charcoal/55">No shipments are missing tracking today.</p>
+            : labelBatches.map((b) => <FulfillmentBatchRow key={b.id} {...b} />)}
           </div>
-          <p className="text-[13px] text-charcoal/68 leading-relaxed">
-            Last full sync · <span className="font-semibold text-charcoal">{lastSync}</span>
-          </p>
-        </OpsPanel>
-
-        <OpsPanel title="Retail fulfillment" eyebrow="Open workloads">
-          <p className="text-[28px] font-display text-charcoal">{ship.openRetailShipGroups}</p>
-          <p className="text-[13px] text-charcoal/58 mt-2">Non-terminal retail fulfillment groups touching active orders.</p>
-          <p className="text-[13px] text-charcoal mt-6">
-            Pending labels · <span className="font-semibold text-charcoal">{ship.pendingLabelCount}</span>
-          </p>
           <Link
             href="/admin/fulfillment?tab=shipping"
-            className="inline-flex mt-4 text-[12px] font-semibold uppercase tracking-[0.12em] text-teal-dark hover:underline underline-offset-4"
+            className="inline-flex mt-6 text-[12px] font-semibold uppercase tracking-[0.12em] text-teal-dark hover:underline underline-offset-4"
           >
             Fulfillment · shipping tab →
           </Link>
         </OpsPanel>
-
-        <OpsPanel title="Exception depth" eyebrow={`${ship.exceptionRows.length} preview rows`}>
-          <p className="text-[13px] text-charcoal/72 leading-relaxed">
-            Ships in <span className="font-mono text-[12px]">exception</span> or{" "}
-            <span className="font-mono text-[12px]">return_initiated</span> statuses appear below.
-          </p>
-          <div className="mt-4 flex justify-end">
-            <OpsStatusPill variant={ship.timeline.length ? "in_progress" : "muted"}>Activity</OpsStatusPill>
-          </div>
-        </OpsPanel>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <WorkflowTimeline
-          eyebrow="Operational events"
-          title="Shipment-related activity"
-          steps={
-            ship.timeline.length > 0
-              ? ship.timeline
-              : [
-                  {
-                    id: "shipping-empty",
-                    label: "No shipment events captured",
-                    meta: "Types include webhook failures, carrier tracking deltas, label attempts.",
-                    at: "—",
-                    variant: "muted",
-                  },
-                ]
-          }
-        />
-        <OpsPanel title="Routing context" eyebrow="Honest scopes">
-          <p className="text-[13px] text-charcoal/68 leading-relaxed">
-            Service selection and rate shopping happen when guests check out — this screen focuses on Postgres-backed operational
-            states and audited actions.
-          </p>
-          <ul className="mt-6 space-y-3 text-[12px] text-charcoal/60 list-disc list-inside">
-            <li>Use order detail (`/admin/orders/[uuid]`) to purchase carrier labels.</li>
-            <li>Governance recovery continues to reuse `POST /api/ops/shipping/purchase-label` with your Cognito session.</li>
-          </ul>
-        </OpsPanel>
+        <div id="shipping-slip-preview" className="scroll-mt-28">
+          <OpsPanel title="Sample packing slip" eyebrow="Reference">
+            <div className="rounded-xl border border-dashed border-charcoal/[0.12] bg-cream/55 px-4 py-8 text-center space-y-2">
+              <p className="text-[13px] font-semibold text-charcoal">Momos Café · outbound label preview</p>
+              <p className="text-[12px] text-charcoal/65 mt-4">
+                Live printing pulls packing lines from the storefront order—use this tile only when you want a glance at layout spacing.
+              </p>
+            </div>
+          </OpsPanel>
+        </div>
+
+        <div id="shipping-product-reference" className="scroll-mt-28">
+          <OpsPanel title="Product reference" eyebrow="Synced catalog timing">
+            <div className="flex justify-end mb-3">
+              <OpsStatusPill variant={ship.settings?.storeCategorySquareId ? "delivered" : "muted"}>
+                Connected
+              </OpsStatusPill>
+            </div>
+            <p className="text-[13px] text-charcoal/72 leading-relaxed">
+              Tracks when storefront categories finished their last coordinated sync—not a live catalog editor.
+            </p>
+            <p className="text-[13px] text-charcoal mt-6">
+              Last snapshot · <span className="font-semibold text-charcoal">{lastCatalogSyncPlain}</span>
+            </p>
+          </OpsPanel>
+        </div>
       </div>
 
-      <OpsPanel title="Retry / exceptions" eyebrow="Shipments · Prisma-backed">
-        <div className="space-y-3">
+      <OpsPanel title="Carrier or return alerts" eyebrow="Needs eyes on it">
+        <div id="shipping-issues-queue" className="scroll-mt-28 space-y-3">
           {ship.exceptionRows.length === 0 ?
-            <p className="text-[13px] text-charcoal/58">None in exception or return-initiated right now.</p>
+            <p className="text-[13px] text-charcoal/58">No carrier exceptions or customer returns need review right now.</p>
           : ship.exceptionRows.map((e) => <ShipmentExceptionRow key={e.id} {...e} />)}
         </div>
       </OpsPanel>
+
+      {showSuperAdminOperationalLens ?
+        <div className="space-y-8">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-charcoal/45">
+            Super-admin · technical detail
+          </p>
+          <ShippingSuperAdminTechnicalPanel shipContext={ship} hydratedShippingQueueCount={queue.length} />
+        </div>
+      : null}
     </div>
   );
 }

@@ -8,6 +8,11 @@ import type {
 import type { OpsStatusVariant } from "@/components/operations/opsTokens";
 import type { WorkflowTimelineStep } from "@/components/operations/WorkflowTimeline";
 import type { OpsAlert } from "@/lib/operations/adminOperationalTypes";
+import {
+  CATERING_INQUIRY_STATUS_LABELS,
+  CATERING_INQUIRY_STATUS_TOOLTIP,
+} from "@/lib/catering/cateringInquiryStatus";
+import { dedupeCateringInquiriesById } from "@/lib/catering/dedupeCateringInquiriesById";
 import { prisma } from "@/lib/prisma";
 import { opsFulfillmentGroupInclude, opsLoadTodayQueues } from "@/lib/ops/queries";
 import { OPS_FULFILLMENT_PROGRAM, classifyFulfillmentProgram } from "@/lib/ops/fulfillmentPrograms";
@@ -113,24 +118,6 @@ export function refundStatusVariant(s: OperationalRefundCaseStatus): OpsStatusVa
   }
 }
 
-function cateringStatusVariant(s: CateringInquiryStatus): OpsStatusVariant {
-  switch (s) {
-    case "new":
-      return "queued";
-    case "contacted":
-    case "quoted":
-      return "in_progress";
-    case "booked":
-      return "scheduled";
-    case "closed":
-      return "delivered";
-    case "failed_submission":
-      return "exception";
-    default:
-      return "queued";
-  }
-}
-
 function notificationCategoryLabel(type: string): string {
   const t = type.toLowerCase();
   if (t.includes("refund") || t.includes("payment")) return "Finance & payments";
@@ -156,6 +143,28 @@ export type AdminQueueSummary = {
   status: OpsStatusVariant;
 };
 
+/** Card-style labels for staff-facing queue names (no jargon). */
+export const ADMIN_HOME_PLAIN_QUEUE_LABELS: Record<string, string> = {
+  "q-pack": "Orders to pack or ship",
+  "q-label": "Shipments needing labels",
+  "q-catering": "Catering inquiries",
+  "q-support": "Support tickets",
+  "q-exc": "Shipment exceptions",
+  "q-refund": "Refunds in progress",
+  "q-comms": "Emails that didn't send",
+};
+
+/** Substitutes technical `slaHint` copy from `loadAdminQueueSummaries` for restaurant staff dashboards. */
+export const ADMIN_HOME_PLAIN_QUEUE_HINTS: Record<string, string> = {
+  "q-pack": "Paid orders that still need packing or shipping.",
+  "q-label": "Retail shipments waiting on a carrier label or tracking number.",
+  "q-catering": "Catering inquiries still in progress—not closed.",
+  "q-support": "Support conversations that aren't resolved yet.",
+  "q-exc": "Shipments the carrier flagged as an exception or a return.",
+  "q-refund": "Refund cases still waiting on review or payout.",
+  "q-comms": "Customer emails your system couldn't deliver.",
+};
+
 export type AdminFulfillmentTableRow = {
   id: string;
   slot: string;
@@ -176,18 +185,29 @@ export type AdminShipmentExceptionRow = {
   variant: OpsStatusVariant;
 };
 
+export type AdminCateringKanbanCard = {
+  /** Stable CateringInquiry id */
+  id: string;
+  /** Client name · guest wording · requested event date (single headline for staff). */
+  primaryLine: string;
+  statusTooltip: string;
+  /** When source rows duplicated the same inquiry id (>1), show collapsed ×N. */
+  duplicateFoldCount?: number;
+};
+
 export type AdminCateringColumn = {
   id: string;
   title: string;
   hint: string;
-  cards: {
-    id: string;
-    title: string;
-    guest: string;
-    pickupWindow: string;
-    headcount: string;
-    variant: OpsStatusVariant;
-  }[];
+  laneTooltip?: string;
+  cards: AdminCateringKanbanCard[];
+};
+
+/** Includes loader telemetry for super-admin tooling on `/admin/catering-orders`. */
+export type AdminCateringKanbanSnapshot = {
+  columns: AdminCateringColumn[];
+  prismaRowCount: number;
+  distinctInquiryCount: number;
 };
 
 /** Queue depth cards derived from Prisma — no invented SLA percentages. */
@@ -456,6 +476,78 @@ export async function loadAdminShipmentExceptionRows(limit: number): Promise<Adm
   });
 }
 
+type PendingLabelShipmentForBatchPreview = {
+  id: string;
+  createdAt: Date;
+  status: string;
+  carrier: string | null;
+  trackingNumber: string | null;
+  selectedShippoRateId: string | null;
+  fulfillmentGroup: {
+    id: string;
+    status: string;
+    orderId: string;
+    order: { id: string; status: string; totalCents: number | null };
+  };
+};
+
+function mapPendingLabelShipmentsToBatches(pendingLabel: PendingLabelShipmentForBatchPreview[]) {
+  return pendingLabel.map((s) => {
+    const grp = s.fulfillmentGroup;
+    const order = grp.order;
+    const awaiting =
+      !s.selectedShippoRateId?.trim()?.length ||
+      !(s.carrier ?? "").trim().length ||
+      !(s.trackingNumber ?? "").trim()?.length;
+
+    const variant: OpsStatusVariant =
+      grp.status === "merch_processing" ? "in_progress" : awaiting ? "awaiting_label" : "queued";
+
+    return {
+      id: `Lbl-${shortenId(s.id)}`,
+      orders: 1,
+      skuMix: `Group · ${shortenId(grp.id)} · ${order.totalCents != null ? `$${(order.totalCents / 100).toFixed(2)}` : "—"}`,
+      station: `${s.carrier ?? "Shipment"} · ${grp.status}`,
+      queuedAt: formatAdminDt(s.createdAt),
+      variant,
+    };
+  });
+}
+
+/** Rows for FulfillmentBatchRow previews on `/admin/shipping` without pulling the entire fulfillment workload. */
+export async function loadAdminRetailLabelsPendingBatches(take = 12) {
+  const limit = Math.min(20, Math.max(1, take));
+  const shipmentsPendingLabel = await prisma.shipment.findMany({
+    where: {
+      OR: [{ trackingNumber: null }, { trackingNumber: "" }],
+      fulfillmentGroup: {
+        pipeline: "RETAIL",
+        status: { notIn: [...TERMINAL_FULFILLMENT] },
+        order: { status: { in: ["paid", "partially_fulfilled"] } },
+      },
+    },
+    take: limit,
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      createdAt: true,
+      status: true,
+      carrier: true,
+      trackingNumber: true,
+      selectedShippoRateId: true,
+      fulfillmentGroup: {
+        select: {
+          id: true,
+          status: true,
+          orderId: true,
+          order: { select: { id: true, status: true, totalCents: true } },
+        },
+      },
+    },
+  });
+  return mapPendingLabelShipmentsToBatches(shipmentsPendingLabel);
+}
+
 export async function loadAdminFulfillmentWorkload() {
   const queues = await opsLoadTodayQueues();
   const pendingLabel = queues.shipmentsPendingLabel.slice(0, 12);
@@ -498,28 +590,7 @@ export async function loadAdminFulfillmentWorkload() {
     });
   }
 
-  const batches = pendingLabel.map((s) => {
-    const grp = s.fulfillmentGroup;
-    const order = grp.order;
-    const awaiting =
-      !s.selectedShippoRateId?.trim()?.length ||
-      !(s.carrier ?? "").trim().length ||
-      !(s.trackingNumber ?? "").trim()?.length;
-
-    const variant: OpsStatusVariant =
-      grp.status === "merch_processing" ? "in_progress" : awaiting ? "awaiting_label" : "queued";
-
-    return {
-      id: `Lbl-${shortenId(s.id)}`,
-      orders: 1,
-      skuMix: `Group · ${shortenId(grp.id)} · ${
-        order.totalCents != null ? `$${(order.totalCents / 100).toFixed(2)}` : "—"
-      }`,
-      station: `${s.carrier ?? "Shipment"} · ${grp.status}`,
-      queuedAt: formatAdminDt(s.createdAt),
-      variant,
-    };
-  });
+  const batches = mapPendingLabelShipmentsToBatches(pendingLabel);
 
   const kitchenAttention = queues.lateOrStuck.filter(
     (g) =>
@@ -540,44 +611,97 @@ export async function loadAdminFulfillmentWorkload() {
   return { tableRows, batches, metrics, queues };
 }
 
-export async function loadAdminCateringKanban(): Promise<AdminCateringColumn[]> {
+export async function loadAdminCateringKanban(): Promise<AdminCateringKanbanSnapshot> {
   const rows = await prisma.cateringInquiry.findMany({
     take: 120,
     orderBy: { createdAt: "desc" },
   });
 
-  const columns: { id: string; title: string; hint: string; statuses: CateringInquiryStatus[] }[] = [
-    { id: "col-new", title: "New", hint: "Needs first contact", statuses: ["new"] },
+  const { inquiries: uniqueRows, countById } = dedupeCateringInquiriesById(rows);
+
+  const guestPhrase = (n: number): string =>
+    n === 1 ? "1 guest" : `${n} guests`;
+
+  const columnsMeta: {
+    id: string;
+    title: string;
+    hint: string;
+    laneTooltip: string;
+    statuses: CateringInquiryStatus[];
+  }[] = [
+    {
+      id: "col-new",
+      title: "New",
+      hint: "No reply logged yet.",
+      laneTooltip:
+        "Requests awaiting the first outbound response. Move to Conversation once someone introduces Momo's.",
+      statuses: ["new"],
+    },
     {
       id: "col-active",
       title: "In conversation",
-      hint: "Contacted or quoted",
+      hint: "Actively talking pricing or menus.",
+      laneTooltip:
+        "Includes both introductory outreach (Contacted) and formal quotes (Quoted) while the guest decides.",
       statuses: ["contacted", "quoted"],
     },
-    { id: "col-booked", title: "Booked", hint: "Confirmed event", statuses: ["booked"] },
+    {
+      id: "col-booked",
+      title: "Booked",
+      hint: "Event confirmed internally.",
+      laneTooltip:
+        "The catering team considers this event committed—coordinate kitchen + logistics from here onward.",
+      statuses: ["booked"],
+    },
     {
       id: "col-done",
-      title: "Closed / failed",
-      hint: "Completed or submission failed",
+      title: "Closed · failed",
+      hint: "Finished or intake errors.",
+      laneTooltip:
+        "Closed wraps friendly declines or completed arcs; Failed submission means our public form stalled and needs verification.",
       statuses: ["closed", "failed_submission"],
     },
   ];
 
-  return columns.map((col) => ({
+  /** Each inquiry id appears once per board per column-set (defensive). */
+  const seenInColumns = new Set<string>();
+
+  const columns = columnsMeta.map((col) => ({
     id: col.id,
     title: col.title,
     hint: col.hint,
-    cards: rows
-      .filter((r) => col.statuses.includes(r.status))
-      .map((r) => ({
+    laneTooltip: col.laneTooltip,
+    cards: uniqueRows.reduce<AdminCateringKanbanCard[]>((acc, r) => {
+      if (!col.statuses.includes(r.status)) return acc;
+
+      /**
+       * If future callers merge heterogeneous sources, guarantees one visible card per CateringInquiry id.
+       */
+      const dedupeKey = `${col.id}:${r.id}`;
+      if (seenInColumns.has(dedupeKey)) return acc;
+      seenInColumns.add(dedupeKey);
+
+      const fold = countById.get(r.id) ?? 1;
+      const primaryPieces = [
+        r.name.trim() || "(Unnamed inquiry)",
+        guestPhrase(r.guestCount),
+        r.eventDate.trim() || "(Event date pending)",
+      ];
+      acc.push({
         id: r.id,
-        title: `${r.name} · ${r.guestCount} guests`,
-        guest: `${r.email}${r.phone ? ` · ${r.phone}` : ""}`,
-        pickupWindow: r.eventDate,
-        headcount: `${r.guestCount} guests`,
-        variant: cateringStatusVariant(r.status),
-      })),
+        primaryLine: primaryPieces.join(" · "),
+        statusTooltip: `${CATERING_INQUIRY_STATUS_TOOLTIP[r.status]} (${CATERING_INQUIRY_STATUS_LABELS[r.status]})`,
+        duplicateFoldCount: fold > 1 ? fold : undefined,
+      });
+      return acc;
+    }, []),
   }));
+
+  return {
+    columns,
+    prismaRowCount: rows.length,
+    distinctInquiryCount: uniqueRows.length,
+  };
 }
 
 export async function loadAdminSupportIssues(take: number) {
@@ -700,7 +824,7 @@ export async function loadAdminReportingCounts() {
 }
 
 export async function loadAdminShippingContext() {
-  const [settings, exceptionRows, timelineRows, pendingLabelCount, openRetailShipGroups] =
+  const [settings, exceptionRows, timelineRows, pendingLabelCount, openRetailShipGroups, shipmentExceptionCount] =
     await Promise.all([
       prisma.catalogSyncState.findUnique({ where: { id: "singleton" } }),
       loadAdminShipmentExceptionRows(8),
@@ -727,6 +851,7 @@ export async function loadAdminShippingContext() {
           order: { status: { in: ["paid", "partially_fulfilled", "pending_payment"] } },
         },
       }),
+      prisma.shipment.count({ where: { status: { in: ["exception", "return_initiated"] } } }),
     ]);
 
   const timeline = [...timelineRows].reverse().map((r) => opsActivityToTimelineStep(r, r.severity));
@@ -737,6 +862,7 @@ export async function loadAdminShippingContext() {
     timeline,
     pendingLabelCount,
     openRetailShipGroups,
+    shipmentExceptionCount,
   };
 }
 
@@ -758,10 +884,14 @@ export async function loadAdminSupportBacklogSummary() {
 /**
  * Single fan-out for `/admin` home — shares domain sources with queues page but does not reuse `opsLoadTodayQueues()`
  * (`lib/ops/queries`). Treat both as parity candidates during `/ops` → `/admin` consolidation.
+ *
+ * When {@link options.operationalLens} is false, skips incident/error aggregates and developer-style activity timelines
+ * so regular admins are not surfaced super-admin observability payloads on this route.
  */
-export async function loadAdminHomeDashboard() {
+export async function loadAdminHomeDashboard(options: { operationalLens: boolean }) {
+  const operationalLens = options.operationalLens;
   const [
-    queueSummaries,
+    queueSummariesRaw,
     alerts,
     activitySteps,
     shipmentExceptions,
@@ -770,13 +900,22 @@ export async function loadAdminHomeDashboard() {
     supportSummary,
   ] = await Promise.all([
     loadAdminQueueSummaries(),
-    loadAdminOperationalAlerts(),
-    loadAdminRecentActivitySteps(8),
+    operationalLens ? loadAdminOperationalAlerts() : Promise.resolve<OpsAlert[]>([]),
+    operationalLens ? loadAdminRecentActivitySteps(8) : Promise.resolve<WorkflowTimelineStep[]>([]),
     loadAdminShipmentExceptionRows(6),
-    loadAdminCateringKanban(),
+    loadAdminCateringKanban().then((b) => b.columns),
     loadAdminFulfillmentWorkload(),
     loadAdminSupportBacklogSummary(),
   ]);
+
+  const queueSummaries =
+    operationalLens ?
+      queueSummariesRaw
+    : queueSummariesRaw.map((q) => ({
+        ...q,
+        name: ADMIN_HOME_PLAIN_QUEUE_LABELS[q.id] ?? q.name,
+        slaHint: ADMIN_HOME_PLAIN_QUEUE_HINTS[q.id] ?? q.slaHint,
+      }));
 
   const queueHighlight = queueSummaries.slice(0, 4);
   const nextPackPreview = fulfillmentWorkload.tableRows.slice(0, 2);
@@ -794,3 +933,5 @@ export async function loadAdminHomeDashboard() {
     supportSummary,
   };
 }
+
+export type AdminHomeDashboardPayload = Awaited<ReturnType<typeof loadAdminHomeDashboard>>;

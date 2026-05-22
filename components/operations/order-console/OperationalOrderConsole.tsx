@@ -157,7 +157,7 @@ export default function OperationalOrderConsole({
         </ul>
       </OperationalCard>
 
-      <OperationalCard title="Fulfillment nucleus" meta="kitchen · retail pipelines">
+      <OperationalCard id="staff-order-fulfillment-nucleus" title="Fulfillment nucleus" meta="kitchen · retail pipelines">
         {order.fulfillmentGroups.length === 0 ?
           <p className="text-[13px] text-charcoal/60">No fulfillment groups.</p>
         : (
@@ -296,7 +296,7 @@ export default function OperationalOrderConsole({
         )}
       </OperationalCard>
 
-      <OperationalCard title="Payments & Square" meta={`payment_records · ${order.payments.length}`}>
+      <OperationalCard id="staff-order-receipt-payments" title="Payments & Square" meta={`payment_records · ${order.payments.length}`}>
         <div className="space-y-4 text-[13px] text-charcoal/75 leading-relaxed">
           <div>
             <h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-charcoal/45 mb-2">Dashboard</h3>

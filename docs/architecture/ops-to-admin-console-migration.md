@@ -7,7 +7,7 @@ Execution surfaces that previously lived under **`/ops/(console)/*`** now render
 | Old `/ops` path | New `/admin` path | Primary APIs | Notes |
 | --- | --- | --- | --- |
 | `/ops` (Today) | `/admin` + “Live commerce slices” panel | `opsLoadTodayQueues`, `loadAdminHomeDashboard` | Today cards deep-link to orders / comms. |
-| `/ops/orders` | `/admin/orders` | Prisma via `opsLoadOrdersList` | Staff orders inbox. |
+| `/ops/orders` | `/admin/orders` | `loadAdminCommerceOrdersIndex` (`lib/admin/loadAdminCommerceOrdersIndex.ts`) | Staff orders inbox (placement window + paging; strict visibility for admins). |
 | `/ops/orders/[id]` | `/admin/orders/[id]` | `loadOperationalOrderConsole`, `PATCH /api/ops/fulfillment/...`, `POST /api/ops/shipping/purchase-label` | Same `OperationalOrderConsole` as super-admin order ops. |
 | `/ops/fulfillment` | `/admin/fulfillment` | `opsLoadFulfillmentBoard`, `loadAdminFulfillmentWorkload`, fulfillment PATCH above | Tabs for pickup · ship · catering + heuristic panels. |
 | `/ops/shipping` | `/admin/shipping` | `opsLoadShippingQueue`, `loadAdminShippingContext`, `POST /api/ops/shipping/manual`, purchase-label | Parcel queue + manual `Shipment` form. |

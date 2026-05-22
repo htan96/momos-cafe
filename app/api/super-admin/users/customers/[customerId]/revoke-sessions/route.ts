@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { getCognitoServerSession } from "@/lib/auth/cognito/serverSession";
+import {
+  governanceAuditActorForSuperStaff,
+  resolveSuperStaffDelegation,
+} from "@/lib/auth/cognito/requireSuperStaff";
 import { isSuperAdmin } from "@/lib/auth/cognito/roles";
 import { recordGovernanceAuditEntry } from "@/lib/governance/governanceAuditRecord";
 import { prisma } from "@/lib/prisma";
@@ -14,10 +17,15 @@ import { isValidCustomerUuid } from "@/lib/accountManagement/loadAccountMgmtDeta
  * Deferred Cognito revocation — persists an append-only governance row only (no IAM / GlobalSignOut call).
  */
 export async function POST(request: Request, props: { params: Promise<{ customerId: string }> }) {
-  const user = await getCognitoServerSession();
-  if (!user?.groups || !isSuperAdmin(user.groups)) {
+  const delegation = await resolveSuperStaffDelegation();
+  if (!delegation.jwtUser || !isSuperAdmin(delegation.authorityGroups)) {
     return NextResponse.json({ error: "forbidden", code: "FORBIDDEN" }, { status: 403 });
   }
+  const auditActor =
+    governanceAuditActorForSuperStaff(delegation) ?? {
+      actorId: delegation.jwtUser.sub,
+      actorName: delegation.jwtUser.email ?? delegation.jwtUser.username ?? "",
+    };
 
   const { customerId } = await props.params;
   if (!isValidCustomerUuid(customerId)) {
@@ -54,8 +62,8 @@ export async function POST(request: Request, props: { params: Promise<{ customer
   await recordGovernanceAuditEntry({
     actionType: "CUSTOMER_COGNITO_SESSION_REVOKE_DEFERRED",
     category: "access",
-    actorId: user.sub,
-    actorName: user.email ?? user.username ?? "",
+    actorId: auditActor.actorId,
+    actorName: auditActor.actorName,
     actorRole: "super_admin",
     targetType: "customer",
     targetId: customer.externalAuthSubject,

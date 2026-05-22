@@ -47,13 +47,15 @@ export default async function OpsCommunicationDetailPage({
           <div className="mt-8 rounded-lg border border-[#3d3830] bg-[#252119] p-4 opacity-60">
             <p className="text-[12px] font-semibold text-[#f5e5c0]/90 mb-2">Reply</p>
             <p className="text-[12px] text-[#c9bba8]/85 mb-3">
-              Composer wired once outbound reply API + threading guarantees ship — today staff should send via mail client or Resend scripts.
+              Inbound SES/Resend ingestion is wired; transactional outbound sends use the authenticated email APIs. Ops UI
+              does not yet post threaded replies — use your mail client or internal send tooling with this thread&apos;s routing
+              context.
             </p>
             <textarea
               disabled
               rows={4}
               className="w-full rounded-md border border-[#3d3830] bg-[#1c1916] px-3 py-2 text-[13px] text-[#c9bba8]/50 cursor-not-allowed"
-              placeholder="Reply stub — not enabled"
+              placeholder="Reply composer pending for this workspace"
             />
           </div>
         </div>

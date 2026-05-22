@@ -59,6 +59,12 @@ export const SUPER_ADMIN_PLATFORM_NAV: SuperAdminPlatformNavItem[] = [
   { section: "PLATFORM", href: "/super-admin/platform/feature-controls", label: "Feature Controls" },
   {
     section: "PLATFORM",
+    href: "/super-admin/platform/communication-registry",
+    label: "Communications registry",
+    navHelperText: "Transactional / SES catalog — governance read-only",
+  },
+  {
+    section: "PLATFORM",
     href: "/super-admin/platform/maintenance",
     label: "Maintenance",
     navHelperText: "Opens admin storefront gates — authenticated area",

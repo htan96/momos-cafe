@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { getCognitoServerSession } from "@/lib/auth/cognito/serverSession";
+import {
+  governanceAuditActorForSuperStaff,
+  resolveSuperStaffDelegation,
+} from "@/lib/auth/cognito/requireSuperStaff";
 import { isSuperAdmin } from "@/lib/auth/cognito/roles";
 import { prisma } from "@/lib/prisma";
 import { recordGovernanceAuditEntry } from "@/lib/governance/governanceAuditRecord";
@@ -65,10 +68,17 @@ async function resolveSuperAdminShipmentId(raw: {
 }
 
 async function handler(req: Request) {
-  const user = await getCognitoServerSession();
-  if (!user?.groups || !isSuperAdmin(user.groups)) {
+  const delegation = await resolveSuperStaffDelegation();
+  if (!delegation.jwtUser || !isSuperAdmin(delegation.authorityGroups)) {
     return NextResponse.json({ error: "forbidden", code: "FORBIDDEN" }, { status: 403 });
   }
+  const auditActor =
+    governanceAuditActorForSuperStaff(delegation) ?? {
+      actorId: delegation.jwtUser.sub,
+      actorName: delegation.jwtUser.email ?? delegation.jwtUser.username ?? "",
+    };
+  const actorSub = auditActor.actorId;
+  const actorLabel = auditActor.actorName.trim() || actorSub;
 
   let body: { shipmentId?: string; commerceOrderId?: string };
   try {
@@ -89,11 +99,9 @@ async function handler(req: Request) {
     );
   }
 
-  const actorLabel = user.email ?? user.username ?? user.sub;
-
   const result = await runShippoLabelPurchaseForShipment({
     shipmentId: resolved.shipmentId,
-    actor: { sub: user.sub, actorType: "super_admin" },
+    actor: { sub: actorSub, actorType: "super_admin" },
     emitSourceTag: "api.super-admin.operations.recovery.shippo-label",
   });
 
@@ -101,7 +109,7 @@ async function handler(req: Request) {
     await recordGovernanceAuditEntry({
       actionType: "OPERATIONS_SHIPPO_LABEL_RECOVERY_ATTEMPTED",
       category: "operations",
-      actorId: user.sub,
+      actorId: actorSub,
       actorName: actorLabel,
       actorRole: "super_admin",
       targetType: "shipment",
@@ -122,7 +130,7 @@ async function handler(req: Request) {
   await recordGovernanceAuditEntry({
     actionType: "OPERATIONS_SHIPPO_LABEL_RECOVERY_SUCCEEDED",
     category: "operations",
-    actorId: user.sub,
+    actorId: actorSub,
     actorName: actorLabel,
     actorRole: "super_admin",
     targetType: "shipment",

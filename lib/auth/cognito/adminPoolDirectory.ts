@@ -26,6 +26,8 @@ export type ListedPoolUser = {
   email: string | null;
   name: string | null;
   userCreateDate: Date | null;
+  /** Cognito pool user Enabled flag — null when the API response omitted it. */
+  enabled: boolean | null;
 };
 
 function attr(attrs: ReadonlyArray<{ Name?: string; Value?: string }> | undefined, name: string): string | null {
@@ -37,6 +39,7 @@ function mapUser(u: {
   Username?: string;
   Attributes?: ReadonlyArray<{ Name?: string; Value?: string }>;
   UserCreateDate?: Date;
+  Enabled?: boolean;
 }): ListedPoolUser | null {
   const username = u.Username?.trim();
   if (!username) return null;
@@ -54,6 +57,7 @@ function mapUser(u: {
     email: attr(attrs, "email"),
     name: nameResolved,
     userCreateDate: u.UserCreateDate instanceof Date ? u.UserCreateDate : null,
+    enabled: typeof u.Enabled === "boolean" ? u.Enabled : null,
   };
 }
 
@@ -85,6 +89,7 @@ export async function adminGetPoolUser(cfg: CognitoEnvConfig, usernameRaw: strin
       email: attr(attrs, "email"),
       name: attr(attrs, "name") ?? (composedFromParts.length > 0 ? composedFromParts : null),
       userCreateDate: res.UserCreateDate instanceof Date ? res.UserCreateDate : null,
+      enabled: typeof res.Enabled === "boolean" ? res.Enabled : null,
     };
   } catch {
     return null;

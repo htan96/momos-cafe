@@ -41,6 +41,23 @@ export const PLATFORM_EVENT_SUBTYPE = {
   PAYMENT_SUPER_ADMIN_SQUARE_LOOKUP: "payment.super_admin.square_lookup",
   /** Super-admin updated `OperationalIncident` lifecycle/metadata. */
   INCIDENT_OPERATOR_UPDATED: "incident.operator_updated",
+  /** Operational support desk — persisted `OperationalSupportIssue` row opened. */
+  SUPPORT_ISSUE_CREATED: "support.issue_created",
+  /** Operational support desk — persisted `OperationalSupportIssue` materially changed (status/title/etc.). */
+  SUPPORT_ISSUE_UPDATED: "support.issue_updated",
+  /** Ops refund shell — analyst opened a coordinated refund row (Square not yet instructed). */
+  REFUND_CASE_REQUESTED: "refund.case_requested",
+  REFUND_CASE_REVIEWING: "refund.case_reviewing",
+  REFUND_CASE_APPROVED: "refund.case_approved",
+  REFUND_CASE_DENIED: "refund.case_denied",
+  /** Square Refunds API accepted the refund request (`refundPayment` returned). */
+  REFUND_CASE_SUBMITTED_TO_SQUARE: "refund.case_submitted_to_square",
+  REFUND_CASE_SQUARE_COMPLETED: "refund.case_square_completed",
+  REFUND_CASE_SQUARE_FAILED: "refund.case_square_failed",
+  /** Square Refunds API rejected the attempt before a durable refund id was stored. */
+  REFUND_CASE_FAILED: "refund.case_failed",
+  /** Ops internal coordination note persisted on commerce/customer timelines. */
+  COMMUNICATION_INTERNAL_NOTE_ADDED: "communication.internal_note_added",
 } as const;
 
 export type PlatformEventSubtype =

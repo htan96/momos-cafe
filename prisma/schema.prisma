@@ -108,6 +108,8 @@ model CateringInquiry {
   submissionError  String?              @map("submission_error") @db.Text
   contactedAt      DateTime?            @map("contacted_at") @db.Timestamptz(6)
 
+  operationalSupportIssues OperationalSupportIssue[]
+
   @@index([status], map: "catering_inquiries_status_idx")
   @@map("catering_inquiries")
 }
@@ -129,6 +131,8 @@ model Customer {
   addresses         ShippingAddress[]
   emailThreads      EmailThread[]
   conversationLinks ConversationParticipant[]
+  operationalSupportIssues OperationalSupportIssue[]
+  operationalCommunicationNotes OperationalCommunicationNote[]
 
   @@map("customers")
 }
@@ -195,6 +199,9 @@ model CommerceOrder {
   fulfillmentGroups   FulfillmentGroup[]
   payments            PaymentRecord[]
   emailThreads        EmailThread[]
+  operationalSupportIssues OperationalSupportIssue[]
+  operationalRefundCases OperationalRefundCase[]
+  operationalCommunicationNotes OperationalCommunicationNote[]
 
   @@index([status])
   @@index([createdAt(sort: Desc)])
@@ -257,6 +264,8 @@ model Shipment {
   /// Carrier rate object id used to purchase a label (expires ~7 days per carrier API rules).
   selectedShippoRateId String?        @map("selected_shippo_rate_id")
   metadata           Json?
+
+  operationalSupportIssues OperationalSupportIssue[]
 
   @@index([fulfillmentGroupId])
   @@map("shipments")
@@ -364,6 +373,8 @@ model PaymentRecord {
   capturedAt      DateTime?      @map("captured_at") @db.Timestamptz(6)
   failureReason   String?        @map("failure_reason") @db.Text
   metadata        Json?
+
+  operationalRefundCases OperationalRefundCase[]
 
   @@index([orderId])
   @@index([squarePaymentId])
@@ -666,4 +677,124 @@ model ImpersonationSupportSession {
   @@index([actorSub, endedAt], map: "impersonation_support_sessions_actor_ended_idx")
   @@index([startedAt(sort: Desc)], map: "impersonation_support_sessions_started_at_idx")
   @@map("impersonation_support_sessions")
+}
+
+enum OperationalCommunicationNoteVisibility {
+  INTERNAL
+  CUSTOMER_VISIBLE
+}
+
+enum OperationalCommunicationNoteKind {
+  GENERAL
+  SUPPORT_HANDOFF
+  REFUND_ESCALATION
+  SHIPMENT_NOTE
+}
+
+enum OperationalSupportIssueStatus {
+  OPEN
+  WAITING_CUSTOMER
+  REVIEWING
+  ESCALATED
+  RESOLVED
+}
+
+enum OperationalRefundCaseStatus {
+  REQUESTED
+  REVIEWING
+  APPROVED
+  DENIED
+  SUBMITTED_TO_SQUARE
+  SQUARE_COMPLETED
+  SQUARE_FAILED
+}
+
+/**
+ * Lightweight operational support issue row — Momos orchestration + approvals, not PSA / SLA ticketing.
+ */
+model OperationalSupportIssue {
+  id        String                       @id @default(cuid())
+  createdAt DateTime                     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime                     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  status    OperationalSupportIssueStatus
+
+  customerId String?   @map("customer_id") @db.Uuid
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  commerceOrderId String?        @map("commerce_order_id") @db.Uuid
+  commerceOrder   CommerceOrder? @relation(fields: [commerceOrderId], references: [id], onDelete: SetNull)
+
+  shipmentId String?   @map("shipment_id") @db.Uuid
+  shipment   Shipment? @relation(fields: [shipmentId], references: [id], onDelete: SetNull)
+
+  cateringInquiryId String?          @map("catering_inquiry_id") @db.Uuid
+  cateringInquiry   CateringInquiry? @relation(fields: [cateringInquiryId], references: [id], onDelete: SetNull)
+
+  title           String  @db.Text
+  summary         String? @db.Text
+  resolutionNotes String? @map("resolution_notes") @db.Text
+
+  createdByStaffSub   String? @map("created_by_staff_sub") @db.VarChar(128)
+  assignedToStaffSub  String? @map("assigned_to_staff_sub") @db.VarChar(128)
+
+  refundCases OperationalRefundCase[]
+  operationalCommunicationNotes OperationalCommunicationNote[]
+
+  @@index([commerceOrderId])
+  @@index([status])
+  @@map("operational_support_issues")
+}
+
+/**
+ * Internal coordination note — markdown/plain; surfaced on operational communication timelines only.
+ */
+model OperationalCommunicationNote {
+  id                  String                                  @id @default(cuid())
+  createdAt           DateTime                                @default(now()) @map("created_at") @db.Timestamptz(6)
+  commerceOrderId    String?                                 @map("commerce_order_id") @db.Uuid
+  commerceOrder       CommerceOrder?                          @relation(fields: [commerceOrderId], references: [id], onDelete: SetNull)
+  customerId          String?                                 @map("customer_id") @db.Uuid
+  customer            Customer?                               @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  supportIssueId      String?                                 @map("support_issue_id")
+  supportIssue        OperationalSupportIssue?               @relation(fields: [supportIssueId], references: [id], onDelete: SetNull)
+  authorStaffSub      String?                                 @map("author_staff_sub") @db.VarChar(128)
+  visibility           OperationalCommunicationNoteVisibility @default(INTERNAL)
+  kind                 OperationalCommunicationNoteKind
+  body                 String                                 @db.Text
+
+  @@index([commerceOrderId])
+  @@index([customerId])
+  @@map("operational_communication_notes")
+}
+
+/**
+ * Operational refund orchestration shell — approvals here; Money movement authoritative in Square.
+ */
+model OperationalRefundCase {
+  id        String                       @id @default(cuid())
+  createdAt DateTime                     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime                     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  status    OperationalRefundCaseStatus
+
+  supportIssueId String?                  @map("support_issue_id")
+  supportIssue   OperationalSupportIssue? @relation(fields: [supportIssueId], references: [id], onDelete: SetNull)
+
+  commerceOrderId String        @map("commerce_order_id") @db.Uuid
+  commerceOrder   CommerceOrder @relation(fields: [commerceOrderId], references: [id], onDelete: Cascade)
+
+  paymentRecordId String?        @map("payment_record_id") @db.Uuid
+  paymentRecord   PaymentRecord? @relation(fields: [paymentRecordId], references: [id], onDelete: SetNull)
+
+  amountCents Int? @map("amount_cents")
+  reason      String @db.Text
+  internalNotes String? @map("internal_notes") @db.Text
+
+  approvedByStaffSub   String? @map("approved_by_staff_sub") @db.VarChar(128)
+  requestedByStaffSub  String? @map("requested_by_staff_sub") @db.VarChar(128)
+
+  squareRefundId String? @map("square_refund_id") @db.VarChar(128)
+
+  @@index([commerceOrderId])
+  @@index([status])
+  @@map("operational_refund_cases")
 }

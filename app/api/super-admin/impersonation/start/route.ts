@@ -167,6 +167,7 @@ export async function POST(request: Request) {
       actorEmail: user.email ?? user.username ?? "",
       targetEmail,
       targetSub: cognitoUser.sub,
+      actorStaffGroups: [...user.groups],
       scope,
       issuedAt: Date.now(),
       ledgerId,

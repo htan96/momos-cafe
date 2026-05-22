@@ -264,6 +264,45 @@ export function governanceEventToTimelineRow(event: {
   };
 }
 
+/** Subset shown on `/super-admin/users/admins` “governance preview” rail (elevated-impact verbs only). */
+export const ELEVATED_GOVERNANCE_PREVIEW_ACTION_TYPES: GovernanceAuditActionType[] = [
+  "USER_ROLE_CHANGED",
+  "ADMIN_PROMOTED",
+  "ADMIN_DEMOTED",
+  "IMPERSONATION_STARTED",
+  "IMPERSONATION_ENDED",
+  "OPERATIONAL_INCIDENT_UPDATED",
+  "OPERATIONAL_FAILURE_TRIAGE_UPDATED",
+  "MAINTENANCE_UPDATED",
+  "PLATFORM_FEATURE_UPDATED",
+  "OPERATIONS_SHIPPO_LABEL_RECOVERY_ATTEMPTED",
+  "OPERATIONS_SHIPPO_LABEL_RECOVERY_SUCCEEDED",
+  "OPERATIONS_CATALOG_SYNC_SUCCEEDED",
+  "OPERATIONS_CATALOG_SYNC_FAILED",
+  "OPERATIONS_SQUARE_PAYMENT_LOOKUP_RECONCILE",
+  "CUSTOMER_COGNITO_SESSION_REVOKE_DEFERRED",
+];
+
+export async function loadElevatedGovernanceAuditPreview(limit = 20): Promise<AuditTimelineRow[]> {
+  const capped = Math.min(50, Math.max(5, limit));
+  const rows = await prisma.governanceAuditEvent.findMany({
+    where: { actionType: { in: ELEVATED_GOVERNANCE_PREVIEW_ACTION_TYPES } },
+    orderBy: { createdAt: "desc" },
+    take: capped,
+    select: {
+      id: true,
+      actionType: true,
+      actorName: true,
+      targetName: true,
+      metadata: true,
+      description: true,
+      reason: true,
+      createdAt: true,
+    },
+  });
+  return rows.map(governanceEventToTimelineRow);
+}
+
 export async function loadRecentGovernanceAuditRows(limit: number): Promise<AuditTimelineRow[]> {
   const rows = await prisma.governanceAuditEvent.findMany({
     orderBy: { createdAt: "desc" },

@@ -1,7 +1,12 @@
+/**
+ * OperationalPerspectiveBanner — global governance stripe when audited impersonation is active (mounted from `Layout`).
+ */
 "use client";
 
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import GovernancePerspectiveSwitcher from "@/components/governance/GovernancePerspectiveSwitcher";
 
 type StatusOk = {
   active: true;
@@ -24,8 +29,36 @@ function formatLedgerDuration(ms: number): string {
   return rm ? `${h}h ${rm}m` : `${h}h`;
 }
 
-export default function ImpersonationBanner() {
+function scopeSurfaceLabel(scope: StatusOk["scope"]): string {
+  return scope === "admin" ? "Admin" : "Customer";
+}
+
+function authorityLabelFromScope(scope: StatusOk["scope"]): string {
+  /* Customer-scope envelopes are audited super_admin starters; admin impersonation deferred but reserved. */
+  return scope === "admin" ? "Super Admin (delegated ops)" : "Super Admin";
+}
+
+function shouldOfferGovernanceSwitcher(pathname: string): boolean {
+  if (
+    pathname === "/login" ||
+    pathname.startsWith("/login/") ||
+    pathname === "/signup" ||
+    pathname.startsWith("/signup/") ||
+    pathname === "/forgot-password" ||
+    pathname.startsWith("/forgot-password/")
+  ) {
+    return false;
+  }
+  if (pathname.startsWith("/ops")) return false;
+  return true;
+}
+
+/**
+ * Persisted governance edge when audited impersonation is active — authority vs storefront subject.
+ */
+export default function OperationalPerspectiveBanner() {
   const router = useRouter();
+  const pathname = usePathname() ?? "";
   const [data, setData] = useState<StatusOk | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
@@ -83,38 +116,62 @@ export default function ImpersonationBanner() {
     router.refresh();
   }, [router]);
 
-  if (!data) return null;
+  if (!shouldOfferGovernanceSwitcher(pathname) || !data) return null;
 
   const startedMs = Date.parse(data.startedAt);
-  const durationLabel = Number.isFinite(startedMs)
-    ? formatLedgerDuration(now - startedMs)
-    : "—";
+  const durationLabel = Number.isFinite(startedMs) ? formatLedgerDuration(now - startedMs) : "—";
 
   return (
-    <div
+    <aside
       role="status"
-      className="w-full rounded-lg border border-gold/55 bg-charcoal/[0.92] text-cream px-3 py-2.5 mb-3 flex flex-wrap items-center justify-between gap-3 shadow-sm"
+      aria-label="Support impersonation and operational perspective controls"
+      className="w-full border-b border-gold/50 bg-teal-dark/98 text-cream backdrop-blur-[2px] shadow-md"
     >
-      <p className="text-[12px] leading-snug">
-        <span className="font-semibold text-gold/95">Impersonation</span>
-        {" · "}
-        <span className="text-cream/88">{data.actor.email}</span>
-        {" → "}
-        <span className="text-cream">{data.target.email}</span>
-        {" · "}
-        <span className="uppercase tracking-wide text-cream/65 text-[11px]">{data.scope}</span>
-        {" · "}
-        <span className="text-cream/80">
-          Ledger <span className="font-medium text-gold/90">{durationLabel}</span>
-        </span>
-      </p>
-      <button
-        type="button"
-        className="shrink-0 rounded-md bg-gold/90 px-3 py-1.5 text-[12px] font-semibold text-teal-dark hover:bg-gold"
-        onClick={() => void exit()}
-      >
-        Exit
-      </button>
-    </div>
+      <div className="mx-auto flex w-full max-w-[1200px] flex-wrap items-center justify-between gap-3 px-4 py-2.5 md:gap-4">
+        <div className="min-w-[200px] flex-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+          <p className="text-[12px] leading-snug text-cream/95">
+            <span className="font-semibold text-gold">Viewing as</span>
+            {": "}
+            <span>{scopeSurfaceLabel(data.scope)}</span>
+            <span className="text-cream/70"> (“{data.target.email}”) </span>
+            <span className="text-cream/55 hidden sm:inline">·</span>
+            <span className="block text-[11px] text-gold/90 sm:inline sm:text-[12px] sm:before:content-['_']">
+              Authority: <span className="font-medium text-cream">{authorityLabelFromScope(data.scope)}</span>
+            </span>
+            {" · "}
+            <span className="text-cream/70 text-[11px]">
+              Session <span className="font-medium text-gold/90">{durationLabel}</span>
+            </span>
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center justify-end gap-2 md:gap-3">
+          <div className="hidden sm:flex min-w-[120px] max-w-[210px]">
+            <GovernancePerspectiveSwitcher variant="compact" />
+          </div>
+          <Link
+            href="/super-admin/users/customers"
+            className="text-[11px] font-semibold uppercase tracking-[0.12em] text-cream/75 underline-offset-4 hover:text-cream hover:underline whitespace-nowrap"
+          >
+            Open directory
+          </Link>
+          <Link
+            href="/super-admin"
+            className="text-[11px] font-semibold uppercase tracking-[0.12em] text-cream/75 underline-offset-4 hover:text-cream hover:underline whitespace-nowrap"
+          >
+            Dashboard
+          </Link>
+          <button
+            type="button"
+            className="shrink-0 rounded-md bg-gold px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-teal-dark shadow-sm hover:bg-gold/90"
+            onClick={() => void exit()}
+          >
+            Return to Super&nbsp;Admin perspective
+          </button>
+        </div>
+        <div className="flex sm:hidden w-full">
+          <GovernancePerspectiveSwitcher variant="compact" className="w-full" />
+        </div>
+      </div>
+    </aside>
   );
 }

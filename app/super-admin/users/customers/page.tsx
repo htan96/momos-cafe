@@ -55,8 +55,8 @@ export default async function SuperAdminUsersCustomersPage(props: PageProps) {
     <div className="space-y-8">
       <GovPageHeader
         eyebrow="Users · Customers"
-        title="Customer directory"
-        subtitle={`Search Prisma diners by email substring or UUID, paginate, and skim commerce counts plus grounded failure/incident cues. No synthetic scoring · stale toggle keys off commerce order freshness (${CUSTOMER_DIRECTORY_STALE_DAYS}d) only.`}
+        title="Support roster"
+        subtitle={`Find diners by partial email or exact customer id, skim lifetime order totals, rolling ${CUSTOMER_DIRECTORY_STALE_DAYS}-day commerce pulse, recent capture anomalies, linked open incidents (active statuses only), then open dossiers with no synthesized risk tiers.`}
         actions={
           <Link
             href="/super-admin/customer-operations"
@@ -67,15 +67,15 @@ export default async function SuperAdminUsersCustomersPage(props: PageProps) {
         }
       />
 
-      <OperationalCard title="Customer-scope impersonation" meta="TTL 8h · governance reason required">
+      <OperationalCard title="Break-glass customer view" meta="Super-admin only · audited · short TTL">
         <p className="text-[13px] text-charcoal/65 leading-relaxed mb-1">
-          HttpOnly impersonation envelope + audited ledger (`ImpersonationSupportSession`). Enter target email plus a
-          short justification referencing the incident or ticket narrative.
+          Start customer impersonation when troubleshooting checkout or loyalty issues. Operators must cite a justification that
+          would satisfy an audit—paired governance receipts remain once the envelope ends.
         </p>
         <StartCustomerImpersonation />
       </OperationalCard>
 
-      <OperationalCard title="Directory roster" meta="GET · customers + badges">
+      <OperationalCard title="Living roster grid" meta="Filters + dossier links">
         <form method="GET" action="/super-admin/users/customers" className="space-y-4">
           <label className="block text-[11px] font-semibold uppercase tracking-[0.12em] text-charcoal/45">
             Email contains or customer UUID
@@ -104,13 +104,13 @@ export default async function SuperAdminUsersCustomersPage(props: PageProps) {
 
           <div className="flex flex-wrap gap-2 pt-2">
             <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-charcoal/45 w-full mb-1">
-              Orders filter
+              Lifetime orders
             </span>
             {(
               [
                 ["", "Any"],
-                ["has_orders", "Has orders"],
-                ["no_orders", "No orders"],
+                ["has_orders", "Has lifetime orders"],
+                ["no_orders", "No lifetime orders"],
               ] as const
             ).map(([val, label]) => (
               <Link
@@ -130,12 +130,12 @@ export default async function SuperAdminUsersCustomersPage(props: PageProps) {
 
           <div className="flex flex-wrap gap-2">
             <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-charcoal/45 w-full mb-1">
-              Activity / freshness
+              Commerce pulse
             </span>
             {(
               [
-                ["", "Any freshness"],
-                ["stale", `Stale (${CUSTOMER_DIRECTORY_STALE_DAYS}d commerce signal)`],
+                ["", "Any"],
+                ["stale", `Quiet · no order touch (${CUSTOMER_DIRECTORY_STALE_DAYS}d)`],
               ] as const
             ).map(([val, label]) => (
               <Link
@@ -172,8 +172,8 @@ export default async function SuperAdminUsersCustomersPage(props: PageProps) {
                   <tr>
                     <th className="px-2 py-2 font-semibold">Customer</th>
                     <th className="px-2 py-2 font-semibold">Identity</th>
-                    <th className="px-2 py-2 font-semibold">Orders</th>
-                    <th className="px-2 py-2 font-semibold">Signals</th>
+                    <th className="px-2 py-2 font-semibold">Orders & pulses</th>
+                    <th className="px-2 py-2 font-semibold">Operational signals</th>
                     <th className="px-2 py-2 font-semibold">Profile updated</th>
                   </tr>
                 </thead>
@@ -192,7 +192,7 @@ export default async function SuperAdminUsersCustomersPage(props: PageProps) {
                               {row.externalAuthSubject.slice(0, 12)}…
                             </span>
                           : (
-                            <span className="block text-[10px] text-charcoal/40">No Cognito sub</span>
+                            <span className="block text-[10px] text-charcoal/40">No linked SSO subject yet</span>
                           )}
                         </td>
                         <td className="px-2 py-2 space-y-1">
@@ -200,36 +200,85 @@ export default async function SuperAdminUsersCustomersPage(props: PageProps) {
                           <div className="text-[11px] break-all">{row.email ?? "No email"}</div>
                           <div>{row.phone?.trim() || "—"}</div>
                         </td>
-                        <td className="px-2 py-2 whitespace-nowrap">
-                          <StatusPill variant={row.orderCount > 0 ? "ok" : "neutral"}>{row.orderCount}</StatusPill>
+                        <td className="px-2 py-2 align-top">
+                          <span
+                            title="Total commerce_orders rows tied to this customer."
+                            className="inline-flex"
+                          >
+                            <StatusPill variant={row.orderCount > 0 ? "ok" : "neutral"}>
+                              Lifetime {row.orderCount}
+                            </StatusPill>
+                          </span>
+                          <span
+                            className="block text-[11px] font-semibold text-charcoal/70 mt-2"
+                            title={`Rolling window counts commerce orders touched in roughly the last ${CUSTOMER_DIRECTORY_STALE_DAYS} days based on lifecycle timestamps.`}
+                          >
+                            Rolling {CUSTOMER_DIRECTORY_STALE_DAYS}d orders · {row.ordersLast90Days}
+                          </span>
                           {row.lastOrderUpdatedAt ?
-                            <span className="block text-[10px] text-charcoal/45 mt-1">
-                              last orderΔ{" "}
+                            <span
+                              className="block text-[10px] text-charcoal/45 mt-1"
+                              title="Latest commerce_orders.updated_at for this diner."
+                            >
+                              Last lifecycle touch ·{" "}
                               {row.lastOrderUpdatedAt.toLocaleString(undefined, {
                                 dateStyle: "medium",
                               })}
+                            </span>
+                          : null}
+                          <span
+                            className="block text-[10px] text-charcoal/50 mt-1"
+                            title={`Payment captures (last ${CUSTOMER_DIRECTORY_STALE_DAYS} days) flagged failed or retaining a gateway failureReason on this diner's commerce orders.`}
+                          >
+                            Recent capture anomalies ({CUSTOMER_DIRECTORY_STALE_DAYS}d) · {row.failedPaymentsLast90dHint}
+                          </span>
+                          {row.failedPaymentCount > 0 ?
+                            <span
+                              className="block text-[10px] text-charcoal/50 mt-0.5"
+                              title={`All-time tally of grouped payment batches on this diner's commerce orders tied to failures or lingering failureReason (not constrained to ${CUSTOMER_DIRECTORY_STALE_DAYS}d).`}
+                            >
+                              All-time grouped capture cues · {row.failedPaymentCount}
                             </span>
                           : null}
                         </td>
                         <td className="px-2 py-2">
                           <div className="flex flex-wrap gap-1">
                             {row.failedPaymentCount > 0 ?
-                              <StatusPill variant="degraded">{`${row.failedPaymentCount} · payment_failed`}</StatusPill>
+                              <span
+                                title={`All payment batches grouped by order that show failures or lingering failureReason (lifetime). Does not imply current balance due.`}
+                              >
+                                <StatusPill variant="degraded">{`${row.failedPaymentCount} grouped capture cues`}</StatusPill>
+                              </span>
                             : (
-                              <StatusPill variant="neutral">payments clean</StatusPill>
+                              <span title="No lifetime grouped batches returned failed/failureReason statuses for orders on record.">
+                                <StatusPill variant="neutral">No grouped captures</StatusPill>
+                              </span>
                             )}
                             {row.openIncidentCount > 0 ?
-                              <StatusPill variant="warning">{`${row.openIncidentCount} open incident`}</StatusPill>
-                            : null}
+                              <span
+                                title="Incidents correlated to metadata or shorthand customer cues while still marked in active operational-response statuses—not a guarantee nothing else is unfolding."
+                              >
+                                <StatusPill variant="warning">{`${row.openIncidentCount} open incident`}</StatusPill>
+                              </span>
+                            : (
+                              <span title="Operational incidents correlated to metadata or shorthand customer markers with active statuses returned zero hits.">
+                                <StatusPill variant="neutral">No open incidents</StatusPill>
+                              </span>
+                            )}
                             {row.orphanWebhookHint ?
-                              <StatusPill variant="degraded">orphan webhook*</StatusPill>
+                              <span title="Roughly five hundred freshest Square orphan webhook captures were inspected for this diner—negative does not disprove an integration issue elsewhere. ">
+                                <StatusPill variant="degraded">Orphan webhook hint</StatusPill>
+                              </span>
                             : null}
                             {row.draftPaymentIssueCount > 0 ?
-                              <StatusPill variant="warning">{`draft w/ failures · latest order`}</StatusPill>
+                              <span title="Their latest commerce_order is still draft and recent payment rows hint at failure payloads. ">
+                                <StatusPill variant="warning">{`Draft stall · failures on latest basket`}</StatusPill>
+                              </span>
                             : null}
                           </div>
-                          <p className="text-[9px] text-charcoal/40 mt-1">
-                            *Bounded scan over recent `payment.square.orphan_webhook` rows with customer id metadata.
+                          <p className="text-[9px] text-charcoal/40 mt-2">
+                            Incident counts stay on active-response statuses only. Webhook cues run on a bounded ingest slice—still
+                            open the failures inbox whenever in doubt.
                           </p>
                           <Link
                             href={`/super-admin/operations/failures?customerId=${encodeURIComponent(row.id)}`}

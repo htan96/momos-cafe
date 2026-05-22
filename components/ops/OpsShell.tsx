@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import {
+  Headphones,
   LayoutDashboard,
   Menu,
   Package,
@@ -21,6 +22,7 @@ const links = [
   { href: "/ops/orders", label: "Orders", icon: ShoppingBag },
   { href: "/ops/shipping", label: "Shipping", icon: Ship },
   { href: "/ops/communications", label: "Communications", icon: Radio },
+  { href: "/ops/support", label: "Support", icon: Headphones },
   { href: "/ops/settings", label: "Settings", icon: Settings2 },
 ];
 

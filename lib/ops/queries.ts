@@ -93,11 +93,69 @@ export async function opsLoadTodayQueues() {
     },
   });
 
+  const pendingPaymentOrders = await prisma.commerceOrder.findMany({
+    where: { status: "pending_payment" },
+    take: 25,
+    orderBy: { createdAt: "desc" },
+    select: { id: true, totalCents: true, createdAt: true, status: true },
+  });
+
+  const paidNeedingFulfillment = await prisma.commerceOrder.findMany({
+    where: {
+      status: { in: ["paid", "partially_fulfilled"] },
+      fulfillmentGroups: { some: { status: { notIn: [...terminal] } } },
+    },
+    take: 25,
+    orderBy: { updatedAt: "desc" },
+    select: {
+      id: true,
+      totalCents: true,
+      updatedAt: true,
+      status: true,
+      fulfillmentGroups: {
+        where: { status: { notIn: [...terminal] } },
+        take: 3,
+        select: { id: true, pipeline: true, status: true },
+      },
+    },
+  });
+
+  /** Retail rows without tracking — label still to buy or attach. */
+  const shipmentsPendingLabel = await prisma.shipment.findMany({
+    where: {
+      OR: [{ trackingNumber: null }, { trackingNumber: "" }],
+      fulfillmentGroup: {
+        pipeline: "RETAIL",
+        status: { notIn: [...terminal] },
+        order: { status: { in: ["paid", "partially_fulfilled"] } },
+      },
+    },
+    take: 20,
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      createdAt: true,
+      status: true,
+      selectedShippoRateId: true,
+      fulfillmentGroup: {
+        select: {
+          id: true,
+          status: true,
+          orderId: true,
+          order: { select: { id: true, status: true, totalCents: true } },
+        },
+      },
+    },
+  });
+
   return {
     lateOrStuck: lateOrStuckRaw.map(enrichProgram),
     shipsToday,
     cateringAttention,
     commFailures,
+    pendingPaymentOrders,
+    paidNeedingFulfillment,
+    shipmentsPendingLabel,
   };
 }
 

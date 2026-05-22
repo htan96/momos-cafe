@@ -10,7 +10,17 @@ import {
 
 type ApiPerspective = "governance" | "admin_operations" | "customer_experience";
 
-export default function GovernancePerspectiveSwitcher() {
+type Variant = "default" | "compact";
+
+export type GovernancePerspectiveSwitcherProps = {
+  variant?: Variant;
+  className?: string;
+};
+
+export default function GovernancePerspectiveSwitcher({
+  variant = "default",
+  className,
+}: GovernancePerspectiveSwitcherProps) {
   const router = useRouter();
   const [current, setCurrent] = useState<ApiPerspective>("governance");
   const [pending, setPending] = useState(false);
@@ -58,13 +68,31 @@ export default function GovernancePerspectiveSwitcher() {
     [router]
   );
 
+  const isCompact = variant === "compact";
+
   return (
-    <label className="flex flex-col gap-1 min-w-0">
-      <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-cream/55 leading-none">
-        Viewing
+    <label
+      className={
+        isCompact ?
+          ["flex flex-col gap-0.5 min-w-0 w-full", className].filter(Boolean).join(" ")
+        : ["flex flex-col gap-1 min-w-0", className].filter(Boolean).join(" ")
+      }
+    >
+      <span
+        className={
+          isCompact ?
+            "text-[8px] font-semibold uppercase tracking-[0.16em] text-cream/50 leading-none"
+          : "text-[9px] font-semibold uppercase tracking-[0.18em] text-cream/55 leading-none"
+        }
+      >
+        {isCompact ? "Viewing lens" : "Viewing"}
       </span>
       <select
-        className="rounded-lg border border-cream/25 bg-teal-dark/80 text-cream text-[12px] font-semibold uppercase tracking-wide pl-2 pr-7 py-1.5 max-w-[220px] truncate cursor-pointer focus:outline-none focus:ring-2 focus:ring-gold/35 disabled:opacity-60"
+        className={
+          isCompact ?
+            "w-full rounded-md border border-gold/40 bg-charcoal/50 text-cream text-[11px] font-semibold uppercase tracking-wide px-2 pr-8 py-1 max-w-none truncate cursor-pointer focus:outline-none focus:ring-2 focus:ring-gold/40 disabled:opacity-60"
+          : "rounded-lg border border-cream/25 bg-teal-dark/80 text-cream text-[12px] font-semibold uppercase tracking-wide pl-2 pr-7 py-1.5 max-w-[220px] truncate cursor-pointer focus:outline-none focus:ring-2 focus:ring-gold/35 disabled:opacity-60"
+        }
         value={current}
         disabled={pending}
         aria-label="Operational perspective"

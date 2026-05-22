@@ -14,19 +14,28 @@ export default function FulfillmentTransitionButtons({
   pipeline,
   status,
   canFulfillmentWrite,
+  variant = "default",
 }: {
   orderId: string;
   groupId: string;
   pipeline: FulfillmentPipeline;
   status: string;
   canFulfillmentWrite: boolean;
+  /** `ops` — dark console styling for `/ops/*` surfaces. */
+  variant?: "default" | "ops";
 }) {
   const router = useRouter();
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
+  const disabledCopy =
+    variant === "ops"
+      ? "text-[12px] text-[#c9bba8]/55"
+      : "text-[12px] text-charcoal/50";
+  const emptyCopy = variant === "ops" ? disabledCopy : "text-[12px] text-charcoal/50";
+
   if (!canFulfillmentWrite) {
-    return <p className="text-[12px] text-charcoal/50">Fulfillment transitions are read-only for this session.</p>;
+    return <p className={disabledCopy}>Fulfillment transitions are read-only for this session.</p>;
   }
 
   const targets =
@@ -39,7 +48,7 @@ export default function FulfillmentTransitionButtons({
   );
 
   if (!allowed.length) {
-    return <p className="text-[12px] text-charcoal/50">No scripted transitions apply from `{status}` for {pipeline}.</p>;
+    return <p className={emptyCopy}>No scripted transitions apply from `{status}` for {pipeline}.</p>;
   }
 
   async function transition(nextStatus: string) {
@@ -71,13 +80,19 @@ export default function FulfillmentTransitionButtons({
             type="button"
             disabled={busyKey !== null}
             onClick={() => void transition(target)}
-            className="rounded-lg border border-cream-dark/60 bg-white px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-charcoal/80 shadow-sm transition hover:bg-cream-mid/35 disabled:opacity-50"
+            className={
+              variant === "ops"
+                ? "rounded-md border border-[#2f6d66]/45 bg-[#1c2826]/90 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-[#f5e5c0]/95 transition hover:border-[#2f6d66]/70 hover:bg-[#234240]/60 disabled:opacity-50"
+                : "rounded-lg border border-cream-dark/60 bg-white px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-charcoal/80 shadow-sm transition hover:bg-cream-mid/35 disabled:opacity-50"
+            }
           >
             {busyKey === target ? "Working…" : target.replace(/_/g, " ")}
           </button>
         ))}
       </div>
-      {msg ? <p className="text-[12px] text-red-700/90">{msg}</p> : null}
+      {msg ? (
+        <p className={variant === "ops" ? "text-[12px] text-[#e8a0a0]/95" : "text-[12px] text-red-700/90"}>{msg}</p>
+      ) : null}
     </div>
   );
 }

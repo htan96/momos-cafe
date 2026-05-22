@@ -30,6 +30,11 @@ export default async function SuperAdminOrderDetailPage(props: { params: Promise
   const flags = {
     canFulfillmentWrite: session ? opsCan(role, "fulfillment:write") : false,
     canShippingWrite: session ? opsCan(role, "shipping:write") : false,
+    canSupportWrite: session ? opsCan(role, "support:write") : false,
+    canCommunicationsWrite:
+      session ?
+        opsCan(role, "communications:write") || opsCan(role, "support:write")
+      : false,
     canRecovery: session?.roleBadge === "super_admin",
     canGovernanceDebug: session?.roleBadge === "super_admin",
   };

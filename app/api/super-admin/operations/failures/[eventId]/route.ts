@@ -1,15 +1,12 @@
 import { NextResponse } from "next/server";
-import { getCognitoServerSession } from "@/lib/auth/cognito/serverSession";
-import { isSuperAdmin } from "@/lib/auth/cognito/roles";
+import { requireSuperStaffJson } from "@/lib/auth/cognito/requireSuperStaff";
 import { queryOperationalFailureDetail } from "@/lib/operations/failures/queryOperationalFailures";
 
 type RouteContext = { params: Promise<{ eventId: string }> };
 
 export async function GET(_request: Request, context: RouteContext) {
-  const user = await getCognitoServerSession();
-  if (!user?.groups || !isSuperAdmin(user.groups)) {
-    return NextResponse.json({ error: "forbidden", code: "FORBIDDEN" }, { status: 403 });
-  }
+  const gate = await requireSuperStaffJson();
+  if (gate) return gate;
 
   const { eventId } = await context.params;
   const detail = await queryOperationalFailureDetail(eventId);

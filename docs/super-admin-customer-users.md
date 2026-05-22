@@ -24,7 +24,7 @@ Impersonation start emits both governance and operational rows sharing `metadata
 |------|--------|
 | TTL | Signed HttpOnly cookie `momos_impersonation` (`IMPERSONATION_COOKIE`) max-age **28 800 s (~8 h)** in `impersonation/start`. |
 | Justification | `POST /api/super-admin/impersonation/start` **requires JSON `justification` with length ≥ 10**; persists to **`GovernanceAuditEvent.reason`** and enriches metadata with optional Prisma customer id linkage. Client component `StartCustomerImpersonation` collects this everywhere. |
-| Banner | Rendered for super-admin via `SuperAdminLayout` → `belowHeader={<ImpersonationBanner />}`. |
+| Banner | `OperationalPerspectiveBanner` mounts from root `components/layout/Layout.tsx` whenever impersonation status is active (sticky with site header); includes compact perspective lens controls. |
 
 Ledger table columns surface justification text by correlating **`IMPERSONATION_STARTED` governance rows** where `metadata.ledgerId` equals `ImpersonationSupportSession.id`.
 

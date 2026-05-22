@@ -1,7 +1,10 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { getCognitoServerSession } from "@/lib/auth/cognito/serverSession";
 import { isSuperAdmin } from "@/lib/auth/cognito/roles";
+import {
+  governanceAuditActorForSuperStaff,
+  resolveSuperStaffDelegation,
+} from "@/lib/auth/cognito/requireSuperStaff";
 import {
   defaultRouteForPerspective,
   OPERATIONAL_PERSPECTIVE_COOKIE,
@@ -22,8 +25,8 @@ function cookieOpts(maxAge: number) {
 }
 
 export async function GET() {
-  const user = await getCognitoServerSession();
-  if (!user?.groups || !isSuperAdmin(user.groups)) {
+  const { jwtUser, authorityGroups } = await resolveSuperStaffDelegation();
+  if (!jwtUser || !isSuperAdmin(authorityGroups)) {
     return NextResponse.json({ error: "forbidden", code: "FORBIDDEN" }, { status: 403 });
   }
 
@@ -35,10 +38,17 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const user = await getCognitoServerSession();
-  if (!user?.groups || !isSuperAdmin(user.groups)) {
+  const delegation = await resolveSuperStaffDelegation();
+  const { jwtUser, authorityGroups, impersonation } = delegation;
+  if (!jwtUser || !isSuperAdmin(authorityGroups)) {
     return NextResponse.json({ error: "forbidden", code: "FORBIDDEN" }, { status: 403 });
   }
+
+  const auditActor =
+    governanceAuditActorForSuperStaff({ jwtUser, impersonation }) ?? {
+      actorId: jwtUser.sub,
+      actorName: jwtUser.email ?? jwtUser.username ?? "",
+    };
 
   let body: unknown;
   try {
@@ -59,8 +69,8 @@ export async function POST(request: Request) {
   await recordGovernanceAuditEntry({
     actionType: "PERSPECTIVE_CHANGED",
     category: "operations",
-    actorId: user.sub,
-    actorName: user.email ?? user.username ?? "",
+    actorId: auditActor.actorId,
+    actorName: auditActor.actorName,
     actorRole: "super_admin",
     description: "Operational perspective updated",
     metadata: { perspective: parsed, source: "api.super-admin.perspective" },

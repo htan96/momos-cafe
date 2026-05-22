@@ -29,6 +29,9 @@ export default async function OpsOrderDetailPage({ params }: { params: Promise<{
   const flags = {
     canFulfillmentWrite: opsCan(session.role, "fulfillment:write"),
     canShippingWrite: opsCan(session.role, "shipping:write"),
+    canSupportWrite: opsCan(session.role, "support:write"),
+    canCommunicationsWrite:
+      opsCan(session.role, "communications:write") || opsCan(session.role, "support:write"),
     canRecovery: governanceDebug,
     canGovernanceDebug: governanceDebug,
   };

@@ -9,6 +9,9 @@ import {
   extractSquarePaymentWebhookEnvelope,
   inferLocalIdsFromPeekedWebhook,
 } from "@/lib/webhooks/peekSquarePaymentFromWebhook";
+import { extractSquareRefundWebhookEnvelope } from "@/lib/webhooks/peekSquareRefundFromWebhook";
+import { inferLocalIdsFromSquareRefundPeek } from "@/lib/webhooks/inferLocalIdsFromSquareRefundPeek";
+import { reconcileOperationalRefundCaseFromSquareWebhook } from "@/lib/payments/operationalRefundWebhook";
 import { patchWebhookDeliveryReceipt, upsertWebhookDeliveryReceipt } from "@/lib/webhooks/recordWebhookDeliveryReceipt";
 import { parseSquareWebhookRoot, readCorrelationRequestId } from "@/lib/webhooks/squareWebhookParse";
 
@@ -63,6 +66,15 @@ export async function POST(req: Request) {
         referenceId: signedPeek.referenceId,
       })
     : { commerceOrderId: null as string | null, paymentRecordId: null as string | null };
+
+  const refundPeek = okSig && parsed ? extractSquareRefundWebhookEnvelope(parsed as Record<string, unknown>) : null;
+  const refundInferred =
+    refundPeek ?
+      await inferLocalIdsFromSquareRefundPeek({ paymentId: refundPeek.paymentId })
+    : { commerceOrderId: null as string | null, paymentRecordId: null as string | null };
+
+  const mergedCommerceOrderId = signedInferred.commerceOrderId ?? refundInferred.commerceOrderId ?? null;
+  const mergedPaymentRecordId = signedInferred.paymentRecordId ?? refundInferred.paymentRecordId ?? null;
 
   if (!okSig) {
     let untrustedRoot = trustedRoot;
@@ -137,8 +149,8 @@ export async function POST(req: Request) {
     signatureValid: true,
     processingStatus: WebhookProcessingStatus.accepted,
     httpStatus: 200,
-    commerceOrderId: signedInferred.commerceOrderId,
-    paymentRecordId: signedInferred.paymentRecordId,
+    commerceOrderId: mergedCommerceOrderId,
+    paymentRecordId: mergedPaymentRecordId,
   });
 
   try {
@@ -147,13 +159,18 @@ export async function POST(req: Request) {
       correlation: { requestId: correlationRequestId },
     });
 
+    const refundEnv = extractSquareRefundWebhookEnvelope(body);
+    if (refundEnv) {
+      await reconcileOperationalRefundCaseFromSquareWebhook(refundEnv);
+    }
+
     if (result.nonPaymentEnvelope) {
       await patchWebhookDeliveryReceipt(receiptId, {
         processingStatus: WebhookProcessingStatus.ignored,
         httpStatus: 200,
         errorCode: null,
-        commerceOrderId: result.commerceOrderId ?? null,
-        paymentRecordId: result.paymentRecordId ?? null,
+        commerceOrderId: result.commerceOrderId ?? mergedCommerceOrderId,
+        paymentRecordId: result.paymentRecordId ?? mergedPaymentRecordId,
       });
       return NextResponse.json(result);
     }
@@ -163,8 +180,8 @@ export async function POST(req: Request) {
         processingStatus: WebhookProcessingStatus.failed,
         httpStatus: 200,
         errorCode: "ORPHAN_NO_LOCAL_PAYMENT",
-        commerceOrderId: result.commerceOrderId ?? null,
-        paymentRecordId: result.paymentRecordId ?? null,
+        commerceOrderId: result.commerceOrderId ?? mergedCommerceOrderId,
+        paymentRecordId: result.paymentRecordId ?? mergedPaymentRecordId,
       });
       return NextResponse.json(result);
     }
@@ -173,8 +190,8 @@ export async function POST(req: Request) {
       processingStatus: WebhookProcessingStatus.processed,
       httpStatus: 200,
       errorCode: null,
-      commerceOrderId: result.commerceOrderId ?? null,
-      paymentRecordId: result.paymentRecordId ?? null,
+      commerceOrderId: result.commerceOrderId ?? mergedCommerceOrderId,
+      paymentRecordId: result.paymentRecordId ?? mergedPaymentRecordId,
     });
     return NextResponse.json(result);
   } catch (e) {
@@ -193,8 +210,8 @@ export async function POST(req: Request) {
       message: "Square webhook reconcile pipeline threw unexpectedly",
       correlation: { requestId: correlationRequestId },
       entities: {
-        commerceOrderId: signedInferred.commerceOrderId ?? undefined,
-        paymentRecordId: signedInferred.paymentRecordId ?? undefined,
+        commerceOrderId: mergedCommerceOrderId ?? undefined,
+        paymentRecordId: mergedPaymentRecordId ?? undefined,
       },
       detail: {
         stage: "reconcileSquarePaymentWebhook",

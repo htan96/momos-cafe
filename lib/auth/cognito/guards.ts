@@ -18,9 +18,12 @@ import {
   isCustomer,
   isSuperAdmin,
 } from "@/lib/auth/cognito/roles";
-import { IMPERSONATION_COOKIE } from "@/lib/governance/impersonationConstants";
-import { getImpersonationSecretForVerification } from "@/lib/governance/impersonationSecret";
-import { verifyImpersonationToken } from "@/lib/governance/impersonationToken";
+import type { ImpersonationPayload } from "@/lib/governance/impersonationToken";
+import {
+  delegatedStaffAuthorityGroups,
+  jwtUserBindsVerifiedImpersonation,
+  verifyImpersonationFromNextRequest,
+} from "@/lib/auth/cognito/staffDelegatedAuthority";
 
 /**
  * Comma-separated path prefixes protected by Cognito **in addition to** `/ops` and `/api/ops` (always enforced).
@@ -50,25 +53,25 @@ function redirectToRoleHome(request: NextRequest, groups: readonly string[]): Ne
   return NextResponse.redirect(new URL(defaultRouteForGroups(groups), request.url));
 }
 
-/** For server layouts: safe internal path for `next` after login + optional verified impersonation snapshot header. */
+/** For server layouts: safe internal path + optional verified impersonation snapshot header for governance RSC. */
 async function nextWithForwardedPath(
   request: NextRequest,
-  cognito: DecodedCognito | null
+  cognito: DecodedCognito | null,
+  impersonationVerified: ImpersonationPayload | null
 ): Promise<NextResponse> {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set(
     "x-momos-pathname",
     `${request.nextUrl.pathname}${request.nextUrl.search}`
   );
-  if (cognito && isSuperAdmin(cognito.user.groups)) {
-    const secret = getImpersonationSecretForVerification();
-    const raw = request.cookies.get(IMPERSONATION_COOKIE)?.value;
-    if (secret && raw) {
-      const payload = await verifyImpersonationToken(raw, secret);
-      if (payload && payload.actorSub === cognito.user.sub) {
-        requestHeaders.set("x-momos-impersonation", JSON.stringify(payload));
-      }
-    }
+  const authorityGroups = delegatedStaffAuthorityGroups(cognito?.user ?? null, impersonationVerified);
+  if (
+    cognito &&
+    impersonationVerified &&
+    jwtUserBindsVerifiedImpersonation(cognito.user, impersonationVerified) &&
+    isSuperAdmin(authorityGroups)
+  ) {
+    requestHeaders.set("x-momos-impersonation", JSON.stringify(impersonationVerified));
   }
   return NextResponse.next({ request: { headers: requestHeaders } });
 }
@@ -172,10 +175,16 @@ export async function cognitoGate(request: NextRequest): Promise<NextResponse> {
       return isApiOps ? cognitoUnconfiguredApi() : new NextResponse("Cognito auth is not configured.", { status: 503 });
     }
     const { cognito, renewalCookies } = await resolveCognitoForMiddleware(request, cfg);
-    if (!cognito || !isAdmin(cognito.user.groups)) {
+    const impersonationVerified =
+      cognito ? await verifyImpersonationFromNextRequest(request) : null;
+    const authorityGroups = delegatedStaffAuthorityGroups(cognito?.user ?? null, impersonationVerified);
+    if (!cognito || !isAdmin(authorityGroups)) {
       return withRenewalHeaders(isApiOps ? opsUnauthorizedApi() : redirectToLogin(request), renewalCookies);
     }
-    return withRenewalHeaders(await nextWithForwardedPath(request, cognito), renewalCookies);
+    return withRenewalHeaders(
+      await nextWithForwardedPath(request, cognito, impersonationVerified),
+      renewalCookies
+    );
   }
 
   if (!cfg) {
@@ -183,15 +192,24 @@ export async function cognitoGate(request: NextRequest): Promise<NextResponse> {
   }
 
   const { cognito, renewalCookies } = await resolveCognitoForMiddleware(request, cfg);
+  const impersonationVerified =
+    cognito ? await verifyImpersonationFromNextRequest(request) : null;
+  const authorityGroups = delegatedStaffAuthorityGroups(cognito?.user ?? null, impersonationVerified);
 
   if (pathname === "/account" || pathname.startsWith("/account/")) {
     if (cognito) {
       const { groups } = cognito.user;
       if (isCustomer(groups)) {
-        return withRenewalHeaders(await nextWithForwardedPath(request, cognito), renewalCookies);
+        return withRenewalHeaders(
+          await nextWithForwardedPath(request, cognito, impersonationVerified),
+          renewalCookies
+        );
       }
       if (isSuperAdmin(groups)) {
-        return withRenewalHeaders(await nextWithForwardedPath(request, cognito), renewalCookies);
+        return withRenewalHeaders(
+          await nextWithForwardedPath(request, cognito, impersonationVerified),
+          renewalCookies
+        );
       }
       if (isAdmin(groups)) {
         return withRenewalHeaders(redirectToRoleHome(request, groups), renewalCookies);
@@ -205,11 +223,14 @@ export async function cognitoGate(request: NextRequest): Promise<NextResponse> {
     if (!cognito) {
       return withRenewalHeaders(redirectToLogin(request), renewalCookies);
     }
-    const { groups } = cognito.user;
-    if (isAdmin(groups)) {
-      return withRenewalHeaders(await nextWithForwardedPath(request, cognito), renewalCookies);
+    const subjectGroups = cognito.user.groups;
+    if (isAdmin(authorityGroups)) {
+      return withRenewalHeaders(
+        await nextWithForwardedPath(request, cognito, impersonationVerified),
+        renewalCookies
+      );
     }
-    if (isCustomer(groups)) {
+    if (isCustomer(subjectGroups)) {
       return withRenewalHeaders(NextResponse.redirect(new URL("/account", request.url)), renewalCookies);
     }
     return withRenewalHeaders(redirectToLogin(request), renewalCookies);
@@ -219,14 +240,17 @@ export async function cognitoGate(request: NextRequest): Promise<NextResponse> {
     if (!cognito) {
       return withRenewalHeaders(redirectToLogin(request), renewalCookies);
     }
-    const { groups } = cognito.user;
-    if (isSuperAdmin(groups)) {
-      return withRenewalHeaders(await nextWithForwardedPath(request, cognito), renewalCookies);
+    const subjectGroups = cognito.user.groups;
+    if (isSuperAdmin(authorityGroups)) {
+      return withRenewalHeaders(
+        await nextWithForwardedPath(request, cognito, impersonationVerified),
+        renewalCookies
+      );
     }
-    if (hasRole(groups, "admin")) {
+    if (hasRole(subjectGroups, "admin")) {
       return withRenewalHeaders(NextResponse.redirect(new URL("/admin", request.url)), renewalCookies);
     }
-    if (isCustomer(groups)) {
+    if (isCustomer(subjectGroups)) {
       return withRenewalHeaders(NextResponse.redirect(new URL("/account", request.url)), renewalCookies);
     }
     return withRenewalHeaders(redirectToLogin(request), renewalCookies);
@@ -235,7 +259,10 @@ export async function cognitoGate(request: NextRequest): Promise<NextResponse> {
   if (!cognito) {
     return withRenewalHeaders(redirectToLogin(request), renewalCookies);
   }
-  return withRenewalHeaders(await nextWithForwardedPath(request, cognito), renewalCookies);
+  return withRenewalHeaders(
+    await nextWithForwardedPath(request, cognito, impersonationVerified),
+    renewalCookies
+  );
 }
 
 /**

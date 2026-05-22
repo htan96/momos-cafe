@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import type { AccountMgmtRole } from "@/lib/accountManagement/accountsBrowse";
 import { applyStaffRoleChange } from "@/lib/accountManagement/applyStaffRoleChange";
 import { getCognitoConfig } from "@/lib/auth/cognito/config";
-import { getCognitoSessionUserFromCookieStore } from "@/lib/auth/cognito/getCognitoSessionUserFromCookieStore";
 import { isSuperAdmin } from "@/lib/auth/cognito/roles";
+import { resolveSuperStaffDelegation } from "@/lib/auth/cognito/requireSuperStaff";
+import { governanceLayoutPrincipalUser } from "@/lib/auth/cognito/staffDelegatedAuthority";
 
 const ROLES: AccountMgmtRole[] = ["customer", "admin", "super_admin"];
 
@@ -15,11 +15,11 @@ function parseRole(v: unknown): AccountMgmtRole | null {
 }
 
 export async function PATCH(request: Request) {
-  const jar = await cookies();
-  const user = getCognitoSessionUserFromCookieStore(jar);
-  if (!user?.groups || !isSuperAdmin(user.groups)) {
+  const delegation = await resolveSuperStaffDelegation();
+  if (!delegation.jwtUser || !isSuperAdmin(delegation.authorityGroups)) {
     return NextResponse.json({ error: "forbidden", code: "SUPER_ADMIN_REQUIRED" }, { status: 403 });
   }
+  const user = governanceLayoutPrincipalUser(delegation.jwtUser, delegation.impersonation);
 
   const cfg = getCognitoConfig();
   if (!cfg) {

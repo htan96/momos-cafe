@@ -2,6 +2,7 @@
 
 import Header from "./Header";
 import Footer from "./Footer";
+import OperationalPerspectiveBanner from "@/components/governance/ImpersonationBanner";
 import BottomNav from "@/components/ordering/BottomNav";
 import ShopStickyMerchCart from "@/components/sections/shop/ShopStickyMerchCart";
 import UnifiedCartDrawer from "@/components/commerce/UnifiedCartDrawer";
@@ -26,7 +27,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <CartNavProvider>
             <HeaderSubNavProvider>
               <div className="flex flex-col min-h-dvh bg-cream text-charcoal">
-                <Header />
+                <div className="sticky top-0 z-[930] shrink-0 w-full bg-cream">
+                  <OperationalPerspectiveBanner />
+                  <Header />
+                </div>
                 <div className="flex flex-1 flex-col min-h-0 min-w-0 w-full">{children}</div>
                 <BottomNav />
                 <UnifiedCartDrawer />
@@ -72,7 +76,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <CartNavProvider>
           <HeaderSubNavProvider>
             <div className="flex flex-col min-h-dvh bg-cream text-charcoal">
-              <Header />
+              <div className="sticky top-0 z-[930] shrink-0 w-full bg-cream">
+                <OperationalPerspectiveBanner />
+                <Header />
+              </div>
 
               <main
                 className={`flex flex-1 flex-col min-h-0 w-full pt-0 ${isFullWidth ? "" : "px-6 md:px-12 lg:px-20"}`}

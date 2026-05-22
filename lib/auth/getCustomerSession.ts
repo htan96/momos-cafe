@@ -36,11 +36,22 @@ export async function getCustomerSession(): Promise<CustomerSessionPayload | nul
     if (!user?.email) return null;
 
     if (isCustomer(user.groups)) {
+      const imp = await readImpersonationFromCookies();
+      let governanceImpersonation = false;
+      if (
+        imp?.scope === "customer" &&
+        (imp.targetSub === user.sub ||
+          imp.targetEmail.trim().toLowerCase() === user.email?.trim().toLowerCase())
+      ) {
+        governanceImpersonation = true;
+      }
+
       return {
         typ: "customer",
         sub: user.sub,
         email: user.email,
         exp: payload.exp,
+        ...(governanceImpersonation ? { governance: { impersonation: true } } : {}),
       };
     }
 

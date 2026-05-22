@@ -17,14 +17,18 @@ import {
   WebhookReceiptStatusPill,
 } from "@/components/operations/order-console/orderTimelineTokens";
 import FulfillmentTransitionButtons from "@/components/operations/order-console/FulfillmentTransitionButtons";
+import OrderConsoleCommunicationsSection from "@/components/operations/order-console/OrderConsoleCommunicationsSection";
+import OrderConsoleSupportRefundPanels from "@/components/operations/order-console/OrderConsoleSupportRefundPanels";
 import OrderConsoleSuperAdminRecoveryClient from "@/components/operations/order-console/OrderConsoleSuperAdminRecoveryClient";
 import type { FulfillmentPipeline } from "@/types/commerce";
 
 export type OperationalOrderConsoleFlags = {
   canFulfillmentWrite: boolean;
   canShippingWrite: boolean;
+  canSupportWrite: boolean;
   canRecovery: boolean;
   canGovernanceDebug: boolean;
+  canCommunicationsWrite: boolean;
 };
 
 export default function OperationalOrderConsole({
@@ -384,6 +388,27 @@ export default function OperationalOrderConsole({
           : null}
         </div>
       </OperationalCard>
+
+      <OperationalCard title="Communications rail" meta="merged threads · internal notes · queue & webhook slices">
+        <OrderConsoleCommunicationsSection
+          commerceOrderId={order.id}
+          timeline={snapshot.communicationTimeline}
+          canCommunicationsWrite={flags.canCommunicationsWrite}
+        />
+      </OperationalCard>
+
+      <OrderConsoleSupportRefundPanels
+        key={`support-refunds-${order.id}`}
+        commerceOrderId={order.id}
+        canSupportWrite={flags.canSupportWrite}
+        initialSupportIssues={snapshot.supportIssues}
+        initialRefundCases={snapshot.refundCases}
+        payments={order.payments.map((p) => ({
+          id: p.id,
+          squarePaymentId: p.squarePaymentId,
+          amountCents: p.amountCents,
+        }))}
+      />
 
       <OperationalCard title="Line items" meta={`commerce_order_items · ${order.items.length}`}>
         {order.items.length === 0 ?

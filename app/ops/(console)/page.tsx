@@ -25,6 +25,14 @@ function Section({
   );
 }
 
+function EmptyRow({ children }: { children: ReactNode }) {
+  return (
+    <p className="text-[#c9bba8]/75 text-sm sm:col-span-2 xl:col-span-3 border border-dashed border-[#3d3830] rounded-lg p-6 text-center">
+      {children}
+    </p>
+  );
+}
+
 export default async function OpsTodayPage() {
   const q = await opsLoadTodayQueues();
 
@@ -32,14 +40,94 @@ export default async function OpsTodayPage() {
     <>
       <OpsPageHeader
         title="Today"
-        description="Operational snapshot — paid work that needs eyes, ship-ready retail, catering leads, and mail failures."
+        description="Live workload snapshots from commerce, fulfillment groups, shipments, catering, and outbound mail rows — no synthetic SLAs."
       />
 
-      <Section title="Late / stuck" hint="Non-terminal groups on paid orders past SLA heuristics">
+      <Section title="Pending payment" hint="Checkout reached order shell; capture still open">
+        {q.pendingPaymentOrders.length === 0 ? (
+          <EmptyRow>No orders waiting on payment right now.</EmptyRow>
+        ) : (
+          q.pendingPaymentOrders.map((o) => (
+            <OpsQueueCard
+              key={o.id}
+              href={`/ops/orders/${o.id}`}
+              title={`Order ${o.id.slice(0, 8)}…`}
+              subtitle="Awaiting successful payment capture"
+              meta={formatUsdFromCents(o.totalCents)}
+              chips={<StateChip label={o.status} tone="warn" />}
+            />
+          ))
+        )}
+      </Section>
+
+      <Section title="Paid — needs fulfillment motion" hint="Open fulfillment groups under paid orders">
+        {q.paidNeedingFulfillment.length === 0 ? (
+          <EmptyRow>Nothing in-flight — fulfillment groups look complete or uncreated.</EmptyRow>
+        ) : (
+          q.paidNeedingFulfillment.map((o) => {
+            const g0 = o.fulfillmentGroups[0];
+            const summary =
+              o.fulfillmentGroups.length === 0
+                ? "(no groups loaded)"
+                : o.fulfillmentGroups
+                    .map((fg) => `${fg.pipeline}:${fg.status}`)
+                    .slice(0, 3)
+                    .join(" · ") + (o.fulfillmentGroups.length > 3 ? " …" : "");
+            return (
+              <OpsQueueCard
+                key={o.id}
+                href={`/ops/orders/${o.id}`}
+                title={`Order ${o.id.slice(0, 8)}…`}
+                subtitle={summary}
+                meta={formatUsdFromCents(o.totalCents)}
+                chips={
+                  <>
+                    <StateChip label={o.status} tone="ok" />
+                    {g0 ? <StateChip label={g0.pipeline} tone="neutral" /> : null}
+                  </>
+                }
+              />
+            );
+          })
+        )}
+      </Section>
+
+      <Section title="Retail labels pending" hint="Shipment rows without tracking on active RETAIL groups">
+        {q.shipmentsPendingLabel.length === 0 ? (
+          <EmptyRow>No untracked retail shipment rows queued for label purchase.</EmptyRow>
+        ) : (
+          q.shipmentsPendingLabel.map((s) => {
+            const oid = s.fulfillmentGroup.order.id;
+            return (
+              <OpsQueueCard
+                key={s.id}
+                href={`/ops/orders/${oid}`}
+                title={`Shipment ${s.id.slice(0, 8)}…`}
+                subtitle={`Order ${oid.slice(0, 8)}… · ${s.fulfillmentGroup.status}`}
+                meta={
+                  <span className="text-right leading-tight">
+                    {formatUsdFromCents(s.fulfillmentGroup.order.totalCents)}
+                    <br />
+                    <span className="text-[10px] text-[#c9bba8]/70">
+                      {s.selectedShippoRateId ? "rate saved" : "no rate id"}
+                    </span>
+                  </span>
+                }
+                chips={
+                  <>
+                    <StateChip label={`ship:${s.status}`} tone="warn" />
+                    <StateChip label="RETAIL" tone="teal" />
+                  </>
+                }
+              />
+            );
+          })
+        )}
+      </Section>
+
+      <Section title="Late / stale" hint="Non-terminal paid groups — old update or overdue ready-at">
         {q.lateOrStuck.length === 0 ? (
-          <p className="text-[#c9bba8]/75 text-sm sm:col-span-2 xl:col-span-3 border border-dashed border-[#3d3830] rounded-lg p-6 text-center">
-            Nothing stuck — kitchen and retail queues look clear.
-          </p>
+          <EmptyRow>Nothing stalled by age — kitchen and retail queues look current.</EmptyRow>
         ) : (
           q.lateOrStuck.map((g) => (
             <OpsQueueCard
@@ -59,11 +147,9 @@ export default async function OpsTodayPage() {
         )}
       </Section>
 
-      <Section title="Ships today" hint="Retail groups classified for carrier fulfillment">
+      <Section title="Retail shipping in motion" hint="RETAIL fulfillment groups excluding terminal states">
         {q.shipsToday.length === 0 ? (
-          <p className="text-[#c9bba8]/75 text-sm sm:col-span-2 xl:col-span-3 border border-dashed border-[#3d3830] rounded-lg p-6 text-center">
-            No shipping-class retail groups in motion — check Shipping console for manual entries.
-          </p>
+          <EmptyRow>No shipping-class retail groups in motion — use Shipping console for manual entries.</EmptyRow>
         ) : (
           q.shipsToday.map((g) => (
             <OpsQueueCard
@@ -85,9 +171,7 @@ export default async function OpsTodayPage() {
 
       <Section title="Catering attention" hint="Latest inquiries — CRM handoff until unified catering checkout ships">
         {q.cateringAttention.length === 0 ? (
-          <p className="text-[#c9bba8]/75 text-sm sm:col-span-2 xl:col-span-3 border border-dashed border-[#3d3830] rounded-lg p-6 text-center">
-            No recent catering inquiries.
-          </p>
+          <EmptyRow>No recent catering inquiries.</EmptyRow>
         ) : (
           q.cateringAttention.map((c) => (
             <OpsQueueCard
@@ -104,16 +188,12 @@ export default async function OpsTodayPage() {
 
       <Section title="Comms failures" hint="Outbound sends marked failed in EmailMessage">
         {q.commFailures.length === 0 ? (
-          <p className="text-[#c9bba8]/75 text-sm sm:col-span-2 xl:col-span-3 border border-dashed border-[#3d3830] rounded-lg p-6 text-center">
-            No failed outbound messages recently.
-          </p>
+          <EmptyRow>No failed outbound messages recently.</EmptyRow>
         ) : (
           q.commFailures.map((m) => (
             <OpsQueueCard
               key={m.id}
-              href={
-                m.thread?.id ? `/ops/communications/${m.thread.id}` : "/ops/communications"
-              }
+              href={m.thread?.id ? `/ops/communications/${m.thread.id}` : "/ops/communications"}
               title={m.subject ?? "(no subject)"}
               subtitle={m.fromEmail}
               meta={new Date(m.createdAt).toLocaleString()}

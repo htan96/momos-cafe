@@ -260,7 +260,7 @@ export default async function SuperAdminUserCustomerDossierPage(props: PageProps
             <p className="text-[13px] text-charcoal/65 leading-relaxed mb-1">
               Super-admin scoped preview: signed `momos_impersonation` cookie (8 hour max-age); ledger + governance append
               on start/end. Banner renders above super-admin/workspace chrome via{" "}
-              <span className="font-mono">ImpersonationBanner</span>.
+              <span className="font-mono">OperationalPerspectiveBanner</span>.
             </p>
             <StartCustomerImpersonation prefilledEmail={emailTrim} />
           </>

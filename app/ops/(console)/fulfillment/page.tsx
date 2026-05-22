@@ -1,10 +1,14 @@
 import Link from "next/link";
 import OpsPageHeader from "@/components/ops/OpsPageHeader";
+import OpsFulfillmentRowActions from "@/components/ops/OpsFulfillmentRowActions";
 import OpsQueueCard from "@/components/ops/OpsQueueCard";
 import StateChip from "@/components/ops/StateChip";
+import { getOpsSession } from "@/lib/ops/getOpsSession";
+import { opsCan } from "@/lib/ops/permissions";
 import { OPS_FULFILLMENT_PROGRAM, type OpsFulfillmentProgram } from "@/lib/ops/fulfillmentPrograms";
 import { opsLoadFulfillmentBoard } from "@/lib/ops/queries";
 import { formatUsdFromCents } from "@/lib/ops/formatUsd";
+import type { FulfillmentPipeline } from "@/types/commerce";
 
 const tabs: { key: string; label: string; program: OpsFulfillmentProgram }[] = [
   { key: "pickup", label: "Pickup", program: OPS_FULFILLMENT_PROGRAM.PICKUP },
@@ -19,6 +23,9 @@ export default async function OpsFulfillmentPage({
 }) {
   const tabKey = (await searchParams).tab ?? "pickup";
   const activeTab = tabs.find((x) => x.key === tabKey) ?? tabs[0]!;
+  const session = await getOpsSession();
+  const canFulfillmentWrite = Boolean(session && opsCan(session.role, "fulfillment:write"));
+
   const board = await opsLoadFulfillmentBoard(activeTab.program);
 
   return (
@@ -76,22 +83,50 @@ export default async function OpsFulfillmentPage({
           Queue empty for this tab — nice calm service window.
         </p>
       ) : (
-        <div className="grid gap-2 lg:grid-cols-2">
-          {board.groups.map((g) => (
-            <OpsQueueCard
-              key={g.id}
-              href={`/ops/orders/${g.order.id}`}
-              title={`${g.pipeline} · ${g.program}`}
-              subtitle={`Group ${g.id.slice(0, 8)}…`}
-              meta={formatUsdFromCents(g.order.totalCents)}
-              chips={
-                <>
-                  <StateChip label={g.status} tone="warn" />
-                  <StateChip label={g.order.status} tone="neutral" />
-                </>
-              }
-            />
-          ))}
+        <div className="space-y-2">
+          {board.groups.map((g) => {
+            const pipe = g.pipeline as FulfillmentPipeline;
+            return (
+              <div
+                key={g.id}
+                className="rounded-lg border border-[#3d3830] bg-[#252119] p-3 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"
+              >
+                <div className="min-w-0 space-y-1 flex-1">
+                  <Link
+                    href={`/ops/orders/${g.order.id}`}
+                    className="block hover:opacity-90 transition-opacity"
+                  >
+                    <p className="text-[13px] font-semibold text-[#f5e5c0]">
+                      {g.pipeline} · {g.program}
+                    </p>
+                    <p className="text-[12px] text-[#c9bba8]/85 mt-0.5">
+                      Order <span className="font-mono">{g.order.id.slice(0, 8)}…</span> · group{" "}
+                      <span className="font-mono">{g.id.slice(0, 8)}…</span>
+                    </p>
+                  </Link>
+                  <div className="flex flex-wrap gap-1 pt-2">
+                    <StateChip label={g.status} tone="warn" />
+                    <StateChip label={g.order.status} tone="neutral" />
+                  </div>
+                  <p className="text-[11px] text-[#c9bba8]/65">{formatUsdFromCents(g.order.totalCents)}</p>
+                </div>
+                <div className="shrink-0 w-full lg:max-w-[min(360px,100%)] border-t lg:border-t-0 lg:border-l border-[#3d3830]/80 lg:pl-4 pt-3 lg:pt-0">
+                  <p className="text-[11px] uppercase tracking-wide text-[#c9bba8]/55 mb-2">Transition</p>
+                  {pipe !== "KITCHEN" && pipe !== "RETAIL" ? (
+                    <p className="text-[12px] text-[#c9bba8]/55">Pipeline `{g.pipeline}` is not transitionable here.</p>
+                  ) : (
+                    <OpsFulfillmentRowActions
+                      orderId={g.order.id}
+                      groupId={g.id}
+                      pipeline={pipe}
+                      status={g.status}
+                      canFulfillmentWrite={canFulfillmentWrite}
+                    />
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </>

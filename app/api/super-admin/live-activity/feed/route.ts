@@ -1,16 +1,13 @@
 import { NextResponse } from "next/server";
-import { getCognitoServerSession } from "@/lib/auth/cognito/serverSession";
-import { isSuperAdmin } from "@/lib/auth/cognito/roles";
+import { requireSuperStaffJson } from "@/lib/auth/cognito/requireSuperStaff";
 import {
   parseLiveActivityFeedQuery,
   queryLiveActivityFeed,
 } from "@/lib/liveActivity/queryLiveActivityFeed";
 
 export async function GET(request: Request) {
-  const user = await getCognitoServerSession();
-  if (!user?.groups || !isSuperAdmin(user.groups)) {
-    return NextResponse.json({ error: "forbidden", code: "FORBIDDEN" }, { status: 403 });
-  }
+  const gate = await requireSuperStaffJson();
+  if (gate) return gate;
 
   const { searchParams } = new URL(request.url);
   const query = parseLiveActivityFeedQuery(searchParams);

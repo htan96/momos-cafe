@@ -1,6 +1,9 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { getCognitoServerSession } from "@/lib/auth/cognito/serverSession";
+import { resolveSuperStaffDelegation } from "@/lib/auth/cognito/requireSuperStaff";
+import {
+  jwtUserBindsVerifiedImpersonation,
+} from "@/lib/auth/cognito/staffDelegatedAuthority";
 import { isSuperAdmin } from "@/lib/auth/cognito/roles";
 import { IMPERSONATION_COOKIE } from "@/lib/governance/impersonationConstants";
 import { verifyImpersonationToken } from "@/lib/governance/impersonationToken";
@@ -8,8 +11,8 @@ import { getImpersonationSecretForVerification } from "@/lib/governance/imperson
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
-  const user = await getCognitoServerSession();
-  if (!user?.groups || !isSuperAdmin(user.groups)) {
+  const { jwtUser, authorityGroups } = await resolveSuperStaffDelegation();
+  if (!jwtUser || !isSuperAdmin(authorityGroups)) {
     return NextResponse.json({ error: "forbidden", code: "FORBIDDEN" }, { status: 403 });
   }
 
@@ -25,7 +28,7 @@ export async function GET() {
   }
 
   const payload = await verifyImpersonationToken(raw, secret);
-  if (!payload || payload.actorSub !== user.sub) {
+  if (!payload || !jwtUserBindsVerifiedImpersonation(jwtUser, payload)) {
     return NextResponse.json({ active: false, configured: true, stale: true });
   }
 
@@ -33,7 +36,7 @@ export async function GET() {
     const row = await prisma.impersonationSupportSession.findFirst({
       where: {
         id: payload.ledgerId,
-        actorSub: user.sub,
+        actorSub: payload.actorSub,
         endedAt: null,
         targetEmail: payload.targetEmail.trim().toLowerCase(),
         scope: payload.scope,

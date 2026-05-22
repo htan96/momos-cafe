@@ -1,6 +1,9 @@
 import { OperationalActivitySeverity, type Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
-import { getCognitoServerSession } from "@/lib/auth/cognito/serverSession";
+import {
+  governanceAuditActorForSuperStaff,
+  resolveSuperStaffDelegation,
+} from "@/lib/auth/cognito/requireSuperStaff";
 import { isSuperAdmin } from "@/lib/auth/cognito/roles";
 import { recordGovernanceAuditEntry } from "@/lib/governance/governanceAuditRecord";
 import {
@@ -19,12 +22,16 @@ const INCIDENT_ROUTE_ID_RE = /^[a-z0-9_-]{10,160}$/i;
 type RouteContext = { params: Promise<{ incidentId: string }> };
 
 export async function PATCH(request: Request, context: RouteContext) {
-  const user = await getCognitoServerSession();
-  if (!user?.groups || !isSuperAdmin(user.groups)) {
+  const delegation = await resolveSuperStaffDelegation();
+  if (!delegation.jwtUser || !isSuperAdmin(delegation.authorityGroups)) {
     return NextResponse.json({ error: "forbidden", code: "FORBIDDEN" }, { status: 403 });
   }
-
-  const actorLabel = user.email ?? user.username ?? user.sub;
+  const auditActor =
+    governanceAuditActorForSuperStaff(delegation) ?? {
+      actorId: delegation.jwtUser.sub,
+      actorName: delegation.jwtUser.email ?? delegation.jwtUser.username ?? "",
+    };
+  const actorLabel = auditActor.actorName.trim() || auditActor.actorId;
 
   const { incidentId } = await context.params;
   const id = incidentId?.trim();
@@ -114,7 +121,7 @@ export async function PATCH(request: Request, context: RouteContext) {
         current: metadata,
         timelineEntry: {
           at: new Date().toISOString(),
-          actorId: user.sub,
+          actorId: auditActor.actorId,
           note: noteTrim,
           status: row.status,
         },
@@ -132,7 +139,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     await recordGovernanceAuditEntry({
       actionType: "OPERATIONAL_INCIDENT_UPDATED",
       category: "operations",
-      actorId: user.sub,
+      actorId: auditActor.actorId,
       actorName: actorLabel,
       actorRole: "super_admin",
       targetType: "operational_incident",
@@ -152,7 +159,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       lifecycle: "succeeded",
       severity: OperationalActivitySeverity.info,
       actorType: "super_admin",
-      actorId: user.sub,
+      actorId: auditActor.actorId,
       actorName: actorLabel,
       message: `Incident ${id.slice(0, 10)} resolved-row metadata patch`,
       entities: { incidentId: id },
@@ -212,7 +219,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       current: metadataNext,
       timelineEntry: {
         at: new Date().toISOString(),
-        actorId: user.sub,
+        actorId: auditActor.actorId,
         note: noteTrim,
         status: movesStatus ?
           nextStatus
@@ -265,7 +272,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   await recordGovernanceAuditEntry({
     actionType: "OPERATIONAL_INCIDENT_UPDATED",
     category: "operations",
-    actorId: user.sub,
+    actorId: auditActor.actorId,
     actorName: actorLabel,
     actorRole: "super_admin",
     targetType: "operational_incident",
@@ -287,7 +294,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     lifecycle: "succeeded",
     severity: OperationalActivitySeverity.info,
     actorType: "super_admin",
-    actorId: user.sub,
+    actorId: auditActor.actorId,
     actorName: actorLabel,
     message:
       closingIncident ?

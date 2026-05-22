@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import type { OperationalFailureTriageState } from "@prisma/client";
 import { OperationalActivitySeverity } from "@prisma/client";
-import { getCognitoServerSession } from "@/lib/auth/cognito/serverSession";
+import {
+  governanceAuditActorForSuperStaff,
+  resolveSuperStaffDelegation,
+} from "@/lib/auth/cognito/requireSuperStaff";
 import { isSuperAdmin } from "@/lib/auth/cognito/roles";
 import { prisma } from "@/lib/prisma";
 import { recordGovernanceAuditEntry } from "@/lib/governance/governanceAuditRecord";
@@ -20,10 +23,16 @@ const TRIAGE_STATES: OperationalFailureTriageState[] = [
 type RouteContext = { params: Promise<{ eventId: string }> };
 
 export async function PATCH(request: Request, context: RouteContext) {
-  const user = await getCognitoServerSession();
-  if (!user?.groups || !isSuperAdmin(user.groups)) {
+  const delegation = await resolveSuperStaffDelegation();
+  if (!delegation.jwtUser || !isSuperAdmin(delegation.authorityGroups)) {
     return NextResponse.json({ error: "forbidden", code: "FORBIDDEN" }, { status: 403 });
   }
+  const auditActor =
+    governanceAuditActorForSuperStaff(delegation) ?? {
+      actorId: delegation.jwtUser.sub,
+      actorName: delegation.jwtUser.email ?? delegation.jwtUser.username ?? "",
+    };
+  const actorLabel = auditActor.actorName.trim() || auditActor.actorId;
 
   const { eventId } = await context.params;
   const event = await prisma.operationalActivityEvent.findUnique({ where: { id: eventId } });
@@ -56,7 +65,6 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   const nextState = state as OperationalFailureTriageState;
-  const actorLabel = user.email ?? user.username ?? user.sub;
 
   const existing = await prisma.operationalFailureTriage.findUnique({
     where: { activityEventId: eventId },
@@ -84,7 +92,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   await recordGovernanceAuditEntry({
     actionType: "OPERATIONAL_FAILURE_TRIAGE_UPDATED",
     category: "operations",
-    actorId: user.sub,
+    actorId: auditActor.actorId,
     actorName: actorLabel,
     actorRole: "super_admin",
     targetType: "operational_failure",
@@ -105,7 +113,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     lifecycle: "succeeded",
     severity: OperationalActivitySeverity.info,
     actorType: "super_admin",
-    actorId: user.sub,
+    actorId: auditActor.actorId,
     actorName: actorLabel,
     message: `Failure triage updated to ${nextState} (${event.type})`,
     entities: {},

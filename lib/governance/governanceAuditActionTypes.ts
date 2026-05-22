@@ -19,6 +19,12 @@ export const GOVERNANCE_AUDIT_ACTION_TYPES = [
   /** Cognito global sign-out / token revoke not wired — audit-only stub (see revoke-sessions API route). */
   "CUSTOMER_COGNITO_SESSION_REVOKE_DEFERRED",
   "OPERATIONAL_INCIDENT_UPDATED",
+  /** Ops/super-admin `OperationalSupportIssue` create/update lifecycle. */
+  "OPERATIONAL_SUPPORT_ISSUE_UPDATED",
+  /** Ops/super-admin `OperationalRefundCase` create/update lifecycle (approval + Square hook). */
+  "OPERATIONAL_REFUND_CASE_UPDATED",
+  /** Ops desk internal coordination note pinned to timelines. */
+  "OPERATIONAL_COMMUNICATION_NOTE_CREATED",
 ] as const;
 
 export type GovernanceAuditActionType = (typeof GOVERNANCE_AUDIT_ACTION_TYPES)[number];

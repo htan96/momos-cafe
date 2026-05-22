@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { OperationalActivitySeverity } from "@prisma/client";
-import { getCognitoServerSession } from "@/lib/auth/cognito/serverSession";
+import {
+  governanceAuditActorForSuperStaff,
+  resolveSuperStaffDelegation,
+} from "@/lib/auth/cognito/requireSuperStaff";
 import { isSuperAdmin } from "@/lib/auth/cognito/roles";
 import { recordGovernanceAuditEntry } from "@/lib/governance/governanceAuditRecord";
 import { emitOperationalEvent } from "@/lib/operations/emitOperationalEvent";
@@ -48,19 +51,20 @@ async function executeCatalogSync(actor: { sub: string; actorLabel: string }) {
 }
 
 export async function POST() {
-  const user = await getCognitoServerSession();
-  if (!user?.groups || !isSuperAdmin(user.groups)) {
+  const delegation = await resolveSuperStaffDelegation();
+  if (!delegation.jwtUser || !isSuperAdmin(delegation.authorityGroups)) {
     return NextResponse.json({ error: "forbidden", code: "FORBIDDEN" }, { status: 403 });
   }
+  const auditActor = governanceAuditActorForSuperStaff(delegation)!;
+  const actorSub = auditActor.actorId;
+  const actorLabel = auditActor.actorName.trim() || actorSub;
 
   if (rateLimitHit(`square:catalog_sync_super_admin:POST`, { windowMs: 300_000, max: 12 })) {
     return jsonError(429, "RATE_LIMITED", "Too many catalog sync requests — wait a few minutes.");
   }
 
-  const actorLabel = user.email ?? user.username ?? user.sub;
-
   try {
-    const result = await executeCatalogSync({ sub: user.sub, actorLabel });
+    const result = await executeCatalogSync({ sub: actorSub, actorLabel });
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -68,7 +72,7 @@ export async function POST() {
     await recordGovernanceAuditEntry({
       actionType: "OPERATIONS_CATALOG_SYNC_FAILED",
       category: "operations",
-      actorId: user.sub,
+      actorId: actorSub,
       actorName: actorLabel,
       actorRole: "super_admin",
       description: `Super-admin catalog sync failed (${msg.slice(0, 120)})`,
@@ -81,7 +85,7 @@ export async function POST() {
         lifecycle: "failed",
         severity: OperationalActivitySeverity.error,
         actorType: "super_admin",
-        actorId: user.sub,
+        actorId: actorSub,
         message: "Square catalog sync aborted — environment configuration mismatch",
         detail: { code: "SQUARE_ENV_MISMATCH", reason: msg.slice(0, 280), trigger: "super_admin_recovery" },
         sourceTag: "api.super-admin.operations.recovery.catalog-sync",
@@ -95,7 +99,7 @@ export async function POST() {
         lifecycle: "failed",
         severity: OperationalActivitySeverity.error,
         actorType: "super_admin",
-        actorId: user.sub,
+        actorId: actorSub,
         message: "Square catalog sync aborted — access token unavailable",
         detail: { code: "SQUARE_TOKEN_MISSING", reason: msg.slice(0, 280), trigger: "super_admin_recovery" },
         sourceTag: "api.super-admin.operations.recovery.catalog-sync",
@@ -108,7 +112,7 @@ export async function POST() {
       lifecycle: "failed",
       severity: OperationalActivitySeverity.error,
       actorType: "super_admin",
-      actorId: user.sub,
+      actorId: actorSub,
       message: "Square Store catalog hydration failed unexpectedly",
       detail: { code: "STORE_SYNC_FAILED", reason: msg.slice(0, 280), trigger: "super_admin_recovery" },
       sourceTag: "api.super-admin.operations.recovery.catalog-sync",
@@ -119,19 +123,20 @@ export async function POST() {
 
 /** GET parity for quick browser automation / bookmarks — gated same as POST. */
 export async function GET() {
-  const user = await getCognitoServerSession();
-  if (!user?.groups || !isSuperAdmin(user.groups)) {
+  const delegation = await resolveSuperStaffDelegation();
+  if (!delegation.jwtUser || !isSuperAdmin(delegation.authorityGroups)) {
     return NextResponse.json({ error: "forbidden", code: "FORBIDDEN" }, { status: 403 });
   }
+  const auditActor = governanceAuditActorForSuperStaff(delegation)!;
+  const actorSub = auditActor.actorId;
+  const actorLabel = auditActor.actorName.trim() || actorSub;
 
   if (rateLimitHit(`square:catalog_sync_super_admin:GET`, { windowMs: 300_000, max: 8 })) {
     return jsonError(429, "RATE_LIMITED", "Too many catalog sync requests — wait a few minutes.");
   }
 
-  const actorLabel = user.email ?? user.username ?? user.sub;
-
   try {
-    const result = await executeCatalogSync({ sub: user.sub, actorLabel });
+    const result = await executeCatalogSync({ sub: actorSub, actorLabel });
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -139,7 +144,7 @@ export async function GET() {
     await recordGovernanceAuditEntry({
       actionType: "OPERATIONS_CATALOG_SYNC_FAILED",
       category: "operations",
-      actorId: user.sub,
+      actorId: actorSub,
       actorName: actorLabel,
       actorRole: "super_admin",
       description: `Super-admin catalog sync (GET) failed (${msg.slice(0, 120)})`,

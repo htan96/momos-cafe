@@ -39,6 +39,10 @@ export type SuperAdminCustomerDirectoryRow = {
   draftPaymentIssueCount: number;
   /** True when a recent `payment.square.orphan_webhook` row referenced this customer id in metadata (bounded scan). */
   orphanWebhookHint: boolean;
+  /** Commerce orders with `updated_at` activity in the last {@link CUSTOMER_DIRECTORY_STALE_DAYS} days. */
+  ordersLast90Days: number;
+  /** `PaymentRecord` rows (last {@link CUSTOMER_DIRECTORY_STALE_DAYS} days) on this customer's orders with failed-ish status — not a calibrated risk score. */
+  failedPaymentsLast90dHint: number;
 };
 
 function staleCutoff(): Date {
@@ -133,9 +137,11 @@ export async function querySuperAdminCustomerDirectory(filters: SuperAdminCustom
     customers.map((c) => [c.id, c.email?.trim().toLowerCase() ?? null] as const)
   );
 
-  const [incidentAgg, orphanAgg, failingPaymentsAgg] =
+  const recentWindowStart = staleCutoff();
+
+  const [incidentAgg, orphanAgg, failingPaymentsAgg, orders90dAgg, recentFailingPaymentsAgg] =
     ids.length === 0 ?
-      [[], [], []] as const
+      [[], [], [], [], []] as const
     : await Promise.all([
         Promise.all(
           ids.map(async (id) => {
@@ -171,6 +177,26 @@ export async function querySuperAdminCustomerDirectory(filters: SuperAdminCustom
           },
           _count: { _all: true },
         }),
+        prisma.commerceOrder.groupBy({
+          by: ["customerId"],
+          where: {
+            customerId: { in: ids },
+            updatedAt: { gte: recentWindowStart },
+          },
+          _count: { _all: true },
+        }),
+        prisma.paymentRecord.groupBy({
+          by: ["orderId"],
+          where: {
+            createdAt: { gte: recentWindowStart },
+            order: { customerId: { in: ids } },
+            OR: [
+              { status: { equals: "failed", mode: Prisma.QueryMode.insensitive } },
+              { failureReason: { not: null } },
+            ],
+          },
+          _count: { _all: true },
+        }),
       ]);
 
   const incidentCountByCustomer = new Map(incidentAgg.map((x) => [x.id, x.count]));
@@ -186,6 +212,28 @@ export async function querySuperAdminCustomerDirectory(filters: SuperAdminCustom
       : typeof meta.customerId === "string" && OPS_ENTITY_UUID_RE.test(meta.customerId) ? meta.customerId
       : null;
     if (cid && ids.includes(cid)) orphanCustomers.add(cid);
+  }
+
+  const orders90dByCustomer = new Map<string, number>(
+    orders90dAgg.map((g) => [g.customerId as string, g._count._all])
+  );
+
+  const recentFailedPaymentsByCustomer = new Map<string, number>();
+  if (recentFailingPaymentsAgg.length) {
+    const recentOrderIds = [...new Set(recentFailingPaymentsAgg.map((g) => g.orderId).filter(Boolean))] as string[];
+    const recentOrderRows =
+      recentOrderIds.length ?
+        await prisma.commerceOrder.findMany({
+          where: { id: { in: recentOrderIds } },
+          select: { id: true, customerId: true },
+        })
+      : [];
+    const recentCustByOrder = new Map(recentOrderRows.map((o) => [o.id, o.customerId] as const));
+    for (const g of recentFailingPaymentsAgg) {
+      const cid = recentCustByOrder.get(g.orderId as string);
+      if (!cid) continue;
+      recentFailedPaymentsByCustomer.set(cid, (recentFailedPaymentsByCustomer.get(cid) ?? 0) + g._count._all);
+    }
   }
 
   const failedPaymentsByCustomer = new Map<string, number>();
@@ -234,6 +282,8 @@ export async function querySuperAdminCustomerDirectory(filters: SuperAdminCustom
       failedPaymentCount: failedPaymentsByCustomer.get(c.id) ?? 0,
       draftPaymentIssueCount: draftIssue,
       orphanWebhookHint: orphanCustomers.has(c.id),
+      ordersLast90Days: orders90dByCustomer.get(c.id) ?? 0,
+      failedPaymentsLast90dHint: recentFailedPaymentsByCustomer.get(c.id) ?? 0,
     };
   });
 

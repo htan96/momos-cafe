@@ -5,6 +5,8 @@ export type ImpersonationPayload = {
   actorEmail: string;
   targetEmail: string;
   targetSub?: string;
+  /** Cognito `cognito:groups` copied from the staffed actor JWT at impersonation **start** (signed). */
+  actorStaffGroups?: string[];
   scope: ImpersonationScope;
   issuedAt: number;
   /** `ImpersonationSupportSession.id` — required for new tokens (ledger must be active server-side). */
@@ -107,6 +109,13 @@ export async function verifyImpersonationToken(
   const actorEmail = typeof o.actorEmail === "string" ? o.actorEmail.trim() : "";
   const targetEmail = typeof o.targetEmail === "string" ? o.targetEmail.trim() : "";
   const targetSub = typeof o.targetSub === "string" ? o.targetSub.trim() : undefined;
+  let actorStaffGroups: string[] | undefined;
+  if (Array.isArray(o.actorStaffGroups)) {
+    const raw = (o.actorStaffGroups as unknown[]).filter(
+      (x): x is string => typeof x === "string" && x.trim().length > 0
+    );
+    if (raw.length > 0) actorStaffGroups = raw.map((s) => s.trim());
+  }
   const scope = o.scope === "customer" || o.scope === "admin" ? o.scope : null;
   const issuedAt = typeof o.issuedAt === "number" ? o.issuedAt : NaN;
   const ledgerId = typeof o.ledgerId === "string" ? o.ledgerId.trim() : "";
@@ -129,6 +138,7 @@ export async function verifyImpersonationToken(
     actorEmail,
     targetEmail,
     targetSub: targetSub || undefined,
+    ...(actorStaffGroups ? { actorStaffGroups } : {}),
     scope,
     issuedAt,
     ledgerId,

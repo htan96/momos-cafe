@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { OperationalActivitySeverity } from "@prisma/client";
-import { getCognitoServerSession } from "@/lib/auth/cognito/serverSession";
+import {
+  governanceAuditActorForSuperStaff,
+  resolveSuperStaffDelegation,
+} from "@/lib/auth/cognito/requireSuperStaff";
 import { isSuperAdmin } from "@/lib/auth/cognito/roles";
 import { buildSyntheticSquarePaymentWebhookBody } from "@/lib/payments/buildSyntheticSquarePaymentWebhook";
 import { reconcileSquarePaymentWebhook } from "@/lib/payments/commercePaymentOrchestration";
@@ -32,12 +35,19 @@ function normalizeBody(raw: unknown): LookupBody | null {
 }
 
 export async function POST(req: Request) {
-  const user = await getCognitoServerSession();
-  if (!user?.groups || !isSuperAdmin(user.groups)) {
+  const delegation = await resolveSuperStaffDelegation();
+  if (!delegation.jwtUser || !isSuperAdmin(delegation.authorityGroups)) {
     return NextResponse.json({ error: "forbidden", code: "FORBIDDEN" }, { status: 403 });
   }
+  const auditActor =
+    governanceAuditActorForSuperStaff(delegation) ?? {
+      actorId: delegation.jwtUser.sub,
+      actorName: delegation.jwtUser.email ?? delegation.jwtUser.username ?? "",
+    };
+  const actorSub = auditActor.actorId;
+  const actorLabel = auditActor.actorName.trim() || actorSub;
 
-  if (rateLimitHit(`square:payment_lookup:${user.sub}`, { windowMs: 300_000, max: 12 })) {
+  if (rateLimitHit(`square:payment_lookup:${actorSub}`, { windowMs: 300_000, max: 12 })) {
     return jsonError(429, "RATE_LIMITED", "Too many payment lookup reconcile requests — wait a few minutes.");
   }
 
@@ -51,7 +61,6 @@ export async function POST(req: Request) {
     return jsonError(400, "BAD_JSON", "Expected JSON body.");
   }
 
-  const actorLabel = user.email ?? user.username ?? user.sub;
   let squarePaymentId = body.squarePaymentId?.trim();
 
   if (!squarePaymentId && body.paymentRecordId?.trim()) {
@@ -81,7 +90,7 @@ export async function POST(req: Request) {
     lifecycle: "processing",
     severity: OperationalActivitySeverity.info,
     actorType: "super_admin",
-    actorId: user.sub,
+    actorId: actorSub,
     actorName: actorLabel,
     message: "Square payment lookup recovery started (GET payment + local reconcile)",
     detail: {
@@ -103,7 +112,7 @@ export async function POST(req: Request) {
     await recordGovernanceAuditEntry({
       actionType: "OPERATIONS_SQUARE_PAYMENT_LOOKUP_RECONCILE",
       category: "operations",
-      actorId: user.sub,
+      actorId: actorSub,
       actorName: actorLabel,
       actorRole: "super_admin",
       description: "Super-admin reran reconcile from Square GET payment payload",
@@ -121,7 +130,7 @@ export async function POST(req: Request) {
       lifecycle: result.orphanEmitted ? "failed" : "succeeded",
       severity: result.orphanEmitted ? OperationalActivitySeverity.warning : OperationalActivitySeverity.info,
       actorType: "super_admin",
-      actorId: user.sub,
+      actorId: actorSub,
       actorName: actorLabel,
       message: result.orphanEmitted
         ? "Square payment lookup recovery finished — reconcile reported orphan webhook path"
@@ -146,7 +155,7 @@ export async function POST(req: Request) {
     await recordGovernanceAuditEntry({
       actionType: "OPERATIONS_SQUARE_PAYMENT_LOOKUP_RECONCILE",
       category: "operations",
-      actorId: user.sub,
+      actorId: actorSub,
       actorName: actorLabel,
       actorRole: "super_admin",
       description: `Super-admin square payment lookup failed (${msg.slice(0, 160)})`,
@@ -163,7 +172,7 @@ export async function POST(req: Request) {
       lifecycle: "failed",
       severity: OperationalActivitySeverity.error,
       actorType: "super_admin",
-      actorId: user.sub,
+      actorId: actorSub,
       actorName: actorLabel,
       message: "Square payment lookup recovery failed",
       detail: {

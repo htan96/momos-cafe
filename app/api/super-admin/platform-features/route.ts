@@ -1,6 +1,10 @@
 import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
-import { getCognitoServerSession } from "@/lib/auth/cognito/serverSession";
+import {
+  governanceAuditActorForSuperStaff,
+  requireSuperStaffJson,
+  resolveSuperStaffDelegation,
+} from "@/lib/auth/cognito/requireSuperStaff";
 import { PLATFORM_FEATURE_DEFINITIONS, PLATFORM_FEATURE_KEYS } from "@/lib/platform/governanceFeatures";
 import {
   PLATFORM_FEATURES_CACHE_TAG,
@@ -20,10 +24,8 @@ function isPlatformFeatureKey(v: string): v is (typeof PLATFORM_FEATURE_KEYS)[nu
 }
 
 export async function GET() {
-  const user = await getCognitoServerSession();
-  if (!user?.groups || !isSuperAdmin(user.groups)) {
-    return NextResponse.json({ error: "forbidden", code: "FORBIDDEN" }, { status: 403 });
-  }
+  const gate = await requireSuperStaffJson();
+  if (gate) return gate;
 
   await ensurePlatformFeatures();
   const state = await getPlatformFeatureState();
@@ -47,10 +49,15 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
-  const user = await getCognitoServerSession();
-  if (!user?.groups || !isSuperAdmin(user.groups)) {
+  const delegation = await resolveSuperStaffDelegation();
+  if (!delegation.jwtUser || !isSuperAdmin(delegation.authorityGroups)) {
     return NextResponse.json({ error: "forbidden", code: "FORBIDDEN" }, { status: 403 });
   }
+  const auditActor =
+    governanceAuditActorForSuperStaff(delegation) ?? {
+      actorId: delegation.jwtUser.sub,
+      actorName: delegation.jwtUser.email ?? delegation.jwtUser.username ?? "",
+    };
 
   let body: unknown;
   try {
@@ -88,7 +95,7 @@ export async function PATCH(request: Request) {
   }
 
   await ensurePlatformFeatures();
-  const updatedBy = user.email ?? user.username ?? user.sub;
+  const updatedBy = auditActor.actorName.trim() || auditActor.actorId;
 
   await prisma.$transaction(
     entries.map(([key, enabled]) =>
@@ -102,7 +109,7 @@ export async function PATCH(request: Request) {
   await recordGovernanceAuditEntry({
     actionType: "PLATFORM_FEATURE_UPDATED",
     category: "platform",
-    actorId: user.sub,
+    actorId: auditActor.actorId,
     actorName: updatedBy,
     actorRole: "super_admin",
     description: "Platform feature toggles updated",
@@ -116,7 +123,7 @@ export async function PATCH(request: Request) {
     type: OPERATIONAL_EVENT_TYPES.PLATFORM_FEATURE_TOGGLED,
     severity: OperationalActivitySeverity.info,
     actorType: "super_admin",
-    actorId: user.sub,
+    actorId: auditActor.actorId,
     message: `Platform feature toggles updated (${entries.length} key${entries.length === 1 ? "" : "s"})`,
     metadata: { changes: entries.map(([key, enabled]) => ({ key, enabled })) },
     source: "api.super-admin.platform-features",

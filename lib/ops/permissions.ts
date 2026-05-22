@@ -7,7 +7,8 @@ export type OpsPermission =
   | "orders:write"
   | "shipping:write"
   | "communications:write"
-  | "settings:read";
+  | "settings:read"
+  | "support:write";
 
 const ROLE_MATRIX: Record<OpsRole, readonly OpsPermission[]> = {
   admin: [
@@ -17,10 +18,11 @@ const ROLE_MATRIX: Record<OpsRole, readonly OpsPermission[]> = {
     "shipping:write",
     "communications:write",
     "settings:read",
+    "support:write",
   ],
-  fulfillment: ["console:read", "fulfillment:write", "shipping:write", "settings:read"],
-  catering: ["console:read", "orders:write", "settings:read"],
-  support: ["console:read", "orders:write", "communications:write", "settings:read"],
+  fulfillment: ["console:read", "fulfillment:write", "shipping:write", "settings:read", "support:write"],
+  catering: ["console:read", "orders:write", "settings:read", "support:write"],
+  support: ["console:read", "orders:write", "communications:write", "settings:read", "support:write"],
   read_only: ["console:read", "settings:read"],
 };
 

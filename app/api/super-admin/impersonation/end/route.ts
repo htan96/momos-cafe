@@ -1,7 +1,8 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { OperationalActivitySeverity } from "@prisma/client";
-import { getCognitoServerSession } from "@/lib/auth/cognito/serverSession";
+import { resolveSuperStaffDelegation } from "@/lib/auth/cognito/requireSuperStaff";
+import { jwtUserBindsVerifiedImpersonation } from "@/lib/auth/cognito/staffDelegatedAuthority";
 import { isSuperAdmin } from "@/lib/auth/cognito/roles";
 import { IMPERSONATION_COOKIE } from "@/lib/governance/impersonationConstants";
 import { verifyImpersonationToken } from "@/lib/governance/impersonationToken";
@@ -22,8 +23,8 @@ function clearImpersonationCookie(res: NextResponse) {
 }
 
 export async function POST() {
-  const user = await getCognitoServerSession();
-  if (!user?.groups || !isSuperAdmin(user.groups)) {
+  const { jwtUser, authorityGroups } = await resolveSuperStaffDelegation();
+  if (!jwtUser || !isSuperAdmin(authorityGroups)) {
     return NextResponse.json({ error: "forbidden", code: "FORBIDDEN" }, { status: 403 });
   }
 
@@ -39,7 +40,7 @@ export async function POST() {
   }
 
   const payload = await verifyImpersonationToken(raw, secret);
-  if (!payload || payload.actorSub !== user.sub) {
+  if (!payload || !jwtUserBindsVerifiedImpersonation(jwtUser, payload)) {
     clearImpersonationCookie(res);
     return res;
   }
@@ -52,7 +53,7 @@ export async function POST() {
     const row = await prisma.impersonationSupportSession.findFirst({
       where: {
         id: payload.ledgerId,
-        actorSub: user.sub,
+        actorSub: payload.actorSub,
         endedAt: null,
       },
     });
@@ -84,8 +85,8 @@ export async function POST() {
     await recordGovernanceAuditEntry({
       actionType: "IMPERSONATION_ENDED",
       category: "access",
-      actorId: user.sub,
-      actorName: user.email ?? user.username ?? "",
+      actorId: payload.actorSub,
+      actorName: payload.actorEmail,
       actorRole: "super_admin",
       description: "Impersonation session ended",
       metadata: {
@@ -100,8 +101,8 @@ export async function POST() {
       type: OPERATIONAL_EVENT_TYPES.PRESENCE_IMPERSONATION_ENDED,
       severity: OperationalActivitySeverity.info,
       actorType: "super_admin",
-      actorId: user.sub,
-      actorName: user.email ?? user.username ?? null,
+      actorId: payload.actorSub,
+      actorName: payload.actorEmail,
       message: `Impersonation session ended (${Math.round(durationMs / 1000)}s)`,
       metadata: {
         ledgerId,

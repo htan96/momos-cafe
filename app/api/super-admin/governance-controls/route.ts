@@ -1,7 +1,11 @@
 import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 import { OperationalActivitySeverity } from "@prisma/client";
-import { getCognitoServerSession } from "@/lib/auth/cognito/serverSession";
+import {
+  governanceAuditActorForSuperStaff,
+  requireSuperStaffJson,
+  resolveSuperStaffDelegation,
+} from "@/lib/auth/cognito/requireSuperStaff";
 import { isSuperAdmin } from "@/lib/auth/cognito/roles";
 import { prisma } from "@/lib/prisma";
 import {
@@ -24,10 +28,8 @@ function isGovernanceKey(key: string): key is GovernanceControlKey {
 }
 
 export async function GET() {
-  const user = await getCognitoServerSession();
-  if (!user?.groups || !isSuperAdmin(user.groups)) {
-    return NextResponse.json({ error: "forbidden", code: "FORBIDDEN" }, { status: 403 });
-  }
+  const gate = await requireSuperStaffJson();
+  if (gate) return gate;
 
   await ensureGovernanceControls();
   const rows = await prisma.platformGovernanceControl.findMany({
@@ -54,10 +56,15 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
-  const user = await getCognitoServerSession();
-  if (!user?.groups || !isSuperAdmin(user.groups)) {
+  const delegation = await resolveSuperStaffDelegation();
+  if (!delegation.jwtUser || !isSuperAdmin(delegation.authorityGroups)) {
     return NextResponse.json({ error: "forbidden", code: "FORBIDDEN" }, { status: 403 });
   }
+  const auditActor =
+    governanceAuditActorForSuperStaff(delegation) ?? {
+      actorId: delegation.jwtUser.sub,
+      actorName: delegation.jwtUser.email ?? delegation.jwtUser.username ?? "",
+    };
 
   let body: unknown;
   try {
@@ -98,7 +105,7 @@ export async function PATCH(request: Request) {
   await ensureDefaultAppSettings();
   await ensureGovernanceControls();
 
-  const updatedBy = user.email ?? user.username ?? user.sub;
+  const updatedBy = auditActor.actorName.trim() || auditActor.actorId;
 
   await prisma.$transaction(async (tx) => {
     for (const [key, enabled] of entries as [GovernanceControlKey, boolean][]) {
@@ -111,7 +118,7 @@ export async function PATCH(request: Request) {
         tx,
         actionType: "GOVERNANCE_CONTROL_UPDATED",
         category: def.category,
-        actorId: user.sub,
+        actorId: auditActor.actorId,
         actorName: updatedBy,
         actorRole: "super_admin",
         targetType: "governance_control",
@@ -135,7 +142,7 @@ export async function PATCH(request: Request) {
     type: OPERATIONAL_EVENT_TYPES.GOVERNANCE_CONTROL_UPDATED,
     severity: OperationalActivitySeverity.warning,
     actorType: "super_admin",
-    actorId: user.sub,
+    actorId: auditActor.actorId,
     message: `Governance controls updated (${entries.length} key${entries.length === 1 ? "" : "s"})`,
     metadata: { changes: entries.map(([key, enabled]) => ({ key, enabled })) },
     source: "api.super-admin.governance-controls",

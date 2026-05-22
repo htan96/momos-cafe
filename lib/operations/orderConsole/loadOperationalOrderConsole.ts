@@ -22,6 +22,8 @@ import {
 } from "@/lib/commerce/squareOperationalVisibility";
 import { buildCommerceOrderOperationalActivityWhere } from "./buildCommerceOrderOperationalActivityWhere";
 import { readOrderConsoleMetadataStrings } from "./readOrderConsoleMetadata";
+import type { CommunicationTimelineEntryDto } from "@/lib/operations/communications/buildOperationalCommunicationTimeline";
+import { buildOperationalCommunicationTimeline } from "@/lib/operations/communications/buildOperationalCommunicationTimeline";
 
 /** Canonical types surfaced on commerce order timelines (payments, fulfillment failures, drafts, webhooks). */
 const ORDER_CONSOLE_CORE_TYPES = [
@@ -63,6 +65,36 @@ export const operationalOrderConsoleInclude = {
   },
 } satisfies Prisma.CommerceOrderInclude;
 
+const operationalConsoleSupportIssueSelect = {
+  id: true,
+  status: true,
+  title: true,
+  summary: true,
+  resolutionNotes: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
+const operationalConsoleRefundCaseSelect = {
+  id: true,
+  status: true,
+  reason: true,
+  internalNotes: true,
+  amountCents: true,
+  squareRefundId: true,
+  paymentRecordId: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
+export type OperationalConsoleSupportIssue = Prisma.OperationalSupportIssueGetPayload<{
+  select: typeof operationalConsoleSupportIssueSelect;
+}>;
+
+export type OperationalConsoleRefundCase = Prisma.OperationalRefundCaseGetPayload<{
+  select: typeof operationalConsoleRefundCaseSelect;
+}>;
+
 export type OperationalOrderConsoleOrder = Prisma.CommerceOrderGetPayload<{
   include: typeof operationalOrderConsoleInclude;
 }>;
@@ -87,6 +119,10 @@ export type OperationalOrderConsoleSnapshot = {
   webhookReceipts: WebhookDeliveryReceipt[];
   notifications: NotificationEvent[];
   unifiedTimeline: OperationalTimelineEntry[];
+  /** Email threads, internal notes, notification outbox slices, SES/Resend receipts — chronological. */
+  communicationTimeline: CommunicationTimelineEntryDto[];
+  supportIssues: OperationalConsoleSupportIssue[];
+  refundCases: OperationalConsoleRefundCase[];
   relatedIncidents: Awaited<ReturnType<typeof prisma.operationalIncident.findMany>>;
   legacyCafeOrders: CafeOrder[];
 };
@@ -210,7 +246,8 @@ export async function loadOperationalOrderConsole(
         }
       : { commerceOrderId: order.id };
 
-  const [activityRaw, webhookReceipts, notifications, relatedIncidents] = await Promise.all([
+  const [activityRaw, webhookReceipts, notifications, relatedIncidents, communicationTimeline, supportIssues, refundCases] =
+    await Promise.all([
     prisma.operationalActivityEvent.findMany({
       where: activityWhere,
       orderBy: { createdAt: "asc" },
@@ -230,6 +267,19 @@ export async function loadOperationalOrderConsole(
       where: operationalIncidentWhereForOrder(order.id),
       orderBy: { lastDetectedAt: "desc" },
       take: 25,
+    }),
+    buildOperationalCommunicationTimeline(order.id),
+    prisma.operationalSupportIssue.findMany({
+      where: { commerceOrderId: order.id },
+      orderBy: { createdAt: "desc" },
+      take: 80,
+      select: operationalConsoleSupportIssueSelect,
+    }),
+    prisma.operationalRefundCase.findMany({
+      where: { commerceOrderId: order.id },
+      orderBy: { createdAt: "desc" },
+      take: 60,
+      select: operationalConsoleRefundCaseSelect,
     }),
   ]);
 
@@ -286,6 +336,9 @@ export async function loadOperationalOrderConsole(
     webhookReceipts,
     notifications: notificationsAsc,
     unifiedTimeline,
+    communicationTimeline,
+    supportIssues,
+    refundCases,
     relatedIncidents,
     legacyCafeOrders,
   };

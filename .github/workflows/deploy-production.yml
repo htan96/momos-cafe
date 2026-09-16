@@ -5,10 +5,10 @@
 #   DEPLOY_USER       SSH user (ubuntu / ec2-user / …)
 #   DEPLOY_SSH_KEY    Private key PEM that may ONLY run deploy (see hardening below)
 #
-# Edit APP_ROOT below if your clone path differs from /var/www/htworks/momos.
+# Edit APP_ROOT below if your clone path differs from /var/www/ht-works/momos.
 #
 # Hardening (recommended): restrict key in ~/.ssh/authorized_keys:
-#   command="/var/www/htworks/momos/deploy.sh",no-port-forwarding,no-X11-forwarding ssh-ed25519 AAAA...
+#   command="/var/www/ht-works/momos/deploy.sh",no-port-forwarding,no-X11-forwarding ssh-ed25519 AAAA...
 # Then replace script below with: deploy-only forced command runs automatically — still pass explicit cd + bash deploy.sh only if command wraps deploy.sh path.
 
 name: Deploy production
@@ -35,6 +35,6 @@ jobs:
           script_stop: true
           script: |
             set -euo pipefail
-            APP_ROOT='/var/www/htworks/momos'
+            APP_ROOT='/var/www/ht-works/momos'
             cd "$APP_ROOT"
             bash deploy.sh

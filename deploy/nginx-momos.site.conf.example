@@ -5,6 +5,13 @@
 # 4. sudo certbot --nginx -d momos.example.com
 #
 # PM2/next start must listen on 127.0.0.1:3000 (see ecosystem.config.cjs PORT).
+#
+# Link-in-bio: middleware normalizes any casing of `/links` → `/links`
+# (View Menu, Directions, Instagram). Prefer proxying to Next so `/LINKS` etc.
+# are not lost on a case-sensitive static file miss.
+#
+# Optional nginx fallback if uppercase never reaches Next:
+#   location ~* ^/links/?$ { return 308 /links; }
 
 server {
     listen 80;

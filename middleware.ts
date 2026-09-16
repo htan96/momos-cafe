@@ -52,6 +52,25 @@ function internalGate(request: NextRequest): NextResponse {
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
+  /**
+   * Link-in-bio: any casing of `/links` (LINKS, Links, …) → canonical `/links`
+   * so View Menu / Directions / Instagram always load.
+   */
+  const linksPath = pathname.replace(/\/+$/, "") || "/";
+  if (linksPath.toLowerCase() === "/links") {
+    if (pathname !== "/links") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/links";
+      return NextResponse.redirect(url, 308);
+    }
+    return NextResponse.next();
+  }
+
+  /** Bare `/api` can match the single-segment links matcher — never treat it as orchestration. */
+  if (pathname === "/api" || pathname === "/api/") {
+    return NextResponse.next();
+  }
+
   /** Public browser auth — must never hit `internalGate` (storefront users have no orchestration secret). */
   if (pathname.startsWith("/api/auth/cognito/")) {
     return NextResponse.next();
@@ -101,5 +120,11 @@ export const config = {
     "/api/email/send/:path*",
     "/api/internal/email/ses-smoke-send",
     "/api/internal/webhooks/ses-notification",
+    /**
+     * Single-segment paths — runs the case-insensitive `/links` normalizer
+     * (`/LINKS`, `/Links`, etc. → `/links`).
+     */
+    "/:segment",
+    "/:segment/",
   ],
 };

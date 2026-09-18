@@ -38,7 +38,7 @@ const ADMIN_IMPERSONATION_DEFERRED_MESSAGE =
 
 export async function POST(request: Request) {
   const user = await getCognitoServerSession();
-  if (!user?.groups || !isSuperAdmin(user.groups)) {
+  if (!user || !isSuperAdmin(user)) {
     return NextResponse.json({ error: "forbidden", code: "FORBIDDEN" }, { status: 403 });
   }
 
@@ -167,6 +167,7 @@ export async function POST(request: Request) {
       actorEmail: user.email ?? user.username ?? "",
       targetEmail,
       targetSub: cognitoUser.sub,
+      actorStaffRole: user.role ?? "SuperAdmin",
       actorStaffGroups: [...user.groups],
       scope,
       issuedAt: Date.now(),

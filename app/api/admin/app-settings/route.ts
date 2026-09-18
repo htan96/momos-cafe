@@ -13,10 +13,12 @@ import { isSuperAdmin } from "@/lib/auth/cognito/roles";
 import { emitOperationalEvent } from "@/lib/operations/emitOperationalEvent";
 import { OPERATIONAL_EVENT_TYPES } from "@/lib/operations/operationalEventTypes";
 import { recordGovernanceAuditEntry, resolveGovernanceStaffRole } from "@/lib/governance/governanceAuditRecord";
+import { getGovernanceControlMap } from "@/lib/governance/governanceControls";
+import { detectMaintenanceConflicts } from "@/lib/governance/maintenanceConflict";
 
 export async function GET() {
   const user = await getCognitoServerSession();
-  if (!user || !isAdmin(user.groups)) {
+  if (!user || !isAdmin(user)) {
     return NextResponse.json({ error: "forbidden", code: "FORBIDDEN" }, { status: 403 });
   }
 
@@ -28,23 +30,40 @@ export async function GET() {
   const shop = rows.find((r) => r.settingId === APP_SETTING_SHOP_ENABLED);
   const menu = rows.find((r) => r.settingId === APP_SETTING_MENU_ENABLED);
 
+  const governance = await getGovernanceControlMap();
+  const maintenanceConflicts = detectMaintenanceConflicts({
+    governance: {
+      maintenance_mode: governance.maintenance_mode,
+      menu_hidden: governance.menu_hidden,
+    },
+    appSettings: {
+      shopEnabled: shop?.enabled ?? true,
+      menuEnabled: menu?.enabled ?? true,
+      shopUpdatedBy: shop?.updatedBy ?? null,
+      menuUpdatedBy: menu?.updatedBy ?? null,
+      shopUpdatedAt: shop?.lastUpdated?.toISOString() ?? null,
+      menuUpdatedAt: menu?.lastUpdated?.toISOString() ?? null,
+    },
+  });
+
   return NextResponse.json({
     shopEnabled: shop?.enabled ?? true,
     menuEnabled: menu?.enabled ?? true,
     lastUpdated: {
-      shop: shop?.lastUpdated ?? null,
-      menu: menu?.lastUpdated ?? null,
+      shop: shop?.lastUpdated?.toISOString() ?? null,
+      menu: menu?.lastUpdated?.toISOString() ?? null,
     },
     updatedBy: {
       shop: shop?.updatedBy ?? null,
       menu: menu?.updatedBy ?? null,
     },
+    maintenanceConflicts,
   });
 }
 
 export async function PATCH(request: Request) {
   const user = await getCognitoServerSession();
-  if (!user || !isAdmin(user.groups)) {
+  if (!user || !isAdmin(user)) {
     return NextResponse.json({ error: "forbidden", code: "FORBIDDEN" }, { status: 403 });
   }
 
@@ -95,7 +114,7 @@ export async function PATCH(request: Request) {
   await emitOperationalEvent({
     type: OPERATIONAL_EVENT_TYPES.MAINTENANCE_UPDATED,
     severity: OperationalActivitySeverity.info,
-    actorType: isSuperAdmin(user.groups) ? "super_admin" : "admin",
+    actorType: isSuperAdmin(user) ? "super_admin" : "admin",
     actorId: user.sub,
     message: "Shop or menu availability flags updated",
     metadata: {
@@ -113,7 +132,7 @@ export async function PATCH(request: Request) {
     category: "maintenance",
     actorId: user.sub,
     actorName: updatedBy,
-    actorRole: resolveGovernanceStaffRole(user.groups),
+    actorRole: resolveGovernanceStaffRole(user),
     description: "Shop/menu availability (maintenance gates) updated",
     metadata: {
       keysChanged,

@@ -20,6 +20,21 @@ function isPublicStorefrontApi(pathname: string): boolean {
   return false;
 }
 
+/**
+ * API routes that MUST present `INTERNAL_API_SECRET` when matched by middleware.
+ * Keep narrow: other `/api/*` paths authenticate in route handlers (Cognito, Square, etc.).
+ */
+function requiresInternalOrchestrationSecret(pathname: string): boolean {
+  if (pathname === "/api/fulfillment" || pathname.startsWith("/api/fulfillment/")) return true;
+  if (pathname === "/api/payments" || pathname.startsWith("/api/payments/")) return true;
+  if (pathname === "/api/email/send" || pathname.startsWith("/api/email/send/")) return true;
+  if (pathname.startsWith("/api/internal/")) return true;
+  if (pathname === "/api/square/catalog/sync" || pathname === "/api/square/catalog/discovery") {
+    return true;
+  }
+  return false;
+}
+
 /** Internal orchestration guard — Bearer token OR custom header must match `INTERNAL_API_SECRET`. */
 function internalGate(request: NextRequest): NextResponse {
   const secret = process.env.INTERNAL_API_SECRET?.trim();
@@ -71,14 +86,26 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  /** Public browser auth — must never hit `internalGate` (storefront users have no orchestration secret). */
-  if (pathname.startsWith("/api/auth/cognito/")) {
+  /**
+   * Public browser auth — must never hit `internalGate`
+   * (sessions, signup, OAuth-style flows have no orchestration secret).
+   */
+  if (pathname.startsWith("/api/auth/")) {
     return NextResponse.next();
   }
 
   /**
-   * Cognito-gated routes: validates **ID token** JWT from httpOnly cookie only (issuer + exp). Membership uses
-   * `sessionUserFromIdTokenPayload` → JWTPayload `cognito:groups` (same path as login `extractUserFromIdToken`).
+   * Super-admin REST surface — guarded in handlers (`requireSuperStaff*`); never internal-secret gated.
+   * (Page routes use `/super-admin/*` Cognito matcher; `/api/super-admin/*` is not a `cognitoProtectedPrefixes` path.)
+   */
+  if (pathname === "/api/super-admin" || pathname.startsWith("/api/super-admin/")) {
+    return NextResponse.next();
+  }
+
+  /**
+   * Cognito-gated routes: validates **ID token** JWT (issuer + exp). When `AUTHZ_SOURCE=db`, edge does not read
+   * Postgres — role/status checks run in layouts and API handlers (`getCognitoServerSession` + `users` table).
+   * When `AUTHZ_SOURCE=dual|cognito`, middleware also enforces `cognito:groups` (or dual mismatch logs).
    */
   if (isCognitoProtectedPath(pathname)) {
     if (process.env.COGNITO_GATE_DEBUG === "1") {
@@ -95,15 +122,19 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  return internalGate(request);
+  if (requiresInternalOrchestrationSecret(pathname)) {
+    return internalGate(request);
+  }
+
+  return NextResponse.next();
 }
 
 export const config = {
   matcher: [
-    "/api/auth/cognito/:path*",
+    "/api/auth/:path*",
     /**
      * Cognito-gated areas — when changing `COGNITO_PROTECTED_PREFIXES`, add matching prefixes here so middleware runs
-     * before the internal orchestration secret gate (non-`/api` matcher paths return `NextResponse.next()`).
+     * before any other checks (non-`/api` matcher paths return `NextResponse.next()` when not cognito-guarded).
      */
     "/account/:path*",
     "/admin/:path*",

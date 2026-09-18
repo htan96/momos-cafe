@@ -58,6 +58,9 @@ function signInErrorUserMessage(out: {
   if (out.challenge?.mfaSetupPending || out.challenge?.softwareTokenMfaPending) {
     return "We need you to finish multi-factor setup before you can sign in. Please contact support if this continues.";
   }
+  if (out.code === "BOOTSTRAP_REQUIRED" || out.error === "bootstrap_required") {
+    return "Platform recovery sign-in is required for this account.";
+  }
   if (out.error === "invalid_credentials") {
     return "Invalid username/email or password.";
   }
@@ -85,7 +88,13 @@ export default function CognitoLoginForm() {
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [phase, setPhase] = useState<"sign_in" | "new_password" | "confirm_account">("sign_in");
+  const [phase, setPhase] = useState<
+    "sign_in" | "new_password" | "confirm_account" | "bootstrap_totp_setup" | "bootstrap_totp_verify" | "bootstrap_recovery"
+  >("sign_in");
+  const [bootstrapQr, setBootstrapQr] = useState<string | null>(null);
+  const [bootstrapRecoveryCodes, setBootstrapRecoveryCodes] = useState<string[]>([]);
+  const [totpCode, setTotpCode] = useState("");
+  const [recoveryCode, setRecoveryCode] = useState("");
   const [challengeSession, setChallengeSession] = useState<string | null>(null);
   const [confirmationCode, setConfirmationCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -93,11 +102,105 @@ export default function CognitoLoginForm() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  async function runBootstrapLogin(email: string, pass: string) {
+    const res = await fetch("/api/auth/bootstrap/login", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password: pass }),
+    });
+    const parsed = await readApiJson<{
+      step?: string;
+      qrDataUrl?: string;
+      recoveryCodes?: string[];
+      error?: string;
+      message?: string;
+    }>(res);
+    if (!parsed.ok) {
+      setError(parsed.error);
+      return;
+    }
+    const { data, status } = parsed;
+    if (status >= 400) {
+      setError(data.error === "rate_limited" ? "Too many attempts — wait a minute." : "Invalid credentials.");
+      return;
+    }
+    if (data.step === "totp_setup" && data.qrDataUrl) {
+      setBootstrapQr(data.qrDataUrl);
+      setBootstrapRecoveryCodes(Array.isArray(data.recoveryCodes) ? data.recoveryCodes : []);
+      setTotpCode("");
+      setPhase("bootstrap_totp_setup");
+      return;
+    }
+    if (data.step === "totp_verify") {
+      setTotpCode("");
+      setPhase("bootstrap_totp_verify");
+    }
+  }
+
+  async function submitBootstrapTotp(endpoint: "/api/auth/bootstrap/totp/setup" | "/api/auth/bootstrap/totp/verify") {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: totpCode.trim() }),
+      });
+      const parsed = await readApiJson<{ ok?: boolean; redirect?: string; error?: string }>(res);
+      if (!parsed.ok) {
+        setError(parsed.error);
+        return;
+      }
+      const { data, status } = parsed;
+      if (status >= 400 || !data.ok) {
+        setError(data.error === "invalid_totp" ? "Invalid code — try again." : "Verification failed.");
+        return;
+      }
+      goPostLogin(data.redirect ?? "/super-admin");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitBootstrapRecovery(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/auth/bootstrap/recovery", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recoveryCode: recoveryCode.trim() }),
+      });
+      const parsed = await readApiJson<{ ok?: boolean; redirect?: string; error?: string }>(res);
+      if (!parsed.ok) {
+        setError(parsed.error);
+        return;
+      }
+      const { data, status } = parsed;
+      if (status >= 400 || !data.ok) {
+        setError("Invalid recovery code.");
+        return;
+      }
+      goPostLogin(data.redirect ?? "/super-admin");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function onSubmitSignIn(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError(null);
     const out = await signIn(username.trim(), password, rawNext);
+    if (!out.ok && (out.code === "BOOTSTRAP_REQUIRED" || out.error === "bootstrap_required")) {
+      await runBootstrapLogin(username.trim(), password);
+      setBusy(false);
+      return;
+    }
     setBusy(false);
     if (!out.ok) {
       if (
@@ -301,6 +404,151 @@ export default function CognitoLoginForm() {
               }}
             >
               Back to sign in
+            </button>
+          </form>
+        </StorefrontAuthCard>
+      </>
+    );
+  }
+
+  if (phase === "bootstrap_totp_setup" || phase === "bootstrap_totp_verify") {
+    const setup = phase === "bootstrap_totp_setup";
+    return (
+      <>
+        <StorefrontAuthLogo />
+        <StorefrontAuthCard>
+          <p className={`${commerceCheckoutShell.sectionLabel} text-center`}>Momo&apos;s · Platform recovery</p>
+          <h1 className="mt-2 text-center font-display text-2xl font-semibold tracking-tight text-charcoal sm:text-[26px]">
+            {setup ? "Set up authenticator" : "Enter authenticator code"}
+          </h1>
+          {setup && bootstrapQr ?
+            <>
+              <p className="mt-2.5 text-center text-[14px] leading-relaxed text-charcoal/75">
+                Scan this QR code with Google Authenticator (or similar), save your recovery codes, then enter the
+                6-digit code.
+              </p>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={bootstrapQr} alt="TOTP QR code" className="mx-auto mt-6 rounded-lg border border-gold/30" />
+              {bootstrapRecoveryCodes.length > 0 ?
+                <div className="mt-4 rounded-xl border border-gold/25 bg-cream-mid/40 px-3 py-2.5 text-xs text-charcoal/80">
+                  <p className="font-semibold uppercase tracking-wide text-charcoal/60">Recovery codes (save now)</p>
+                  <ul className="mt-2 space-y-1 font-mono">
+                    {bootstrapRecoveryCodes.map((c) => (
+                      <li key={c}>{c}</li>
+                    ))}
+                  </ul>
+                </div>
+              : null}
+            </>
+          : <p className="mt-2.5 text-center text-[14px] leading-relaxed text-charcoal/75">
+              Enter the 6-digit code from your authenticator app.
+            </p>}
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void submitBootstrapTotp(
+                setup ? "/api/auth/bootstrap/totp/setup" : "/api/auth/bootstrap/totp/verify"
+              );
+            }}
+            className="mt-8 space-y-5"
+          >
+            <label className="block">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-charcoal/60">6-digit code</span>
+              <input
+                required
+                value={totpCode}
+                onChange={(ev) => setTotpCode(ev.target.value)}
+                className={storefrontAuthInput}
+                autoComplete="one-time-code"
+                inputMode="numeric"
+                maxLength={8}
+              />
+            </label>
+
+            {error ?
+              <p className="rounded-xl border border-red/25 bg-red/10 px-3 py-2.5 text-sm text-red" role="alert">
+                {error}
+              </p>
+            : null}
+
+            <button type="submit" disabled={busy} className={storefrontAuthPrimaryButton}>
+              {busy ? "Verifying…" : "Continue"}
+            </button>
+
+            {!setup ?
+              <button
+                type="button"
+                className="w-full text-sm font-semibold text-teal-dark underline-offset-2 hover:underline"
+                onClick={() => {
+                  setPhase("bootstrap_recovery");
+                  setError(null);
+                }}
+              >
+                Use a recovery code instead
+              </button>
+            : null}
+
+            <button
+              type="button"
+              className="w-full text-sm font-semibold text-teal-dark underline-offset-2 hover:underline"
+              onClick={() => {
+                setPhase("sign_in");
+                setError(null);
+              }}
+            >
+              Back to sign in
+            </button>
+          </form>
+        </StorefrontAuthCard>
+      </>
+    );
+  }
+
+  if (phase === "bootstrap_recovery") {
+    return (
+      <>
+        <StorefrontAuthLogo />
+        <StorefrontAuthCard>
+          <p className={`${commerceCheckoutShell.sectionLabel} text-center`}>Momo&apos;s · Platform recovery</p>
+          <h1 className="mt-2 text-center font-display text-2xl font-semibold tracking-tight text-charcoal sm:text-[26px]">
+            Recovery code
+          </h1>
+          <p className="mt-2.5 text-center text-[14px] leading-relaxed text-charcoal/75">
+            Enter one of the recovery codes you saved when you enrolled authenticator.
+          </p>
+
+          <form onSubmit={(e) => void submitBootstrapRecovery(e)} className="mt-8 space-y-5">
+            <label className="block">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-charcoal/60">Recovery code</span>
+              <input
+                required
+                value={recoveryCode}
+                onChange={(ev) => setRecoveryCode(ev.target.value)}
+                className={storefrontAuthInput}
+                autoComplete="off"
+              />
+            </label>
+
+            {error ?
+              <p className="rounded-xl border border-red/25 bg-red/10 px-3 py-2.5 text-sm text-red" role="alert">
+                {error}
+              </p>
+            : null}
+
+            <button type="submit" disabled={busy} className={storefrontAuthPrimaryButton}>
+              {busy ? "Verifying…" : "Continue"}
+            </button>
+
+            <button
+              type="button"
+              className="w-full text-sm font-semibold text-teal-dark underline-offset-2 hover:underline"
+              onClick={() => {
+                setPhase("bootstrap_totp_verify");
+                setError(null);
+              }}
+            >
+              Back to authenticator code
             </button>
           </form>
         </StorefrontAuthCard>

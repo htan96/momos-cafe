@@ -52,7 +52,7 @@ async function executeCatalogSync(actor: { sub: string; actorLabel: string }) {
 
 export async function POST() {
   const delegation = await resolveSuperStaffDelegation();
-  if (!delegation.jwtUser || !isSuperAdmin(delegation.authorityGroups)) {
+  if (!delegation.jwtUser || !isSuperAdmin(delegation.authorityUser ?? delegation.authorityGroups)) {
     return NextResponse.json({ error: "forbidden", code: "FORBIDDEN" }, { status: 403 });
   }
   const auditActor = governanceAuditActorForSuperStaff(delegation)!;
@@ -124,7 +124,7 @@ export async function POST() {
 /** GET parity for quick browser automation / bookmarks — gated same as POST. */
 export async function GET() {
   const delegation = await resolveSuperStaffDelegation();
-  if (!delegation.jwtUser || !isSuperAdmin(delegation.authorityGroups)) {
+  if (!delegation.jwtUser || !isSuperAdmin(delegation.authorityUser ?? delegation.authorityGroups)) {
     return NextResponse.json({ error: "forbidden", code: "FORBIDDEN" }, { status: 403 });
   }
   const auditActor = governanceAuditActorForSuperStaff(delegation)!;

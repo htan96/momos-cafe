@@ -8,7 +8,7 @@ import {
   isSuperAdmin,
 } from "@/lib/auth/cognito/roles";
 import {
-  delegatedStaffAuthorityGroups,
+  delegatedStaffAuthorityUser,
   governanceLayoutPrincipalUser,
 } from "@/lib/auth/cognito/staffDelegatedAuthority";
 import type { CognitoSessionUser } from "@/lib/auth/cognito/types";
@@ -35,7 +35,7 @@ export async function assertCustomerPlatformLayout(): Promise<CustomerSessionPay
   }
 
   const operator = await getCognitoServerSession();
-  if (operator && isSuperAdmin(operator.groups)) {
+  if (operator && isSuperAdmin(operator)) {
     return {
       typ: "customer",
       sub: "governance-preview",
@@ -61,32 +61,32 @@ export async function assertAdminPlatformLayout(): Promise<AdminPlatformLayoutRe
     redirect(await forwardedLoginHref("/admin"));
   }
   const impersonation = await readImpersonationFromCookies();
-  const groups = delegatedStaffAuthorityGroups(user, impersonation);
-  if (!isAdmin(groups)) {
-    if (isCustomer(user.groups)) {
+  const authority = delegatedStaffAuthorityUser(user, impersonation) ?? user;
+  if (!isAdmin(authority)) {
+    if (isCustomer(user)) {
       redirect("/account");
     }
     redirect(await forwardedLoginHref("/admin"));
   }
   return {
     user: governanceLayoutPrincipalUser(user, impersonation),
-    showSuperAdminOperationalLens: isSuperAdmin(groups),
+    showSuperAdminOperationalLens: isSuperAdmin(authority),
   };
 }
 
-/** Mirrors middleware: `/super-admin` uses delegated authority (`actorStaffGroups`), not storefront subject JWT alone. */
+/** Mirrors middleware: `/super-admin` uses delegated authority, not storefront subject JWT alone. */
 export async function assertSuperAdminPlatformLayout(): Promise<CognitoSessionUser> {
   const user = await getCognitoServerSession();
   if (!user) {
     redirect(await forwardedLoginHref("/super-admin"));
   }
   const impersonation = await readImpersonationFromCookies();
-  const groups = delegatedStaffAuthorityGroups(user, impersonation);
-  if (!isSuperAdmin(groups)) {
-    if (hasRole(user.groups, "admin")) {
+  const authority = delegatedStaffAuthorityUser(user, impersonation) ?? user;
+  if (!isSuperAdmin(authority)) {
+    if (hasRole(user, "admin")) {
       redirect("/admin");
     }
-    if (isCustomer(user.groups)) {
+    if (isCustomer(user)) {
       redirect("/account");
     }
     redirect(await forwardedLoginHref("/super-admin"));
@@ -94,7 +94,7 @@ export async function assertSuperAdminPlatformLayout(): Promise<CognitoSessionUs
   return governanceLayoutPrincipalUser(user, impersonation);
 }
 
-/** Optional Cognito-enveloped zones (e.g. `/portal`) — any authenticated Cognito session. */
+/** Optional Cognito-enveloped zones (e.g. `/portal`) — any authenticated Cognito session with Active status. */
 export async function assertAuthedPlatformLayout(): Promise<CognitoSessionUser> {
   const user = await getCognitoServerSession();
   if (!user) {

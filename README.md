@@ -33,6 +33,10 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 
 Super Admin incident playbooks live in **`docs/runbooks/`** ([index](docs/runbooks/README.md)).
 
+## Kitchen pickup lead time (storefront)
+
+Food pickup slots use `admin_settings.data.orderingRules.minimumPrepLeadMinutes` (Ops → Settings → Restaurant & profile). Default is **0** (ASAP): the engine still applies cart-based prep from `lib/pickupTime.ts` for Square/kitchen scheduling, but guests see **Ready ASAP** copy on checkout and confirmation—not a one-hour promise. To restore a longer customer lead floor, raise minimum prep lead in Ops settings.
+
 ## Customer auth & sessions
 
 After sign-in, password-completion, explicit refresh (`POST /api/auth/cognito/refresh`), or a **silent** refresh from `GET /api/auth/cognito/session` when the ID token expired, we upsert a Prisma **`Customer`** with `externalAuthSubject` = Cognito `sub`.

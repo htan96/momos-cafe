@@ -26,7 +26,7 @@ export default async function AdminAccountCustomerDetailPage(props: PageProps) {
   if (!isValidCustomerUuid(customerId)) notFound();
 
   const viewer = await getCognitoServerSession();
-  const viewerSuper = Boolean(viewer?.groups && isSuperAdmin(viewer.groups));
+  const viewerSuper = Boolean(viewer && isSuperAdmin(viewer));
 
   const detail = await loadAccountMgmtCustomerDetail(customerId);
   if (!detail) notFound();

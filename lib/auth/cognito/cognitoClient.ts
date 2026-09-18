@@ -26,7 +26,10 @@ import {
   cognitoIdpAdminClientCacheKey,
 } from "@/lib/auth/cognito/cognitoIdpAdminClientConfig";
 
-/** Self-service sign-ups are assigned pool group `customer` via `provisionCustomerGroupBestEffort`. */
+/**
+ * Legacy Cognito pool group — not authoritative when `AUTHZ_SOURCE=db`.
+ * `provisionCustomerGroupBestEffort` remains for dual/cognito rollback only.
+ */
 export const CUSTOMER_POOL_GROUP_NAME = "customer" as const;
 
 const clients = new Map<string, CognitoIdentityProviderClient>();
@@ -273,7 +276,10 @@ export async function adminAddUserToGroup(
   );
 }
 
-/** After successful signup/confirm: ensure `customer` group. Retry once; never throws — logs structured JSON warnings. */
+/**
+ * After successful signup/confirm: ensure `customer` Cognito group (dual/cognito modes only).
+ * Retry once; never throws — logs structured JSON warnings.
+ */
 export async function provisionCustomerGroupBestEffort(
   cfg: CognitoEnvConfig,
   usernameRaw: string,

@@ -2,13 +2,13 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { buildAccountMgmtList } from "@/lib/accountManagement/accountsBrowse";
 import { getCognitoConfig } from "@/lib/auth/cognito/config";
-import { getCognitoSessionUserFromCookieStore } from "@/lib/auth/cognito/getCognitoSessionUserFromCookieStore";
-import { isAdmin } from "@/lib/auth/cognito/roles";
+import { getEnrichedSessionUserFromCookieStore } from "@/lib/auth/cognito/getCognitoSessionUserFromCookieStore";
+import { isAdmin, isSuperAdmin } from "@/lib/auth/cognito/roles";
 
 export async function GET(request: Request) {
   const jar = await cookies();
-  const user = getCognitoSessionUserFromCookieStore(jar);
-  if (!user || !isAdmin(user.groups)) {
+  const user = await getEnrichedSessionUserFromCookieStore(jar);
+  if (!user || !isAdmin(user)) {
     return NextResponse.json({ error: "auth_required", code: "AUTH_REQUIRED" }, { status: 401 });
   }
 
@@ -35,7 +35,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       viewer: {
         sub: user.sub,
-        staffRoleHint: user.groups?.includes("super_admin") ? "super_admin" : "admin_or_below",
+        staffRoleHint: isSuperAdmin(user) ? "super_admin" : "admin_or_below",
       },
       cognitoUnavailable,
       rows: rows.map((r) => ({

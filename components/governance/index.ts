@@ -9,3 +9,6 @@ export { default as IntegrationTile } from "./IntegrationTile";
 export { default as QueueHealthRow } from "./QueueHealthRow";
 export { default as SecurityHighlight } from "./SecurityHighlight";
 export { default as EmptyGovState } from "./EmptyGovState";
+export { default as GovernanceStatusCard } from "./GovernanceStatusCard";
+export { default as GovernanceHighRiskDialog } from "./GovernanceHighRiskDialog";
+export { default as MaintenanceConflictBanner } from "./MaintenanceConflictBanner";

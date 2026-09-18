@@ -37,7 +37,7 @@ function describeGovernanceControlChanges(meta: unknown): string {
       const key = typeof c.key === "string" ? c.key : "";
       const enabled = c.enabled === true;
       if (!key) return null;
-      return `${controlTitle(key)} (${enabled ? "on" : "off"})`;
+      return `${controlTitle(key)} (${enabled ? "BLOCKED" : "ACTIVE"})`;
     })
     .filter(Boolean) as string[];
   return parts.length ? parts.join(" · ") : "governance controls";
@@ -51,7 +51,7 @@ function describePlatformFeatureChanges(meta: unknown): string {
       const key = typeof c.key === "string" ? c.key : "";
       const enabled = c.enabled === true;
       if (!key) return null;
-      return `${featureTitle(key)} (${enabled ? "on" : "off"})`;
+      return `${featureTitle(key)} (${enabled ? "ACTIVE" : "DISABLED"})`;
     })
     .filter(Boolean) as string[];
   return parts.length ? parts.join(" · ") : "platform features";
@@ -140,11 +140,21 @@ export function governanceEventToTimelineRow(event: {
   if (t === "GOVERNANCE_CONTROL_UPDATED" || t === "governance_control_patch") {
     if (isRecord(event.metadata) && typeof event.metadata.key === "string") {
       const en = event.metadata.enabled === true;
+      const statusFromMeta =
+        typeof event.metadata.operationalStatus === "string"
+          ? event.metadata.operationalStatus
+          : en
+            ? "BLOCKED"
+            : "ACTIVE";
+      const reasonFrag =
+        typeof event.reason === "string" && event.reason.trim().length
+          ? ` · reason: ${event.reason.trim().slice(0, 120)}`
+          : "";
       return {
         id: event.id,
         actor,
-        verb: en ? "enabled restriction" : "disabled restriction",
-        target: controlTitle(event.metadata.key),
+        verb: "set governance control to",
+        target: `${controlTitle(event.metadata.key)} (${statusFromMeta})${reasonFrag}`,
         relativeTime: when,
         severity: "warning",
         severityLabel: "Control",

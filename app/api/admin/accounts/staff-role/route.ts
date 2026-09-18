@@ -16,7 +16,7 @@ function parseRole(v: unknown): AccountMgmtRole | null {
 
 export async function PATCH(request: Request) {
   const delegation = await resolveSuperStaffDelegation();
-  if (!delegation.jwtUser || !isSuperAdmin(delegation.authorityGroups)) {
+  if (!delegation.jwtUser || !isSuperAdmin(delegation.authorityUser ?? delegation.authorityGroups)) {
     return NextResponse.json({ error: "forbidden", code: "SUPER_ADMIN_REQUIRED" }, { status: 403 });
   }
   const user = governanceLayoutPrincipalUser(delegation.jwtUser, delegation.impersonation);

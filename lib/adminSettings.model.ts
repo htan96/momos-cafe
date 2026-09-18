@@ -71,7 +71,8 @@ export type OrderingRules = {
 };
 
 export const DEFAULT_ORDERING_RULES: OrderingRules = {
-  minimumPrepLeadMinutes: 60,
+  /** Floor for pickup slots — 0 = ASAP (cart prep estimate still applies via pickupTime.ts). */
+  minimumPrepLeadMinutes: 0,
   lastOrderCutoffMinutes: 30,
   pickupIntervalMinutes: 15,
   /** Legacy field — storefront policy uses same-day kitchen windows only (see ordering module). */

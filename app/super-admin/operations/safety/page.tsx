@@ -509,7 +509,7 @@ export default async function SuperAdminOperationalSafetyPage() {
 
       <OperationalCard title="Governance & platform flags" meta="PlatformGovernanceControl · PlatformFeatureToggle">
         <p className="text-[13px] text-charcoal/70 mb-4">
-          Kill switches feed severity WARNING totals when restrictive controls are toggled ON. Operational notifications governance includes the notifications platform feature.
+          Kill switches in BLOCKED status feed WARNING totals. Platform features show ACTIVE or DISABLED — not ambiguous on/off toggles.
         </p>
         <div className="grid md:grid-cols-2 gap-6">
           <div>
@@ -517,7 +517,7 @@ export default async function SuperAdminOperationalSafetyPage() {
             <ul className="space-y-2 text-[13px]">
               {data.governance.controls.map((c) => (
                 <li key={c.key} className="flex flex-wrap items-center gap-2">
-                  <StatusPill variant={c.enabled ? "warning" : "neutral"}>{c.enabled ? "on" : "off"}</StatusPill>
+                  <StatusPill variant={c.enabled ? "critical" : "ok"}>{c.enabled ? "BLOCKED" : "ACTIVE"}</StatusPill>
                   <span className="font-medium text-charcoal">{c.title}</span>
                   <span className="font-mono text-[11px] text-charcoal/45">{c.key}</span>
                 </li>
@@ -529,7 +529,7 @@ export default async function SuperAdminOperationalSafetyPage() {
             <ul className="space-y-2 text-[13px]">
               {data.governance.platformFeatures.map((f) => (
                 <li key={f.key} className="flex flex-wrap items-center gap-2">
-                  <StatusPill variant={f.enabled ? "neutral" : "warning"}>{f.enabled ? "enabled" : "disabled"}</StatusPill>
+                  <StatusPill variant={f.enabled ? "ok" : "down"}>{f.enabled ? "ACTIVE" : "DISABLED"}</StatusPill>
                   <span className="font-medium text-charcoal">{f.title}</span>
                   <span className="font-mono text-[11px] text-charcoal/45">{f.key}</span>
                   {f.key === "notifications" && !f.enabled ? (
@@ -539,10 +539,10 @@ export default async function SuperAdminOperationalSafetyPage() {
               ))}
             </ul>
             <Link
-              href="/super-admin/platform/feature-controls"
+              href="/super-admin/platform/operational-status"
               className="inline-block mt-4 text-[12px] font-semibold text-teal-dark hover:underline"
             >
-              Feature controls workspace →
+              Operational status →
             </Link>
           </div>
         </div>

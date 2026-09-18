@@ -20,6 +20,7 @@ Execution surfaces that previously lived under **`/ops/(console)/*`** now render
 
 **Decision (Option A — 2026-05):** **`/api/super-admin/*`** routes are **not** included in **`middleware.ts` `config.matcher`**; they authenticate in **route handlers** (e.g. **`requireSuperStaffJson`**). **`/super-admin/**`** **pages** still pass the Cognito matcher. Details: **`docs/architecture/production-readiness-remediation-filled-2026-05.md`** §5.3.
 
+
 ## JSON API rename (`/api/ops` vs `/api/admin/ops`)
 
 **Deferred.** `/api/ops/*` stays mounted as-is:

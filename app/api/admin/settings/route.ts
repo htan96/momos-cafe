@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import type { AdminSettings } from "@/lib/adminSettings.model";
 import { getCognitoConfig } from "@/lib/auth/cognito/config";
-import { getCognitoSessionUserFromCookieStore } from "@/lib/auth/cognito/getCognitoSessionUserFromCookieStore";
+import { getEnrichedSessionUserFromCookieStore } from "@/lib/auth/cognito/getCognitoSessionUserFromCookieStore";
 import { isAdmin } from "@/lib/auth/cognito/roles";
 
 const ROW_ID = "default";
@@ -28,8 +28,8 @@ export async function PUT(request: Request) {
     const cfg = getCognitoConfig();
     if (cfg) {
       const jar = await cookies();
-      const user = getCognitoSessionUserFromCookieStore(jar);
-      if (!user || !isAdmin(user.groups)) {
+      const user = await getEnrichedSessionUserFromCookieStore(jar);
+      if (!user || !isAdmin(user)) {
         return NextResponse.json(
           { error: "unauthorized", code: "AUTH_REQUIRED" },
           { status: 401 }

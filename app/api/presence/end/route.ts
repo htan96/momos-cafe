@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { OperationalActivitySeverity } from "@prisma/client";
 import { getCognitoServerSession } from "@/lib/auth/cognito/serverSession";
-import { isAdmin } from "@/lib/auth/cognito/roles";
+import { isAdmin, isSuperAdmin } from "@/lib/auth/cognito/roles";
 import { emitOperationalEvent } from "@/lib/operations/emitOperationalEvent";
 import { OPERATIONAL_EVENT_TYPES } from "@/lib/operations/operationalEventTypes";
 import { PRESENCE_SESSION_COOKIE } from "@/lib/presence/constants";
@@ -30,8 +30,8 @@ export async function POST(request: Request) {
   const res = NextResponse.json({ ok: true });
   clearPresenceSessionCookie(res);
 
-  if (isAdmin(user.groups)) {
-    const actorType = user.groups?.includes("super_admin") ? "super_admin" : "admin";
+  if (isAdmin(user)) {
+    const actorType = isSuperAdmin(user) ? "super_admin" : "admin";
     await emitOperationalEvent({
       type: OPERATIONAL_EVENT_TYPES.AUTH_LOGOUT,
       severity: OperationalActivitySeverity.info,
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
       category: "session",
       actorId: user.sub,
       actorName: user.email ?? user.username ?? user.sub,
-      actorRole: resolveGovernanceStaffRole(user.groups),
+      actorRole: resolveGovernanceStaffRole(user),
       description: "Staff presence session ended (explicit)",
       metadata: { terminationReason: "presence_end", source: "api.presence.end" },
       ipAddress: clientIpFromRequest(request),

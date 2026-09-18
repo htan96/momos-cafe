@@ -25,8 +25,8 @@ function cookieOpts(maxAge: number) {
 }
 
 export async function GET() {
-  const { jwtUser, authorityGroups } = await resolveSuperStaffDelegation();
-  if (!jwtUser || !isSuperAdmin(authorityGroups)) {
+  const { jwtUser, authorityUser, authorityGroups } = await resolveSuperStaffDelegation();
+  if (!jwtUser || !isSuperAdmin(authorityUser ?? authorityGroups)) {
     return NextResponse.json({ error: "forbidden", code: "FORBIDDEN" }, { status: 403 });
   }
 
@@ -39,8 +39,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const delegation = await resolveSuperStaffDelegation();
-  const { jwtUser, authorityGroups, impersonation } = delegation;
-  if (!jwtUser || !isSuperAdmin(authorityGroups)) {
+  const { jwtUser, authorityUser, authorityGroups, impersonation } = delegation;
+  if (!jwtUser || !isSuperAdmin(authorityUser ?? authorityGroups)) {
     return NextResponse.json({ error: "forbidden", code: "FORBIDDEN" }, { status: 403 });
   }
 

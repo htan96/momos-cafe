@@ -46,6 +46,8 @@ export async function recordGovernanceAuditEntry(args: RecordGovernanceAuditEntr
   }
 }
 
-export function resolveGovernanceStaffRole(groups: readonly string[] | undefined): "super_admin" | "admin" {
-  return isSuperAdmin(groups) ? "super_admin" : "admin";
+export function resolveGovernanceStaffRole(
+  input: Parameters<typeof isSuperAdmin>[0]
+): "super_admin" | "admin" {
+  return isSuperAdmin(input) ? "super_admin" : "admin";
 }

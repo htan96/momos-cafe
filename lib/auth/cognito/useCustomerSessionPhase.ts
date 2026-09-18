@@ -19,12 +19,20 @@ async function fetchCustomerSessionState(): Promise<"in" | "out" | "transient_fa
   } catch {
     return "transient_fail";
   }
-  const parsed = await readApiJson<{ authenticated?: boolean; user?: { groups?: string[] } | null }>(res);
+  const parsed = await readApiJson<{
+    authenticated?: boolean;
+    user?: { groups?: string[]; role?: string | null } | null;
+  }>(res);
   if (!parsed.ok) {
     return isTransientHttpStatus(parsed.status) ? "transient_fail" : "out";
   }
   const d = parsed.data;
-  const customer = Boolean(d.authenticated && d.user?.groups?.includes("customer"));
+  const u = d.user;
+  const customer = Boolean(
+    d.authenticated &&
+      u &&
+      (u.role === "Customer" || u.groups?.includes("customer"))
+  );
   return customer ? "in" : "out";
 }
 

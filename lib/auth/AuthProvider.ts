@@ -1,8 +1,18 @@
+import type { UserRole, UserStatus } from "@prisma/client";
+
 export type AuthUser = {
   sub: string;
   username: string;
   email: string | null;
+  /** Legacy Cognito `cognito:groups` — logging / dual-mode only; not authoritative when `AUTHZ_SOURCE=db`. */
   groups: string[];
+  /** Postgres `users.role` when session is enriched server-side. */
+  role?: UserRole;
+  /** Postgres `users.status` — suspended/disabled block protected surfaces. */
+  status?: UserStatus;
+  customerId?: string | null;
+  /** Env-gated bootstrap recovery session (full super_admin authority). */
+  isBootstrapAdmin?: boolean;
 };
 
 /**

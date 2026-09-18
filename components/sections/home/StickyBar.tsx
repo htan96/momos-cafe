@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import {
   useAdminSettings,
   DEFAULT_SETTINGS,
   getIsOpenToday,
 } from "@/lib/useAdminSettings";
+import { EXTERNAL_ORDER_ONLINE_URL, EXTERNAL_ORDER_CTA_LABEL } from "@/lib/ordering/externalOrderUrl";
 
 export default function StickyBar() {
   const [visible, setVisible] = useState(false);
@@ -39,12 +39,14 @@ export default function StickyBar() {
           {isOpenToday ? "Open Today" : "Closed Today"}
         </span>
       </div>
-      <Link
-        href="/menu"
+      <a
+        href={EXTERNAL_ORDER_ONLINE_URL}
+        target="_blank"
+        rel="noopener noreferrer"
         className="bg-cream text-red font-semibold text-sm tracking-wider uppercase py-2.5 px-5 rounded-lg hover:bg-white transition-colors"
       >
-        Order Now
-      </Link>
+        {EXTERNAL_ORDER_CTA_LABEL}
+      </a>
     </div>
   );
 }

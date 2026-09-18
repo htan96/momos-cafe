@@ -9,6 +9,7 @@ import { PRESENCE_SESSION_COOKIE } from "@/lib/presence/constants";
 import { clearPresenceSessionCookie } from "@/lib/presence/presenceCookies";
 import { markPresenceSessionTerminated } from "@/lib/presence/terminatePresenceSession";
 import { clientIpFromRequest } from "@/lib/presence/requestMeta";
+import { clearBootstrapAuthCookies } from "@/lib/bootstrap/http";
 
 export const runtime = "nodejs";
 
@@ -25,6 +26,7 @@ export async function POST(request: Request) {
 
   const res = NextResponse.json({ ok: true });
   clearCognitoCookieJar(res);
+  clearBootstrapAuthCookies(res);
 
   await markPresenceSessionTerminated({
     sessionPublicId: presenceSid,

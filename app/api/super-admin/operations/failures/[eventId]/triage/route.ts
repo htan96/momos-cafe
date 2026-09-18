@@ -28,7 +28,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   if (gate) return gate;
 
   const delegation = await resolveSuperStaffDelegation();
-  if (!delegation.jwtUser || !isSuperAdmin(delegation.authorityGroups)) {
+  if (!delegation.jwtUser || !isSuperAdmin(delegation.authorityUser ?? delegation.authorityGroups)) {
     return NextResponse.json({ error: "forbidden", code: "FORBIDDEN" }, { status: 403 });
   }
   const auditActor =

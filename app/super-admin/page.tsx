@@ -281,9 +281,14 @@ export default async function SuperAdminHomePage() {
         <div className="min-w-[180px] flex-[1.2] rounded-xl border border-cream-dark/60 bg-white/[0.92] px-4 py-3 shadow-sm">
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-charcoal/45 mb-2">Storefront gates</p>
           <p className="text-[13px] text-charcoal leading-snug">
-            Shop {maintenance.shopEnabled ? "open" : "closed"} · Menu {maintenance.menuEnabled ? "open" : "closed"}
+            Shop {maintenance.shopEnabled ? "ACTIVE" : "BLOCKED"} · Menu {maintenance.menuEnabled ? "ACTIVE" : "BLOCKED"}
           </p>
-          <p className="text-[11px] text-charcoal/45 mt-1">AppSetting ShopEnabled / MenuEnabled</p>
+          <p className="text-[11px] text-charcoal/45 mt-1">
+            <Link href="/super-admin/platform/operational-status" className="text-teal-dark font-semibold hover:underline">
+              Operational status
+            </Link>
+            {" · "}AppSetting gates
+          </p>
         </div>
       </div>
 

@@ -15,6 +15,7 @@ import {
   businessPhoneTelHref,
   formatBusinessAddressShort,
 } from "@/lib/businessLocation";
+import { EXTERNAL_ORDER_ONLINE_URL, EXTERNAL_ORDER_CTA_LABEL } from "@/lib/ordering/externalOrderUrl";
 
 const FOOTER_NAV = [
   { href: "/", label: "Home" },
@@ -107,11 +108,21 @@ export default function Footer() {
             </h5>
             <ul className="space-y-2.5">
               <li>
-                <Link
-                  href="/order"
+                <a
+                  href={EXTERNAL_ORDER_ONLINE_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="text-[14px] font-semibold text-red hover:text-red/90 hover:underline underline-offset-2 transition-colors duration-200"
                 >
-                  Order Online
+                  {EXTERNAL_ORDER_CTA_LABEL}
+                </a>
+              </li>
+              <li className="text-[12px] text-charcoal/45">
+                <Link
+                  href="/order"
+                  className="hover:text-charcoal/65 hover:underline underline-offset-2 transition-colors duration-200"
+                >
+                  Order pickup on our site
                 </Link>
               </li>
               <li className="text-[14px] text-charcoal/65">

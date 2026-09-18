@@ -5,9 +5,19 @@ import {
   decodeCognitoIdTokenUnsafe,
   issuerMatches,
 } from "@/lib/auth/cognito/tokens";
+import {
+  bootstrapSessionToCognitoUser,
+  getBootstrapAdminSessionForServer,
+} from "@/lib/bootstrap/guards";
+import { enrichAuthUserFromDb } from "@/lib/auth/userAuthority";
 import { decodeJwt } from "jose";
 
 export async function getCognitoServerSession() {
+  const bootstrap = await getBootstrapAdminSessionForServer();
+  if (bootstrap) {
+    return bootstrapSessionToCognitoUser(bootstrap);
+  }
+
   const cfg = getCognitoConfig();
   if (!cfg) return null;
 
@@ -24,5 +34,7 @@ export async function getCognitoServerSession() {
     return null;
   }
 
-  return decodeCognitoIdTokenUnsafe(id);
+  const base = decodeCognitoIdTokenUnsafe(id);
+  if (!base) return null;
+  return enrichAuthUserFromDb(base);
 }

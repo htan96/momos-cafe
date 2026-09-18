@@ -16,7 +16,7 @@ function forbidden() {
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCognitoServerSession();
-  if (!user || !isAdmin(user.groups)) return forbidden();
+  if (!user || !isAdmin(user)) return forbidden();
 
   try {
     const { id } = await params;
@@ -37,7 +37,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCognitoServerSession();
-  if (!user || !isAdmin(user.groups)) return forbidden();
+  if (!user || !isAdmin(user)) return forbidden();
 
   try {
     const { id } = await params;
@@ -89,7 +89,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const user = await getCognitoServerSession();
-  if (!user || !isAdmin(user.groups)) return forbidden();
+  if (!user || !isAdmin(user)) return forbidden();
 
   try {
     const { id } = await params;

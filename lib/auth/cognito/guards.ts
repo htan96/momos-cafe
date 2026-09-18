@@ -12,18 +12,25 @@ import { COGNITO_ID_TOKEN_COOKIE } from "@/lib/auth/cognito/sessionCookies";
 import { issuerMatches, sessionUserFromIdTokenPayload } from "@/lib/auth/cognito/tokens";
 import type { CognitoGroup } from "@/lib/auth/cognito/types";
 import {
-  defaultRouteForGroups,
+  defaultRouteForAuthority,
   hasRole,
   isAdmin,
   isCustomer,
   isSuperAdmin,
 } from "@/lib/auth/cognito/roles";
+import { getAuthzSource } from "@/lib/auth/userAuthority";
 import type { ImpersonationPayload } from "@/lib/governance/impersonationToken";
 import {
   delegatedStaffAuthorityGroups,
   jwtUserBindsVerifiedImpersonation,
   verifyImpersonationFromNextRequest,
 } from "@/lib/auth/cognito/staffDelegatedAuthority";
+import {
+  bootstrapCognitoSubForEmail,
+  MOMOS_BOOTSTRAP_SESSION_COOKIE,
+} from "@/lib/bootstrap/config";
+import { getBootstrapAdminSessionEdge } from "@/lib/bootstrap/guardsEdge";
+import type { AuthUser } from "@/lib/auth/AuthProvider";
 
 /**
  * Comma-separated path prefixes protected by Cognito **in addition to** `/api/ops/*` (always enforced for staff callers).
@@ -49,8 +56,16 @@ function redirectToLogin(request: NextRequest): NextResponse {
   return NextResponse.redirect(login);
 }
 
-function redirectToRoleHome(request: NextRequest, groups: readonly string[]): NextResponse {
-  return NextResponse.redirect(new URL(defaultRouteForGroups(groups), request.url));
+function redirectToRoleHome(
+  request: NextRequest,
+  authority: Parameters<typeof defaultRouteForAuthority>[0]
+): NextResponse {
+  return NextResponse.redirect(new URL(defaultRouteForAuthority(authority), request.url));
+}
+
+/** Edge cannot query Postgres — when `db`, middleware authenticates JWT only; layouts/API enforce roles. */
+function middlewareEnforcesCognitoGroups(): boolean {
+  return getAuthzSource() !== "db";
 }
 
 /** For server layouts: safe internal path + optional verified impersonation snapshot header for governance RSC. */
@@ -77,6 +92,27 @@ async function nextWithForwardedPath(
 }
 
 type DecodedCognito = { user: NonNullable<ReturnType<typeof sessionUserFromIdTokenPayload>> };
+
+function bootstrapAuthorityUser(session: { email: string; groups: string[] }): AuthUser {
+  return {
+    sub: bootstrapCognitoSubForEmail(session.email),
+    username: session.email,
+    email: session.email,
+    groups: [...session.groups],
+    role: "SuperAdmin",
+    status: "Active",
+    isBootstrapAdmin: true,
+  };
+}
+
+async function decodeRequestBootstrapSession(
+  request: NextRequest
+): Promise<AuthUser | null> {
+  const token = request.cookies.get(MOMOS_BOOTSTRAP_SESSION_COOKIE)?.value;
+  const session = await getBootstrapAdminSessionEdge(token);
+  if (!session) return null;
+  return bootstrapAuthorityUser(session);
+}
 
 function decodeCognitoSessionFromIdToken(
   token: string | null | undefined,
@@ -167,8 +203,36 @@ function cognitoUnconfiguredApi(): NextResponse {
 /** Middleware gate for Cognito JWT cookie across storefront account, admin surfaces, portal prefixes, and `/api/ops/*`. */
 export async function cognitoGate(request: NextRequest): Promise<NextResponse> {
   const pathname = request.nextUrl.pathname;
+  const bootstrapUser = await decodeRequestBootstrapSession(request);
   const cfg = getCognitoConfig();
   const isApiOps = pathname.startsWith("/api/ops");
+
+  if (bootstrapUser) {
+    if (isApiOps) {
+      if (!isAdmin(bootstrapUser)) {
+        return opsUnauthorizedApi();
+      }
+      return nextWithForwardedPath(request, null, null);
+    }
+
+    if (pathname === "/account" || pathname.startsWith("/account/")) {
+      return nextWithForwardedPath(request, null, null);
+    }
+
+    if (pathname === "/admin" || pathname.startsWith("/admin/")) {
+      return nextWithForwardedPath(request, null, null);
+    }
+
+    if (pathname === "/super-admin" || pathname.startsWith("/super-admin/")) {
+      return nextWithForwardedPath(request, null, null);
+    }
+
+    if (pathname === "/portal" || pathname.startsWith("/portal/")) {
+      return nextWithForwardedPath(request, null, null);
+    }
+
+    return nextWithForwardedPath(request, null, null);
+  }
 
   if (isApiOps) {
     if (!cfg) {
@@ -177,9 +241,14 @@ export async function cognitoGate(request: NextRequest): Promise<NextResponse> {
     const { cognito, renewalCookies } = await resolveCognitoForMiddleware(request, cfg);
     const impersonationVerified =
       cognito ? await verifyImpersonationFromNextRequest(request) : null;
-    const authorityGroups = delegatedStaffAuthorityGroups(cognito?.user ?? null, impersonationVerified);
-    if (!cognito || !isAdmin(authorityGroups)) {
+    if (!cognito) {
       return withRenewalHeaders(opsUnauthorizedApi(), renewalCookies);
+    }
+    if (middlewareEnforcesCognitoGroups()) {
+      const authorityGroups = delegatedStaffAuthorityGroups(cognito.user, impersonationVerified);
+      if (!isAdmin(authorityGroups)) {
+        return withRenewalHeaders(opsUnauthorizedApi(), renewalCookies);
+      }
     }
     return withRenewalHeaders(
       await nextWithForwardedPath(request, cognito, impersonationVerified),
@@ -196,23 +265,33 @@ export async function cognitoGate(request: NextRequest): Promise<NextResponse> {
     cognito ? await verifyImpersonationFromNextRequest(request) : null;
   const authorityGroups = delegatedStaffAuthorityGroups(cognito?.user ?? null, impersonationVerified);
 
+  if (!middlewareEnforcesCognitoGroups()) {
+    if (!cognito) {
+      return withRenewalHeaders(redirectToLogin(request), renewalCookies);
+    }
+    return withRenewalHeaders(
+      await nextWithForwardedPath(request, cognito, impersonationVerified),
+      renewalCookies
+    );
+  }
+
   if (pathname === "/account" || pathname.startsWith("/account/")) {
     if (cognito) {
-      const { groups } = cognito.user;
-      if (isCustomer(groups)) {
+      const subject = cognito.user;
+      if (isCustomer(subject)) {
         return withRenewalHeaders(
           await nextWithForwardedPath(request, cognito, impersonationVerified),
           renewalCookies
         );
       }
-      if (isSuperAdmin(groups)) {
+      if (isSuperAdmin(subject)) {
         return withRenewalHeaders(
           await nextWithForwardedPath(request, cognito, impersonationVerified),
           renewalCookies
         );
       }
-      if (isAdmin(groups)) {
-        return withRenewalHeaders(redirectToRoleHome(request, groups), renewalCookies);
+      if (isAdmin(subject)) {
+        return withRenewalHeaders(redirectToRoleHome(request, subject), renewalCookies);
       }
       return withRenewalHeaders(redirectToLogin(request), renewalCookies);
     }
@@ -223,14 +302,14 @@ export async function cognitoGate(request: NextRequest): Promise<NextResponse> {
     if (!cognito) {
       return withRenewalHeaders(redirectToLogin(request), renewalCookies);
     }
-    const subjectGroups = cognito.user.groups;
+    const subject = cognito.user;
     if (isAdmin(authorityGroups)) {
       return withRenewalHeaders(
         await nextWithForwardedPath(request, cognito, impersonationVerified),
         renewalCookies
       );
     }
-    if (isCustomer(subjectGroups)) {
+    if (isCustomer(subject)) {
       return withRenewalHeaders(NextResponse.redirect(new URL("/account", request.url)), renewalCookies);
     }
     return withRenewalHeaders(redirectToLogin(request), renewalCookies);
@@ -240,17 +319,17 @@ export async function cognitoGate(request: NextRequest): Promise<NextResponse> {
     if (!cognito) {
       return withRenewalHeaders(redirectToLogin(request), renewalCookies);
     }
-    const subjectGroups = cognito.user.groups;
+    const subject = cognito.user;
     if (isSuperAdmin(authorityGroups)) {
       return withRenewalHeaders(
         await nextWithForwardedPath(request, cognito, impersonationVerified),
         renewalCookies
       );
     }
-    if (hasRole(subjectGroups, "admin")) {
+    if (hasRole(subject, "admin")) {
       return withRenewalHeaders(NextResponse.redirect(new URL("/admin", request.url)), renewalCookies);
     }
-    if (isCustomer(subjectGroups)) {
+    if (isCustomer(subject)) {
       return withRenewalHeaders(NextResponse.redirect(new URL("/account", request.url)), renewalCookies);
     }
     return withRenewalHeaders(redirectToLogin(request), renewalCookies);

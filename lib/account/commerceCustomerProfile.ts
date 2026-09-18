@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { isCustomer } from "@/lib/auth/cognito/roles";
+import type { UserRole } from "@prisma/client";
 
 /**
  * Normalizes storefront identity into the Prisma `Customer` row (`externalAuthSubject` = Cognito `sub`).
@@ -83,8 +84,12 @@ export async function syncCommerceCustomerForCognitoCustomerUser(args: {
   sub: string;
   email?: string | null;
   groups?: readonly string[] | undefined;
+  role?: UserRole;
 }): Promise<string | null> {
-  if (!isCustomer(args.groups)) return null;
+  const isCust =
+    args.role === "Customer" ||
+    (args.role == null && isCustomer(args.groups ?? []));
+  if (!isCust) return null;
   const rowId = await ensureCommerceCustomer({
     cognitoSub: args.sub,
     email: typeof args.email === "string" ? args.email : "",

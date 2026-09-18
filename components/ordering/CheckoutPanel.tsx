@@ -3,7 +3,6 @@
 import { useState, useRef, useMemo, useCallback } from "react";
 import { useCommerceCart } from "@/context/CartContext";
 import { useToast } from "@/context/ToastContext";
-import { formatPickupTime } from "@/lib/pickupTime";
 import { useAdminSettings } from "@/lib/useAdminSettings";
 import { getNextAvailablePickupTime } from "@/lib/ordering/getNextAvailablePickupTime";
 import { validateCartEligibilityFromAdminSettings } from "@/lib/ordering/validateCartEligibility";
@@ -322,7 +321,7 @@ export default function CheckoutPanel({
       checkoutAttemptIdRef.current = crypto.randomUUID();
       onOrderPlaced?.(
         orderId,
-        pickupDisplayInstant ? formatPickupTime(pickupDisplayInstant) : undefined,
+        undefined,
         verification,
         {
           commerceOrderId: resolvedCommerceId,
@@ -342,7 +341,6 @@ export default function CheckoutPanel({
       selectedShippingQuoteUid,
       selectedShippingProvider,
       ensureCommerceOrder,
-      pickupDisplayInstant,
       onOrderPlaced,
       removeUnifiedLinesByLineIds,
       showToast,
@@ -526,14 +524,15 @@ export default function CheckoutPanel({
             </p>
 
             <div className="border border-teal/25 bg-teal/5 rounded-xl p-4 mb-6">
-              <h4 className="font-semibold text-[15px] text-charcoal mb-1">Your pickup time</h4>
+              <h4 className="font-semibold text-[15px] text-charcoal mb-1">Pickup</h4>
               {allowKitchenPay && kitchenPickupUtc ? (
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-charcoal">
-                    <span className="font-display text-teal-dark">{formatPickupTime(kitchenPickupUtc)}</span>
+                    <span className="font-display text-teal-dark">Ready ASAP</span>
+                    <span className="text-charcoal/70"> — when you arrive at our window</span>
                   </p>
                   <p className="text-[11px] text-charcoal/55 leading-snug">
-                    If timing shifts before you pay, this updates automatically.
+                    Low volume right now — no long wait. Kitchen still receives your order immediately.
                   </p>
                 </div>
               ) : allowKitchenPay && foodQtyForPayment > 0 ? (
@@ -731,7 +730,7 @@ export default function CheckoutPanel({
         <p className="text-center text-[11px] text-charcoal/45 mt-2.5 font-medium tracking-wide">
           Pickup · 1922 Broadway St · Vallejo
           {pickupDisplayInstant && allowKitchenPay && foodQtyForPayment > 0 ? (
-            <> · {formatPickupTime(pickupDisplayInstant)}</>
+            <> · Ready ASAP</>
           ) : null}
         </p>
       </div>

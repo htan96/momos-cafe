@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { confirmSignUp, provisionCustomerGroupBestEffort } from "@/lib/auth/cognito/cognitoClient";
+import { confirmSignUp } from "@/lib/auth/cognito/cognitoClient";
+import { adminGetPoolUser } from "@/lib/auth/cognito/adminPoolDirectory";
+import { getAuthzSource, upsertUserOnSignup } from "@/lib/auth/userAuthority";
 import { getCognitoConfig } from "@/lib/auth/cognito/config";
 import { createHash } from "crypto";
 import { OperationalActivitySeverity } from "@prisma/client";
@@ -32,7 +34,19 @@ export async function POST(request: Request) {
 
   try {
     await confirmSignUp(cfg, { username, code });
-    await provisionCustomerGroupBestEffort(cfg, username, "confirm_signup");
+
+    const poolUser = await adminGetPoolUser(cfg, username);
+    if (poolUser?.sub) {
+      await upsertUserOnSignup({
+        cognitoSub: poolUser.sub,
+        email: poolUser.email ?? (typeof body.email === "string" ? body.email : null),
+      });
+    }
+
+    if (getAuthzSource() !== "db") {
+      const { provisionCustomerGroupBestEffort } = await import("@/lib/auth/cognito/cognitoClient");
+      await provisionCustomerGroupBestEffort(cfg, username, "confirm_signup");
+    }
     await emitOperationalEvent({
       type: OPERATIONAL_EVENT_TYPES.CUSTOMER_REGISTERED,
       severity: OperationalActivitySeverity.info,

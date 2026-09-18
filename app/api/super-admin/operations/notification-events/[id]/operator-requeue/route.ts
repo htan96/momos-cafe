@@ -66,7 +66,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (gate) return gate;
 
   const delegation = await resolveSuperStaffDelegation();
-  if (!delegation.jwtUser || !isSuperAdmin(delegation.authorityGroups)) {
+  if (!delegation.jwtUser || !isSuperAdmin(delegation.authorityUser ?? delegation.authorityGroups)) {
     return jsonError(403, "FORBIDDEN", "Super admin session required.");
   }
 

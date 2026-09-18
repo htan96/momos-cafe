@@ -13,6 +13,7 @@ import { getCognitoConfig } from "@/lib/auth/cognito/config";
 import { cognitoChallengeJson } from "@/lib/auth/cognito/challengeResponse";
 import { applyCognitoTokenCookies } from "@/lib/auth/cognito/httpCookies";
 import { resolvePostLoginRedirect } from "@/lib/auth/cognito/redirectByRole";
+import { enrichAuthUserFromDb } from "@/lib/auth/userAuthority";
 import { syncCommerceCustomerForCognitoCustomerUser } from "@/lib/account/commerceCustomerProfile";
 import { clearCognitoCookieJar } from "@/lib/auth/cognito/sessionCookies";
 
@@ -116,10 +117,11 @@ export async function POST(request: Request) {
       return res;
     }
 
+    const sessionUser = await enrichAuthUserFromDb(user);
     const res = NextResponse.json({
       ok: true,
-      user,
-      redirectTo: resolvePostLoginRedirect(user.groups, nextRaw),
+      user: sessionUser,
+      redirectTo: resolvePostLoginRedirect(sessionUser, nextRaw),
     });
     applyCognitoTokenCookies(res, {
       idToken: out.idToken,

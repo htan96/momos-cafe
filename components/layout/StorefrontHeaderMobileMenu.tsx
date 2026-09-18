@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import Link from "next/link";
 import HeaderAuthLink from "./HeaderAuthLink";
 import { STOREFRONT_HEADER_NAV_LINKS } from "@/lib/navigation/storefrontHeaderNav";
+import { EXTERNAL_ORDER_ONLINE_URL, EXTERNAL_ORDER_CTA_LABEL } from "@/lib/ordering/externalOrderUrl";
 
 type Props = {
   open: boolean;
@@ -80,9 +81,15 @@ export default function StorefrontHeaderMobileMenu({ open, onClose, pathname }: 
           </ul>
           <div className="px-1 pt-2 border-t border-cream-dark/60 flex flex-col gap-2">
             <HeaderAuthLink layout="stack" />
-            <Link href="/order" onClick={onClose} className={ctaClass}>
-              Order Now
-            </Link>
+            <a
+              href={EXTERNAL_ORDER_ONLINE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={onClose}
+              className={ctaClass}
+            >
+              {EXTERNAL_ORDER_CTA_LABEL}
+            </a>
           </div>
         </nav>
       </aside>

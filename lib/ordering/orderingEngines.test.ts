@@ -29,7 +29,7 @@ describe("getNextAvailablePickupTime", () => {
     const next = getNextAvailablePickupTime(now, openWeek, DEFAULT_ORDERING_RULES, 1);
     expect(next).not.toBeNull();
     const lt = DateTime.fromJSDate(next!, { zone: "utc" }).setZone(TZ);
-    expect(lt.hour).toBeGreaterThanOrEqual(11);
+    expect(lt.hour).toBeGreaterThanOrEqual(10);
     expect(lt.minute % DEFAULT_ORDERING_RULES.pickupIntervalMinutes).toBe(0);
   });
 

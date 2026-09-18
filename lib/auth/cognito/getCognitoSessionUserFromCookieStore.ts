@@ -3,6 +3,12 @@ import { getCognitoConfig } from "@/lib/auth/cognito/config";
 import { COGNITO_ID_TOKEN_COOKIE } from "@/lib/auth/cognito/sessionCookies";
 import { issuerMatches, sessionUserFromIdTokenPayload } from "@/lib/auth/cognito/tokens";
 import type { CognitoSessionUser } from "@/lib/auth/cognito/types";
+import { MOMOS_BOOTSTRAP_SESSION_COOKIE } from "@/lib/bootstrap/config";
+import {
+  bootstrapSessionToCognitoUser,
+  getBootstrapAdminSessionFromCookieValue,
+} from "@/lib/bootstrap/guards";
+import { enrichAuthUserFromDb } from "@/lib/auth/userAuthority";
 
 /** Minimal cookie jar shape (Next.js `cookies()` or tests). */
 export type CookieStoreGet = {
@@ -29,4 +35,18 @@ export function getCognitoSessionUserFromCookieStore(
   } catch {
     return null;
   }
+}
+
+/** Cognito JWT + DB enrichment, or verified bootstrap super-admin session. */
+export async function getEnrichedSessionUserFromCookieStore(
+  cookieStore: CookieStoreGet
+): Promise<CognitoSessionUser | null> {
+  const bootstrapTok = cookieStore.get(MOMOS_BOOTSTRAP_SESSION_COOKIE)?.value;
+  const bootstrap = await getBootstrapAdminSessionFromCookieValue(bootstrapTok);
+  if (bootstrap) {
+    return bootstrapSessionToCognitoUser(bootstrap);
+  }
+  const base = getCognitoSessionUserFromCookieStore(cookieStore);
+  if (!base) return null;
+  return enrichAuthUserFromDb(base);
 }

@@ -1,13 +1,19 @@
+import Link from "next/link";
 import GovPageHeader from "@/components/governance/GovPageHeader";
+import MaintenanceConflictBanner from "@/components/governance/MaintenanceConflictBanner";
 import OperationalCard from "@/components/governance/OperationalCard";
+import { loadLatestGovernanceAuditReasons } from "@/lib/governance/governanceAuditReasons";
+import { loadGovernanceSnapshot } from "@/lib/governance/governanceSnapshot";
 import { PLATFORM_FEATURE_DEFINITIONS, PLATFORM_FEATURE_KEYS } from "@/lib/platform/governanceFeatures";
 import { ensurePlatformFeatures, loadPlatformFeatureStateUncached } from "@/lib/platform/platformFeatureState";
+import AppSettingGatesPanel from "./AppSettingGatesPanel";
 import PlatformGovernanceToggles, {
   type GovernanceFeatureBootstrap,
 } from "./PlatformGovernanceToggles";
 import GovernanceControlsPanel, { type GovernanceControlBootstrap } from "./GovernanceControlsPanel";
 import {
   GOVERNANCE_CONTROL_DEFINITIONS,
+  GOVERNANCE_CONTROL_KEYS,
   type GovernanceControlCategory,
   type GovernanceControlKey,
 } from "@/lib/governance/controlKeys";
@@ -19,7 +25,10 @@ export const dynamic = "force-dynamic";
 
 async function bootstrapGovernanceFeatures(): Promise<GovernanceFeatureBootstrap[]> {
   await ensurePlatformFeatures();
-  const state = await loadPlatformFeatureStateUncached();
+  const [state, auditReasons] = await Promise.all([
+    loadPlatformFeatureStateUncached(),
+    loadLatestGovernanceAuditReasons([...PLATFORM_FEATURE_KEYS]),
+  ]);
   return PLATFORM_FEATURE_KEYS.map((key) => {
     const def = PLATFORM_FEATURE_DEFINITIONS[key];
     const row = state[key];
@@ -33,12 +42,16 @@ async function bootstrapGovernanceFeatures(): Promise<GovernanceFeatureBootstrap
       enabled: row.enabled,
       updatedAt: row.updatedAt.toISOString(),
       updatedBy: row.updatedBy,
+      lastAuditReason: auditReasons[key]?.reason ?? null,
     };
   });
 }
 
 async function bootstrapGovernanceControls(): Promise<GovernanceControlBootstrap[]> {
-  const rows = await loadGovernanceControlRowsUncached();
+  const [rows, auditReasons] = await Promise.all([
+    loadGovernanceControlRowsUncached(),
+    loadLatestGovernanceAuditReasons([...GOVERNANCE_CONTROL_KEYS]),
+  ]);
   return rows.map((row) => {
     const key = row.key as GovernanceControlKey;
     const def = GOVERNANCE_CONTROL_DEFINITIONS[key];
@@ -50,6 +63,7 @@ async function bootstrapGovernanceControls(): Promise<GovernanceControlBootstrap
       enabled: row.enabled,
       updatedAt: row.updatedAt.toISOString(),
       lastModifiedBy: row.lastModifiedBy,
+      lastAuditReason: auditReasons[key]?.reason ?? null,
     };
   });
 }
@@ -62,16 +76,29 @@ export default async function SuperAdminPlatformFeatureControlsPage({
   const sp = searchParams ? await searchParams : {};
   const notice = typeof sp.notice === "string" ? sp.notice.trim() : "";
 
-  const initialGovernanceFeatures = await bootstrapGovernanceFeatures();
-  const initialGovernanceControls = await bootstrapGovernanceControls();
+  const [initialGovernanceFeatures, initialGovernanceControls, snapshot] = await Promise.all([
+    bootstrapGovernanceFeatures(),
+    bootstrapGovernanceControls(),
+    loadGovernanceSnapshot(),
+  ]);
 
   return (
     <div className="space-y-10">
       <GovPageHeader
-        eyebrow="Platform"
+        eyebrow="Governance"
         title="Feature controls"
-        subtitle="Operational kill switches are enforced at the API boundary. Surface toggles here govern authenticated platform UX — no invented rollout metrics."
+        subtitle="Status-first controls with explicit actions — kill switches, platform features, and maintenance gates. Enforcement is immediate at the API boundary."
+        actions={
+          <Link
+            href="/super-admin/platform/operational-status"
+            className="rounded-lg border border-cream-dark/60 bg-white px-3 py-1.5 text-[12px] font-semibold text-charcoal/80 shadow-sm transition hover:bg-cream-mid/40"
+          >
+            Operational status
+          </Link>
+        }
       />
+
+      <MaintenanceConflictBanner conflicts={snapshot.maintenanceConflicts} />
 
       {notice === "platform-notifications-deferred" ?
         <div className="rounded-xl border border-cream-dark/60 bg-white/90 px-4 py-3 text-[13px] text-charcoal/75 shadow-sm">
@@ -94,6 +121,10 @@ export default async function SuperAdminPlatformFeatureControlsPage({
           </p>
         </OperationalCard>
       </div>
+
+      <OperationalCard title="Maintenance gates (AppSetting)" meta="ShopEnabled · MenuEnabled · positive semantics">
+        <AppSettingGatesPanel />
+      </OperationalCard>
 
       <OperationalCard
         title="Governance-controlled platform surfaces"

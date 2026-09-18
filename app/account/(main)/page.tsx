@@ -68,7 +68,7 @@ export default async function AccountDashboardPage() {
 
       <CustomerPageHeader
         eyebrow="Your table with us"
-        title={`Welcome back, ${session.email.split("@")[0]}`}
+        title={`Welcome back, ${session.email?.split("@")[0]?.trim() || "friend"}`}
         subtitle={
           <>
             Pickup, shop picks, and mailed gifts — gathered here so you never have to hunt for a receipt.{" "}

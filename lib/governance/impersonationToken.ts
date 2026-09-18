@@ -1,11 +1,14 @@
 import type { ImpersonationScope } from "@/lib/governance/impersonationConstants";
+import type { UserRole } from "@prisma/client";
 
 export type ImpersonationPayload = {
   actorSub: string;
   actorEmail: string;
   targetEmail: string;
   targetSub?: string;
-  /** Cognito `cognito:groups` copied from the staffed actor JWT at impersonation **start** (signed). */
+  /** Postgres `users.role` snapshot at impersonation **start** (preferred for DB authz). */
+  actorStaffRole?: UserRole;
+  /** Legacy Cognito groups — retained for dual/cognito rollback. */
   actorStaffGroups?: string[];
   scope: ImpersonationScope;
   issuedAt: number;
@@ -109,6 +112,10 @@ export async function verifyImpersonationToken(
   const actorEmail = typeof o.actorEmail === "string" ? o.actorEmail.trim() : "";
   const targetEmail = typeof o.targetEmail === "string" ? o.targetEmail.trim() : "";
   const targetSub = typeof o.targetSub === "string" ? o.targetSub.trim() : undefined;
+  let actorStaffRole: UserRole | undefined;
+  if (o.actorStaffRole === "Customer" || o.actorStaffRole === "Admin" || o.actorStaffRole === "SuperAdmin") {
+    actorStaffRole = o.actorStaffRole;
+  }
   let actorStaffGroups: string[] | undefined;
   if (Array.isArray(o.actorStaffGroups)) {
     const raw = (o.actorStaffGroups as unknown[]).filter(
@@ -138,6 +145,7 @@ export async function verifyImpersonationToken(
     actorEmail,
     targetEmail,
     targetSub: targetSub || undefined,
+    ...(actorStaffRole ? { actorStaffRole } : {}),
     ...(actorStaffGroups ? { actorStaffGroups } : {}),
     scope,
     issuedAt,

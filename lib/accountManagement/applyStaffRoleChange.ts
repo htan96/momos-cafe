@@ -8,11 +8,18 @@ import {
 import type { CognitoEnvConfig } from "@/lib/auth/cognito/config";
 import type { AccountMgmtRole } from "@/lib/accountManagement/accountsBrowse";
 import { deriveAccountRoleFromGroups } from "@/lib/accountManagement/deriveAccountRole";
+import {
+  applyDbStaffRoleChange,
+  getAuthzSource,
+  userRoleToAccountMgmtRole,
+} from "@/lib/auth/userAuthority";
 import { recordGovernanceAuditEntry } from "@/lib/governance/governanceAuditRecord";
 import type { GovernanceAuditActionType } from "@/lib/governance/governanceAuditActionTypes";
 import { clientIpFromRequest } from "@/lib/governance/impersonationRequestMeta";
 import { emitOperationalEvent } from "@/lib/operations/emitOperationalEvent";
 import { OPERATIONAL_EVENT_TYPES } from "@/lib/operations/operationalEventTypes";
+import { isProtectedAdminLoginEmail } from "@/lib/auth/protectedAdminEmail";
+import { prisma } from "@/lib/prisma";
 
 function rank(role: AccountMgmtRole): number {
   switch (role) {
@@ -60,8 +67,24 @@ export async function applyStaffRoleChange(input: ApplyStaffRoleChangeInput): Pr
   if (!targetUser) return { ok: false, code: "target_not_found", status: 404 };
 
   const groupsBefore = await adminListAssignedGroupsForUser(input.cfg, targetUser.username);
-  const fromRole = deriveAccountRoleFromGroups(groupsBefore);
+  const fromRoleCognito = deriveAccountRoleFromGroups(groupsBefore);
   const toRole = input.nextRole;
+
+  const targetEmail = targetUser.email?.trim() ?? "";
+  if (targetEmail && isProtectedAdminLoginEmail(targetEmail) && toRole !== "super_admin") {
+    return {
+      ok: false,
+      code: "protected_bootstrap_admin",
+      status: 403,
+      message: "Bootstrap super-admin account cannot be demoted or disabled via user management.",
+    };
+  }
+
+  const dbUser = await prisma.user.findUnique({
+    where: { cognitoSub: targetUser.sub },
+    select: { role: true, status: true },
+  });
+  const fromRole = dbUser ? userRoleToAccountMgmtRole(dbUser.role) : fromRoleCognito;
 
   if (fromRole === toRole) {
     return { ok: false, code: "no_role_change", status: 409, message: "User already has this membership." };
@@ -80,7 +103,27 @@ export async function applyStaffRoleChange(input: ApplyStaffRoleChangeInput): Pr
     }
   }
 
-  if (fromRole === "super_admin" && toRole !== "super_admin") {
+  const authz = getAuthzSource();
+  if (authz === "db" || authz === "dual") {
+    if (fromRole === "super_admin" && toRole !== "super_admin") {
+      const n = await prisma.user.count({ where: { role: "SuperAdmin", status: "Active" } });
+      if (n <= 1) {
+        return {
+          ok: false,
+          code: "last_super_admin",
+          status: 400,
+          message: "Cannot remove the final super-admin. Promote another operator first.",
+        };
+      }
+    }
+
+    const dbOut = await applyDbStaffRoleChange({
+      targetCognitoSub: targetUser.sub,
+      nextRole: toRole,
+      actorSub: input.actor.sub,
+    });
+    if (!dbOut.ok) return dbOut;
+  } else if (fromRole === "super_admin" && toRole !== "super_admin") {
     const n = await adminCountUsersInPoolGroup(input.cfg, "super_admin");
     if (n <= 1) {
       return {
@@ -92,11 +135,13 @@ export async function applyStaffRoleChange(input: ApplyStaffRoleChangeInput): Pr
     }
   }
 
-  await cognitoEnsureStaffMembership(input.cfg, {
-    username: targetUser.username,
-    nextRole: toRole,
-    previousGroups: groupsBefore,
-  });
+  if (authz === "cognito" || authz === "dual") {
+    await cognitoEnsureStaffMembership(input.cfg, {
+      username: targetUser.username,
+      nextRole: toRole,
+      previousGroups: groupsBefore,
+    });
+  }
 
   const govAction = pickGovernanceAction(fromRole, toRole);
   const actorName = input.actor.email?.trim() || input.actor.username?.trim() || input.actor.sub;
@@ -109,7 +154,7 @@ export async function applyStaffRoleChange(input: ApplyStaffRoleChangeInput): Pr
     actorId: input.actor.sub,
     actorName,
     actorRole: "super_admin",
-    targetType: "cognito_user",
+    targetType: "platform_user",
     targetId: targetUser.sub,
     targetName: targetUser.email?.trim().toLowerCase() ?? targetUser.username,
     description: `${fromRole.replace("_", " ")} → ${toRole.replace("_", " ")}`,
@@ -118,6 +163,7 @@ export async function applyStaffRoleChange(input: ApplyStaffRoleChangeInput): Pr
       fromRole,
       toRole,
       prevGroups: groupsBefore,
+      authzSource: authz,
       source: "api.admin.accounts.staff.role_patch",
     },
     ipAddress,

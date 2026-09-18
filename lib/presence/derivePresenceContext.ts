@@ -10,10 +10,12 @@ function primaryGroup(groups: readonly string[]): string | null {
   return typeof first === "string" ? first : null;
 }
 
-export function derivePresenceUserType(groups: readonly string[]): "customer" | "admin" | "super_admin" {
-  if (isSuperAdmin(groups)) return "super_admin";
-  if (hasRole(groups, "admin")) return "admin";
-  if (isCustomer(groups)) return "customer";
+export function derivePresenceUserType(
+  input: Parameters<typeof isSuperAdmin>[0]
+): "customer" | "admin" | "super_admin" {
+  if (isSuperAdmin(input)) return "super_admin";
+  if (hasRole(input, "admin")) return "admin";
+  if (isCustomer(input)) return "customer";
   return "customer";
 }
 
@@ -28,9 +30,8 @@ export function buildPresenceSessionFields(args: {
   impersonatorSub: string | null;
 } {
   const { user, impersonation } = args;
-  const groups = user.groups ?? [];
-  const userType = derivePresenceUserType(groups);
-  const userRole = primaryGroup(groups);
+  const userType = derivePresenceUserType(user);
+  const userRole = user.role ?? primaryGroup(user.groups ?? []);
   let displayName: string | null = user.email?.split("@")[0]?.trim() || user.username || null;
 
   let isImpersonated = false;

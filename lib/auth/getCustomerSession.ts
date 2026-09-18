@@ -5,6 +5,7 @@ import { getCognitoConfig } from "@/lib/auth/cognito/config";
 import { COGNITO_ID_TOKEN_COOKIE } from "@/lib/auth/cognito/sessionCookies";
 import { issuerMatches, sessionUserFromIdTokenPayload } from "@/lib/auth/cognito/tokens";
 import { isCustomer, isSuperAdmin } from "@/lib/auth/cognito/roles";
+import { enrichAuthUserFromDb } from "@/lib/auth/userAuthority";
 
 export type CustomerSessionPayload = {
   typ: "customer";
@@ -16,8 +17,7 @@ export type CustomerSessionPayload = {
 };
 
 /**
- * Storefront customer session from Cognito ID token when the user is in the `customer` group,
- * or super-admin **customer-scope impersonation** (HttpOnly cookie, HMAC-verified; actor bound server-side).
+ * Storefront customer session from DB role Customer (or super-admin customer-scope impersonation).
  */
 export async function getCustomerSession(): Promise<CustomerSessionPayload | null> {
   const cfg = getCognitoConfig();
@@ -32,16 +32,19 @@ export async function getCustomerSession(): Promise<CustomerSessionPayload | nul
     if (!issuerMatches(cfg, payload.iss)) return null;
     const now = Math.floor(Date.now() / 1000);
     if (typeof payload.exp !== "number" || payload.exp < now - 30) return null;
-    const user = sessionUserFromIdTokenPayload(payload);
-    if (!user?.email) return null;
+    const base = sessionUserFromIdTokenPayload(payload);
+    if (!base?.email) return null;
+    const user = await enrichAuthUserFromDb(base);
+    const email = user.email?.trim() || base.email.trim();
+    if (!email) return null;
 
-    if (isCustomer(user.groups)) {
+    if (isCustomer(user)) {
       const imp = await readImpersonationFromCookies();
       let governanceImpersonation = false;
       if (
         imp?.scope === "customer" &&
         (imp.targetSub === user.sub ||
-          imp.targetEmail.trim().toLowerCase() === user.email?.trim().toLowerCase())
+          imp.targetEmail.trim().toLowerCase() === email.toLowerCase())
       ) {
         governanceImpersonation = true;
       }
@@ -49,13 +52,13 @@ export async function getCustomerSession(): Promise<CustomerSessionPayload | nul
       return {
         typ: "customer",
         sub: user.sub,
-        email: user.email,
+        email,
         exp: payload.exp,
         ...(governanceImpersonation ? { governance: { impersonation: true } } : {}),
       };
     }
 
-    if (isSuperAdmin(user.groups)) {
+    if (isSuperAdmin(user)) {
       const imp = await readImpersonationFromCookies();
       if (imp && imp.scope === "customer" && imp.actorSub === user.sub) {
         return {

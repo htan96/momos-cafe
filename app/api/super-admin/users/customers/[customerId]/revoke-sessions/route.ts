@@ -18,7 +18,7 @@ import { isValidCustomerUuid } from "@/lib/accountManagement/loadAccountMgmtDeta
  */
 export async function POST(request: Request, props: { params: Promise<{ customerId: string }> }) {
   const delegation = await resolveSuperStaffDelegation();
-  if (!delegation.jwtUser || !isSuperAdmin(delegation.authorityGroups)) {
+  if (!delegation.jwtUser || !isSuperAdmin(delegation.authorityUser ?? delegation.authorityGroups)) {
     return NextResponse.json({ error: "forbidden", code: "FORBIDDEN" }, { status: 403 });
   }
   const auditActor =

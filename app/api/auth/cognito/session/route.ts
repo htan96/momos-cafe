@@ -8,8 +8,23 @@ import {
   COGNITO_REFRESH_TOKEN_COOKIE,
 } from "@/lib/auth/cognito/sessionCookies";
 import { getCognitoServerSession } from "@/lib/auth/cognito/serverSession";
+import { enrichAuthUserFromDb } from "@/lib/auth/userAuthority";
 
 export const runtime = "nodejs";
+
+function sessionUserPayload(user: NonNullable<Awaited<ReturnType<typeof getCognitoServerSession>>>) {
+  return {
+    sub: user.sub,
+    username: user.username,
+    email: user.email,
+    groups: user.groups,
+    role: user.role ?? null,
+    status: user.status ?? null,
+    customerId: user.customerId ?? null,
+    isBootstrapAdmin: user.isBootstrapAdmin ?? false,
+    effectiveRole: user.isBootstrapAdmin ? "super_admin" : (user.role ?? null),
+  };
+}
 
 export async function GET() {
   let user = await getCognitoServerSession();
@@ -17,7 +32,7 @@ export async function GET() {
   if (user) {
     return NextResponse.json({
       authenticated: true,
-      user,
+      user: sessionUserPayload(user),
     });
   }
   const jar = await cookies();
@@ -32,9 +47,11 @@ export async function GET() {
     });
   }
 
+  const enriched = result.user ? await enrichAuthUserFromDb(result.user) : null;
+
   const res = NextResponse.json({
     authenticated: true,
-    user: result.user ?? null,
+    user: enriched ? sessionUserPayload(enriched) : null,
   });
   applyCognitoTokenCookies(res, {
     idToken: result.tokens.idToken,
@@ -42,11 +59,12 @@ export async function GET() {
     refreshToken: result.tokens.refreshToken,
   });
   try {
-    if (result.user) {
+    if (enriched) {
       await syncCommerceCustomerForCognitoCustomerUser({
-        sub: result.user.sub,
-        email: result.user.email ?? null,
-        groups: result.user.groups,
+        sub: enriched.sub,
+        email: enriched.email ?? null,
+        groups: enriched.groups,
+        role: enriched.role,
       });
     }
   } catch (syncErr) {

@@ -1,6 +1,7 @@
 import type { ListedPoolUser } from "@/lib/auth/cognito/adminPoolDirectory";
 import { adminListUsersInPoolGroup } from "@/lib/auth/cognito/adminPoolDirectory";
 import type { CognitoEnvConfig } from "@/lib/auth/cognito/config";
+import { getAuthzSource, userRoleToAccountMgmtRole } from "@/lib/auth/userAuthority";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
@@ -65,6 +66,38 @@ function rank(role: AccountMgmtRole): number {
 }
 
 type StaffWithRole = ListedPoolUser & { staffRole: AccountMgmtRole };
+
+async function loadStaffBundlesFromDb(): Promise<{
+  bySub: Map<string, StaffWithRole>;
+  byEmailNorm: Map<string, string>;
+}> {
+  const rows = await prisma.user.findMany({
+    where: { role: { in: ["Admin", "SuperAdmin"] } },
+    select: { cognitoSub: true, email: true, role: true, createdAt: true },
+  });
+  const bySub = new Map<string, StaffWithRole>();
+  for (const row of rows) {
+    const staffRole = userRoleToAccountMgmtRole(row.role);
+    const listed: ListedPoolUser = {
+      sub: row.cognitoSub,
+      username: row.cognitoSub,
+      email: row.email,
+      preferredUsername: null,
+      givenName: null,
+      familyName: null,
+      name: null,
+      userCreateDate: row.createdAt,
+      enabled: true,
+    };
+    bySub.set(row.cognitoSub, { ...listed, staffRole });
+  }
+  const byEmailNorm = new Map<string, string>();
+  for (const r of bySub.values()) {
+    const em = r.email?.trim().toLowerCase();
+    if (em) byEmailNorm.set(em, r.sub);
+  }
+  return { bySub, byEmailNorm };
+}
 
 async function loadStaffBundles(cfg: CognitoEnvConfig): Promise<{
   bySub: Map<string, StaffWithRole>;
@@ -135,10 +168,17 @@ export async function buildAccountMgmtList(
   let staffByEmailNorm = new Map<string, string>();
   let cognitoListingFailed = false;
   try {
-    if (cfg && !params.customersOnly) {
-      const b = await loadStaffBundles(cfg);
-      staffMap = b.bySub;
-      staffByEmailNorm = b.byEmailNorm;
+    if (!params.customersOnly) {
+      const authz = getAuthzSource();
+      if (authz === "db") {
+        const b = await loadStaffBundlesFromDb();
+        staffMap = b.bySub;
+        staffByEmailNorm = b.byEmailNorm;
+      } else if (cfg) {
+        const b = await loadStaffBundles(cfg);
+        staffMap = b.bySub;
+        staffByEmailNorm = b.byEmailNorm;
+      }
     }
   } catch {
     if (cfg) cognitoListingFailed = true;

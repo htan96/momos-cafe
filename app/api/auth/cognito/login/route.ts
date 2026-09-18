@@ -12,6 +12,7 @@ import {
 import { isMfaRelatedChallenge } from "@/lib/auth/cognito/mfa";
 import { resolvePostLoginRedirect } from "@/lib/auth/cognito/redirectByRole";
 import { isAdmin, isSuperAdmin } from "@/lib/auth/cognito/roles";
+import { enrichAuthUserFromDb, resolveUserAuthority, upsertUserOnSignup } from "@/lib/auth/userAuthority";
 import { clearCognitoCookieJar } from "@/lib/auth/cognito/sessionCookies";
 import { cognitoChallengeJson } from "@/lib/auth/cognito/challengeResponse";
 import { OperationalActivitySeverity } from "@prisma/client";
@@ -20,6 +21,10 @@ import { emitOperationalEvent } from "@/lib/operations/emitOperationalEvent";
 import { OPERATIONAL_EVENT_TYPES } from "@/lib/operations/operationalEventTypes";
 import { emitPlatformEvent } from "@/lib/platform/events/emitPlatformEvent";
 import { PLATFORM_EVENT_SUBTYPE } from "@/lib/platform/events/taxonomy";
+import {
+  bootstrapAdminAuthEnabled,
+  isBootstrapAdminEmail,
+} from "@/lib/bootstrap/config";
 
 export const runtime = "nodejs";
 
@@ -123,6 +128,22 @@ export async function POST(request: Request) {
         async () =>
           NextResponse.json({ error: "missing_credentials", code: "VALIDATION" }, { status: 400 }),
         { httpStatus: 400, outcome: "missing_credentials" }
+      );
+    }
+
+    if (bootstrapAdminAuthEnabled() && isBootstrapAdminEmail(username)) {
+      return await runStage(
+        "response_send",
+        async () =>
+          NextResponse.json(
+            {
+              error: "bootstrap_required",
+              code: "BOOTSTRAP_REQUIRED",
+              message: "Use bootstrap sign-in for this account.",
+            },
+            { status: 403 }
+          ),
+        { httpStatus: 403, outcome: "bootstrap_required" }
       );
     }
 
@@ -299,9 +320,18 @@ export async function POST(request: Request) {
         );
       }
 
+      const enrichedUser = await enrichAuthUserFromDb(result.user);
+      if (!(await resolveUserAuthority(enrichedUser.sub, enrichedUser.groups))) {
+        await upsertUserOnSignup({
+          cognitoSub: enrichedUser.sub,
+          email: enrichedUser.email,
+        });
+      }
+      const sessionUser = await enrichAuthUserFromDb(enrichedUser);
+
       const redirectTo = await runStage(
         "redirect_resolve",
-        async () => resolvePostLoginRedirect(result.user.groups, nextRaw),
+        async () => resolvePostLoginRedirect(sessionUser, nextRaw),
         (path) => ({ redirectPathLength: path.length })
       );
 
@@ -310,7 +340,11 @@ export async function POST(request: Request) {
         async () =>
           NextResponse.json({
             ok: true,
-            user: result.user,
+            user: {
+              ...sessionUser,
+              role: sessionUser.role ?? null,
+              status: sessionUser.status ?? null,
+            },
             redirectTo,
             code: "OK",
           }),
@@ -347,15 +381,16 @@ export async function POST(request: Request) {
         );
       }
 
-      if (isAdmin(result.user.groups)) {
+      if (isAdmin(sessionUser)) {
         await emitOperationalEvent({
           type: OPERATIONAL_EVENT_TYPES.AUTH_LOGIN,
           severity: OperationalActivitySeverity.info,
-          actorType: isSuperAdmin(result.user.groups) ? "super_admin" : "admin",
-          actorId: result.user.sub,
+          actorType: isSuperAdmin(sessionUser) ? "super_admin" : "admin",
+          actorId: sessionUser.sub,
           message: "Staff signed in via Cognito",
           metadata: {
-            staffGroups: result.user.groups.filter((g) => g === "admin" || g === "super_admin"),
+            staffRole: sessionUser.role ?? null,
+            staffGroups: sessionUser.groups.filter((g) => g === "admin" || g === "super_admin"),
           },
           source: "api.auth.cognito.login",
         });
@@ -363,9 +398,10 @@ export async function POST(request: Request) {
 
       try {
         await syncCommerceCustomerForCognitoCustomerUser({
-          sub: result.user.sub,
-          email: result.user.email ?? null,
-          groups: result.user.groups,
+          sub: sessionUser.sub,
+          email: sessionUser.email ?? null,
+          groups: sessionUser.groups,
+          role: sessionUser.role,
         });
       } catch (syncErr) {
         console.warn("[cognito/login] commerce_customer_sync_failed", syncErr);

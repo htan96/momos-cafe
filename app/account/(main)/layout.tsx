@@ -13,10 +13,9 @@ export default async function AccountMainLayout({ children }: { children: React.
   const session = await assertCustomerPlatformLayout();
 
   const [user, state] = await Promise.all([getCognitoServerSession(), getPlatformFeatureState()]);
-  const groups = user?.groups ?? [];
 
   const def = PLATFORM_FEATURE_DEFINITIONS.customer_platform;
-  if (!state.customer_platform.enabled && !hasAnyRole(groups, [...def.allowOverrideRoles])) {
+  if (!state.customer_platform.enabled && (!user || !hasAnyRole(user, [...def.allowOverrideRoles]))) {
     redirect("/account/experience-unavailable");
   }
 
@@ -24,8 +23,8 @@ export default async function AccountMainLayout({ children }: { children: React.
     session.governance?.preview && user?.email
       ? `${user.email} · preview`
       : session.governance?.impersonation && user?.email
-        ? `${user.email} → ${session.email}`
-        : session.email;
+        ? `${user.email} → ${session.email || "customer"}`
+        : session.email || user?.email || undefined;
 
   /** Super-admin read-only dossier chrome — impersonation banner already exposes the lens. */
   const showSuperAdminLens = Boolean(session.governance?.preview);

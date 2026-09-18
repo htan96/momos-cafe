@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { provisionCustomerGroupBestEffort, signUpEmailOrUsername } from "@/lib/auth/cognito/cognitoClient";
+import { signUpEmailOrUsername } from "@/lib/auth/cognito/cognitoClient";
+import { getAuthzSource } from "@/lib/auth/userAuthority";
 import { getCognitoConfig } from "@/lib/auth/cognito/config";
 import { governanceJsonResponse, isControlEnabled } from "@/lib/governance/governanceControls";
 
@@ -43,7 +44,10 @@ export async function POST(request: Request) {
       password,
       email,
     });
-    await provisionCustomerGroupBestEffort(cfg, username, "signup");
+    if (getAuthzSource() !== "db") {
+      const { provisionCustomerGroupBestEffort } = await import("@/lib/auth/cognito/cognitoClient");
+      await provisionCustomerGroupBestEffort(cfg, username, "signup");
+    }
     return NextResponse.json({ ok: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

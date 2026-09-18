@@ -7,7 +7,7 @@ import { isCateringInquiryStatus } from "@/lib/catering/cateringInquiryStatus";
 
 export async function GET(request: NextRequest) {
   const user = await getCognitoServerSession();
-  if (!user || !isAdmin(user.groups)) {
+  if (!user || !isAdmin(user)) {
     return NextResponse.json({ error: "forbidden", code: "FORBIDDEN" }, { status: 403 });
   }
 

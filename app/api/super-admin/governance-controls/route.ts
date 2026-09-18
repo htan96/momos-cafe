@@ -11,6 +11,7 @@ import { prisma } from "@/lib/prisma";
 import {
   GOVERNANCE_CONTROL_DEFINITIONS,
   GOVERNANCE_CONTROL_KEYS,
+  isHighRiskGovernanceControlKey,
   type GovernanceControlKey,
 } from "@/lib/governance/controlKeys";
 import {
@@ -60,7 +61,7 @@ export async function PATCH(request: Request) {
   if (gate) return gate;
 
   const delegation = await resolveSuperStaffDelegation();
-  if (!delegation.jwtUser || !isSuperAdmin(delegation.authorityGroups)) {
+  if (!delegation.jwtUser || !isSuperAdmin(delegation.authorityUser ?? delegation.authorityGroups)) {
     return NextResponse.json({ error: "forbidden", code: "FORBIDDEN" }, { status: 403 });
   }
   const auditActor =
@@ -80,7 +81,9 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "invalid_body" }, { status: 400 });
   }
 
-  const { updates: rawUpdates } = body as { updates?: unknown };
+  const { updates: rawUpdates, reason: rawReason } = body as { updates?: unknown; reason?: unknown };
+  const auditReason = typeof rawReason === "string" ? rawReason.trim() : "";
+
   if (!rawUpdates || typeof rawUpdates !== "object") {
     return NextResponse.json(
       { error: "updates_required", message: "Body must include updates object" },
@@ -105,6 +108,19 @@ export async function PATCH(request: Request) {
     }
   }
 
+  const touchesHighRisk = entries.some(
+    ([k]) => isGovernanceKey(k) && isHighRiskGovernanceControlKey(k)
+  );
+  if (touchesHighRisk && auditReason.length < 8) {
+    return NextResponse.json(
+      {
+        error: "audit_reason_required",
+        message: "High-risk governance changes require an audit reason (8+ characters).",
+      },
+      { status: 400 }
+    );
+  }
+
   await ensureDefaultAppSettings();
   await ensureGovernanceControls();
 
@@ -117,6 +133,7 @@ export async function PATCH(request: Request) {
         data: { enabled, lastModifiedBy: updatedBy },
       });
       const def = GOVERNANCE_CONTROL_DEFINITIONS[key];
+      const statusLabel = enabled ? "BLOCKED" : "ACTIVE";
       await recordGovernanceAuditEntry({
         tx,
         actionType: "GOVERNANCE_CONTROL_UPDATED",
@@ -127,8 +144,14 @@ export async function PATCH(request: Request) {
         targetType: "governance_control",
         targetId: key,
         targetName: def.title,
-        description: `Governance control "${def.title}" set to ${enabled ? "on" : "off"}`,
-        metadata: { key, enabled, source: "api.super-admin.governance-controls" },
+        description: `Governance control "${def.title}" → ${statusLabel}`,
+        reason: touchesHighRisk ? auditReason : null,
+        metadata: {
+          key,
+          enabled,
+          operationalStatus: statusLabel,
+          source: "api.super-admin.governance-controls",
+        },
       });
     }
 

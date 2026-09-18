@@ -27,7 +27,7 @@ export default async function AdminAccountStaffDetailPage(props: PageProps) {
   const { encodedUsername } = await props.params;
   const cfg = getCognitoConfig();
   const viewer = await getCognitoServerSession();
-  const viewerSuper = Boolean(viewer?.groups && isSuperAdmin(viewer.groups));
+  const viewerSuper = Boolean(viewer && isSuperAdmin(viewer));
 
   const detail = await loadAccountMgmtStaffDetail(encodedUsername, cfg);
   if ("error" in detail) {

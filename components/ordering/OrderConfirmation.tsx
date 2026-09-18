@@ -29,16 +29,11 @@ export default function OrderConfirmation({
         Order #{orderNum.length > 8 ? orderNum.slice(-8).toUpperCase() : orderNum}
       </div>
       <p className="text-[15px] text-gray-mid leading-relaxed max-w-[380px] mx-auto mb-2">
-        Your order is being prepared. Head to the pickup window when you arrive.
+        Your order is being prepared. We&apos;ll have it ready ASAP — head to the pickup window when you arrive.
       </p>
-      <p className="text-[15px] font-semibold text-teal-dark mb-1">
+      <p className="text-[15px] font-semibold text-teal-dark mb-4">
         1922 Broadway St, Vallejo
       </p>
-      {estimatedPickupTime && (
-        <p className="text-[15px] text-gray-mid mb-4">
-          Est. ready: {estimatedPickupTime}
-        </p>
-      )}
       {verification?.freeOrder && (
         <p className="text-[13px] text-teal-dark font-semibold mb-4 max-w-[380px] mx-auto">
           No charge — order confirmed.

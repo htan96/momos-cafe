@@ -108,7 +108,18 @@ export const SUPER_ADMIN_PLATFORM_NAV: SuperAdminPlatformNavItem[] = [
     label: "Operational identity",
     navHelperText: "Cognito + prisma dossier · narrow group edits",
   },
-  { section: "GOVERNANCE", href: "/super-admin/platform/feature-controls", label: "Feature controls" },
+  {
+    section: "GOVERNANCE",
+    href: "/super-admin/platform/operational-status",
+    label: "Operational status",
+    navHelperText: "Capability dashboard · ACTIVE / BLOCKED / DISABLED",
+  },
+  {
+    section: "GOVERNANCE",
+    href: "/super-admin/platform/feature-controls",
+    label: "Feature controls",
+    navHelperText: "Kill switches · platform features · maintenance gates",
+  },
   {
     section: "GOVERNANCE",
     href: "/super-admin/platform/maintenance",

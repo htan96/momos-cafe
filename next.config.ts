@@ -3,6 +3,11 @@ const nextConfig = {
   async redirects() {
     /** Legacy bookmarks from removed `/ops` App Router chrome — canonical execution lives under `/admin/*`. */
     return [
+      {
+        source: "/account/settings/addresses",
+        destination: "/account/settings/profile",
+        permanent: false,
+      },
       { source: "/ops", destination: "/admin", permanent: false },
       { source: "/ops/orders/:path*", destination: "/admin/orders/:path*", permanent: false },
       { source: "/ops/settings", destination: "/admin/settings/operations", permanent: false },

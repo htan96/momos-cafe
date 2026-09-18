@@ -1,9 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
 import { useCart } from "@/context/CartContext";
 import CartOrderSummary from "./CartOrderSummary";
-import { getEstimatedPickupTime, formatPickupTime } from "@/lib/pickupTime";
 
 interface CartSummaryProps {
   onNext: () => void;
@@ -13,11 +11,6 @@ interface CartSummaryProps {
 export default function CartSummary({ onNext, orderingDisabled = false }: CartSummaryProps) {
   const { items, total, count } = useCart();
   const itemCount = items.reduce((sum, i) => sum + i.quantity, 0);
-  const estimatedPickupTime = useMemo(
-    () => (itemCount > 0 ? getEstimatedPickupTime(itemCount) : null),
-    [itemCount]
-  );
-
   return (
     <div className="flex flex-col" aria-label="Your order">
       <div className="px-5 py-4 border-b border-cream-dark flex justify-between items-center">
@@ -58,8 +51,8 @@ export default function CartSummary({ onNext, orderingDisabled = false }: CartSu
           <p className="text-[11px] text-charcoal/40 text-center mt-2 font-medium tracking-wide">
             {orderingDisabled
               ? "Come back again at 8 AM."
-              : estimatedPickupTime
-                ? `Pickup · Est. ${formatPickupTime(estimatedPickupTime)} · Vallejo`
+              : itemCount > 0
+                ? "Pickup · Ready ASAP when you arrive · Vallejo"
                 : "Pickup · Vallejo"}
           </p>
         </div>

@@ -196,7 +196,7 @@ export default async function SuperAdminOperationalReadinessPage() {
             {report.runtime.fromSafety.aggregation.paidWithoutCompletedPayment}
           </div>
           <div className="rounded border border-cream-dark/45 px-3 py-2 bg-cream-mid/15">
-            <span className="font-semibold text-charcoal/55">Restrictive governance ON</span>:{" "}
+            <span className="font-semibold text-charcoal/55">Governance restrictions (BLOCKED)</span>:{" "}
             {report.runtime.fromSafety.aggregation.governanceRestrictionsEnabled}
           </div>
         </div>
@@ -209,7 +209,7 @@ export default async function SuperAdminOperationalReadinessPage() {
             <ul className="space-y-1.5 text-[13px] max-h-64 overflow-y-auto pr-1">
               {report.governanceSnapshot.controls.map((c) => (
                 <li key={c.key} className="flex flex-wrap items-center gap-2">
-                  <StatusPill variant={c.enabled ? "warning" : "neutral"}>{c.enabled ? "on" : "off"}</StatusPill>
+                  <StatusPill variant={c.enabled ? "critical" : "ok"}>{c.enabled ? "BLOCKED" : "ACTIVE"}</StatusPill>
                   <span className="font-medium">{c.title}</span>
                   <span className="font-mono text-[10px] text-charcoal/40">{c.key}</span>
                 </li>
@@ -221,17 +221,17 @@ export default async function SuperAdminOperationalReadinessPage() {
             <ul className="space-y-1.5 text-[13px] max-h-64 overflow-y-auto pr-1">
               {report.governanceSnapshot.platformFeatures.map((f) => (
                 <li key={f.key} className="flex flex-wrap items-center gap-2">
-                  <StatusPill variant={f.enabled ? "neutral" : "warning"}>{f.enabled ? "on" : "off"}</StatusPill>
+                  <StatusPill variant={f.enabled ? "ok" : "down"}>{f.enabled ? "ACTIVE" : "DISABLED"}</StatusPill>
                   <span className="font-medium">{f.title}</span>
                   <span className="font-mono text-[10px] text-charcoal/40">{f.key}</span>
                 </li>
               ))}
             </ul>
             <Link
-              href="/super-admin/platform/feature-controls"
+              href="/super-admin/platform/operational-status"
               className="inline-block mt-3 text-[12px] font-semibold text-teal-dark hover:underline"
             >
-              Feature controls →
+              Operational status →
             </Link>
           </div>
         </div>

@@ -12,6 +12,7 @@ import StorefrontHeaderMobileMenu from "./StorefrontHeaderMobileMenu";
 import { useCustomerSessionPhase } from "@/lib/auth/cognito/useCustomerSessionPhase";
 import { NavAccountIcon, NavCartIcon, NavMenuIcon } from "@/components/icons/navigation/NavIcons";
 import { STOREFRONT_HEADER_NAV_LINKS } from "@/lib/navigation/storefrontHeaderNav";
+import { EXTERNAL_ORDER_ONLINE_URL, EXTERNAL_ORDER_CTA_LABEL } from "@/lib/ordering/externalOrderUrl";
 
 const ACCOUNT_LOGIN_HREF = `/login?next=${encodeURIComponent("/account")}`;
 
@@ -140,12 +141,14 @@ export default function Header() {
             </Link>
           ))}
           <HeaderAuthLink />
-          <Link
-            href="/order"
+          <a
+            href={EXTERNAL_ORDER_ONLINE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
             className="font-semibold text-[13px] tracking-[0.15em] uppercase py-2.5 px-4 rounded-md bg-red text-white hover:bg-red-dark hover:shadow-[0_2px_8px_rgba(128,0,0,0.35)] transition-all duration-200 ml-2"
           >
-            Order Now
-          </Link>
+            {EXTERNAL_ORDER_CTA_LABEL}
+          </a>
         </nav>
       </div>
       {subNav && (

@@ -44,7 +44,7 @@ export default async function AdminAccountsPage(props: { searchParams?: Promise<
 
   const cfg = getCognitoConfig();
   const viewer = await getCognitoServerSession();
-  const viewerSuper = Boolean(viewer?.groups && isSuperAdmin(viewer.groups));
+  const viewerSuper = Boolean(viewer && isSuperAdmin(viewer));
 
   const { rows, cognitoUnavailable } = await buildAccountMgmtList(cfg, {
     q,

@@ -4,16 +4,25 @@ import { useCallback, useEffect, useState } from "react";
 import OpsPageHeader from "@/components/operations/OpsPageHeader";
 import OpsPanel from "@/components/operations/OpsPanel";
 
+type MaintenanceConflict = {
+  id: string;
+  severity: "warning";
+  message: string;
+  detail: string;
+};
+
 type Flags = {
   shopEnabled: boolean;
   menuEnabled: boolean;
+  maintenanceConflicts?: MaintenanceConflict[];
 };
 
 export default function AdminMaintenanceSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [flags, setFlags] = useState<Flags>({ shopEnabled: true, menuEnabled: true });
+  const [flags, setFlags] = useState<Flags>({ shopEnabled: true, menuEnabled: true, maintenanceConflicts: [] });
+  const [conflicts, setConflicts] = useState<MaintenanceConflict[]>([]);
   const [optimistic, setOptimistic] = useState<Flags | null>(null);
 
   const display = optimistic ?? flags;
@@ -32,7 +41,9 @@ export default function AdminMaintenanceSettingsPage() {
         setFlags({
           shopEnabled: data.shopEnabled,
           menuEnabled: data.menuEnabled,
+          maintenanceConflicts: data.maintenanceConflicts,
         });
+        setConflicts(data.maintenanceConflicts ?? []);
         setOptimistic(null);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Could not load settings");
@@ -64,7 +75,9 @@ export default function AdminMaintenanceSettingsPage() {
         setFlags({
           shopEnabled: data.shopEnabled,
           menuEnabled: data.menuEnabled,
+          maintenanceConflicts: data.maintenanceConflicts,
         });
+        setConflicts(data.maintenanceConflicts ?? []);
         setOptimistic(null);
       } catch (e) {
         setOptimistic(null);
@@ -80,8 +93,24 @@ export default function AdminMaintenanceSettingsPage() {
     <div className="space-y-8">
       <OpsPageHeader
         title="Maintenance mode"
-        subtitle="When a toggle is on, guests can reach that storefront surface. Turning it off shows the maintenance overlay and blocks matching checkout touches."
+        subtitle="Status-first gates: open surfaces show ACTIVE; closed gates show BLOCKED with maintenance overlays. Align with governance kill switches when drift banners appear."
       />
+
+      {conflicts.length > 0 ? (
+        <div
+          role="status"
+          className="rounded-xl border border-amber-800/35 bg-amber-900/[0.06] px-4 py-3 text-[13px] text-charcoal/80"
+        >
+          <p className="font-semibold text-charcoal">Governance drift detected</p>
+          <ul className="mt-2 list-disc space-y-1 pl-5">
+            {conflicts.map((c) => (
+              <li key={c.id}>
+                {c.message} — <span className="text-charcoal/60">{c.detail}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       <OpsPanel title="Operational impact" eyebrow="Guidance">
         <div className="text-[13px] text-charcoal/68 leading-relaxed space-y-2">

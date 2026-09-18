@@ -280,7 +280,7 @@ export default function SettingsPanel({
               Min prep lead (minutes)
               <input
                 type="number"
-                min={15}
+                min={0}
                 max={720}
                 value={ordering.minimumPrepLeadMinutes}
                 onChange={(e) =>

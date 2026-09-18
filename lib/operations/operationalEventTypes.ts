@@ -24,6 +24,13 @@ export const OPERATIONAL_EVENT_TYPES = {
   USER_ROLE_CHANGED: "user.role_changed",
   ADMIN_PROMOTED: "access.admin_promoted",
   ADMIN_DEMOTED: "access.admin_demoted",
+  BOOTSTRAP_LOGIN_SUCCESS: "bootstrap.login_success",
+  BOOTSTRAP_LOGIN_FAILED: "bootstrap.login_failed",
+  BOOTSTRAP_SUPER_ADMIN_CREATED: "bootstrap.super_admin_created",
+  BOOTSTRAP_TOTP_ENROLLED: "bootstrap.totp_enrolled",
+  BOOTSTRAP_TOTP_FAILED: "bootstrap.totp_failed",
+  BOOTSTRAP_TOTP_RESET: "bootstrap.totp_reset",
+  BOOTSTRAP_RECOVERY_CODE_USED: "bootstrap.recovery_code_used",
 } as const;
 
 /** Includes canonical platform backbone subtypes from `PLATFORM_EVENT_SUBTYPE`. */

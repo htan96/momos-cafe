@@ -8,4 +8,7 @@ export interface OpsSessionPayload {
   exp: number;
   /** Cognito group shown in ops chrome (`admin` | `super_admin`). */
   roleBadge?: string;
+  /** Postgres `users.role` when enriched. */
+  dbRole?: string;
+  status?: string;
 }

@@ -1,16 +1,24 @@
 import Link from "next/link";
+import MaintenanceConflictBanner from "@/components/governance/MaintenanceConflictBanner";
 import OperationalCard from "@/components/governance/OperationalCard";
 import SuperAdminSectionIntro from "@/components/super-admin/SuperAdminSectionIntro";
+import { loadGovernanceSnapshot } from "@/lib/governance/governanceSnapshot";
 import { Wrench } from "lucide-react";
 
-export default function SuperAdminPlatformMaintenancePage() {
+export const dynamic = "force-dynamic";
+
+export default async function SuperAdminPlatformMaintenancePage() {
+  const snapshot = await loadGovernanceSnapshot();
+
   return (
     <div className="space-y-8">
       <SuperAdminSectionIntro
         icon={Wrench}
         title="Maintenance"
-        subtitle="Storefront gates remain in authenticated admin maintenance settings — mirrored here via deep link rather than duplicated toggles."
+        subtitle="Storefront gates use ACTIVE/BLOCKED status in admin maintenance — governance kill switches sync via Feature controls when drift banners appear."
       />
+
+      <MaintenanceConflictBanner conflicts={snapshot.maintenanceConflicts} />
 
       <OperationalCard title="Storefront gates" meta="Production controls">
         <p className="text-[13px] text-charcoal/65 leading-relaxed">
@@ -26,6 +34,11 @@ export default function SuperAdminPlatformMaintenancePage() {
 
       <OperationalCard title="Operational snapshot" meta="Cross-reference">
         <ul className="text-[13px] text-teal-dark font-semibold space-y-2">
+          <li>
+            <Link className="underline-offset-2 hover:underline" href="/super-admin/platform/operational-status">
+              Operational status · capability dashboard
+            </Link>
+          </li>
           <li>
             <Link className="underline-offset-2 hover:underline" href="/super-admin/platform/feature-controls">
               Feature controls · kill switches

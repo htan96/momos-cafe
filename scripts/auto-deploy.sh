@@ -2,7 +2,7 @@
 # Poll GitHub for new commits on main and run full deploy (deploy.sh owns git + build + PM2).
 #
 # Install (example path — adjust to your clone):
-#   crontab -e → * * * * * /var/www/htworks/momos/scripts/auto-deploy.sh
+#   crontab -e → * * * * * /var/www/ht-works/momos/scripts/auto-deploy.sh
 #
 # Logs: /var/log/momos-deploy.log (override with DEPLOY_LOG)
 #

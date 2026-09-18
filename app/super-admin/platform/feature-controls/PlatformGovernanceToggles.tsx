@@ -1,8 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import GovernanceStatusCard from "@/components/governance/GovernanceStatusCard";
 import type { CognitoGroup } from "@/lib/auth/cognito/types";
-import type { PlatformFeatureKey } from "@/lib/platform/governanceFeatures";
+import {
+  PLATFORM_FEATURE_DEFINITIONS,
+  type PlatformFeatureKey,
+} from "@/lib/platform/governanceFeatures";
 
 export type GovernanceFeatureBootstrap = {
   key: PlatformFeatureKey;
@@ -14,49 +18,19 @@ export type GovernanceFeatureBootstrap = {
   enabled: boolean;
   updatedAt: string;
   updatedBy: string | null;
+  lastAuditReason?: string | null;
 };
-
-function GovernanceSwitch({
-  checked,
-  labelledBy,
-  busy,
-  onToggle,
-}: {
-  checked: boolean;
-  labelledBy: string;
-  busy: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-busy={busy}
-      disabled={busy}
-      onClick={() => void onToggle()}
-      className={`relative inline-flex h-7 w-[46px] shrink-0 cursor-pointer rounded-full border transition-colors disabled:opacity-65 disabled:cursor-wait ${checked ? "border-teal/35 bg-teal/[0.12]" : "border-cream-dark bg-cream-mid/50"}`}
-      aria-labelledby={labelledBy}
-    >
-      <span
-        className={`pointer-events-none inline-block h-[22px] w-[22px] translate-y-[2px] rounded-full shadow-sm bg-white transition ${checked ? "translate-x-[22px]" : "translate-x-[2px]"}`}
-      />
-    </button>
-  );
-}
 
 export default function PlatformGovernanceToggles({ initial }: { initial: GovernanceFeatureBootstrap[] }) {
   const [features, setFeatures] = useState(initial);
   const [busyKey, setBusyKey] = useState<PlatformFeatureKey | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function applyToggle(featureKey: PlatformFeatureKey, enabled: boolean) {
+  async function applyAction(featureKey: PlatformFeatureKey, enabled: boolean) {
     const prevSnapshot = [...features];
     setFeatures((list) =>
       list.map((f) =>
-        f.key === featureKey
-          ? { ...f, enabled, updatedAt: new Date().toISOString(), updatedBy: f.updatedBy }
-          : f
+        f.key === featureKey ? { ...f, enabled, updatedAt: new Date().toISOString() } : f
       )
     );
     setError(null);
@@ -111,77 +85,34 @@ export default function PlatformGovernanceToggles({ initial }: { initial: Govern
         </p>
       ) : null}
       <ul className="divide-y divide-cream-dark/50 overflow-hidden rounded-2xl border border-cream-dark/60 bg-white/70">
-        {features.map((f) => (
-          <li
-            key={f.key}
-            className="flex flex-col gap-4 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6 sm:px-5"
-          >
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <p id={`feature-${f.key}`} className="text-[15px] font-semibold text-charcoal">
-                  {f.title}
-                </p>
-                <span className="rounded-full bg-cream-dark/45 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-teal-dark">
-                  {f.key.replaceAll("_", " ")}
-                </span>
-              </div>
-              <p className="mt-2 text-[13px] leading-relaxed text-charcoal/65">{f.description}</p>
-              <p className="mt-2 text-[11px] uppercase tracking-[0.16em] text-charcoal/45">
-                Default rollout ·{" "}
-                <span className="font-semibold">{f.defaultEnabled ? "typically on" : "typically off"}</span>
-              </p>
-              {f.rolloutNotes ? (
-                <p className="mt-2 text-[12px] italic leading-snug text-teal-dark/85">
-                  Rollout notes — {f.rolloutNotes}
-                </p>
-              ) : null}
-              <div className="mt-4 flex flex-wrap gap-2">
-                <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-charcoal/40">
-                  Governance overrides ·
-                </span>
-                {f.allowOverrideRoles.map((role) => (
-                  <span
-                    key={role}
-                    className="rounded-md border border-cream-dark/70 bg-cream-mid/25 px-2 py-0.5 text-[11px] font-semibold text-charcoal"
-                  >
-                    {role}
-                  </span>
-                ))}
-              </div>
-              {(f.updatedBy || f.updatedAt) && (
-                <p className="mt-4 text-[11px] font-medium text-charcoal/45">
-                  {f.updatedBy ? (
-                    <>
-                      Last moved by <span className="text-charcoal/70">{f.updatedBy}</span>
-                    </>
-                  ) : (
-                    <>Last refreshed</>
-                  )}
-                  {f.updatedAt ? (
-                    <>
-                      {" "}
-                      ·{" "}
-                      {new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(
-                        new Date(f.updatedAt)
-                      )}
-                    </>
-                  ) : null}
-                </p>
-              )}
-            </div>
-            <div className="flex shrink-0 flex-row items-center justify-between gap-3 sm:flex-col sm:items-end sm:justify-start">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-charcoal/40 sm:hidden">
-                Enabled
-              </span>
-              <GovernanceSwitch
-                checked={f.enabled}
-                labelledBy={`feature-${f.key}`}
-                busy={busyKey === f.key}
-                onToggle={() => void applyToggle(f.key, !f.enabled)}
-              />
-            </div>
-          </li>
-        ))}
+        {features.map((f) => {
+          const def = PLATFORM_FEATURE_DEFINITIONS[f.key];
+          const status = f.enabled ? "ACTIVE" : "DISABLED";
+          const statusDescription = f.enabled ? def.activeDescription : def.disabledDescription;
+          return (
+            <GovernanceStatusCard
+              key={f.key}
+              title={f.title}
+              status={status}
+              statusDescription={statusDescription}
+              metaKey={f.key}
+              riskLevel={def.riskLevel}
+              enforcementLayers={[...def.enforcementLayers]}
+              lastModifiedAt={f.updatedAt}
+              lastModifiedBy={f.updatedBy}
+              lastAuditReason={f.lastAuditReason}
+              actionLabel={f.enabled ? "Disable feature" : "Enable feature"}
+              actionVariant={f.enabled ? "neutral" : "primary"}
+              actionBusy={busyKey === f.key}
+              onAction={() => void applyAction(f.key, !f.enabled)}
+              footnote={
+                f.rolloutNotes
+                  ? `Rollout · ${f.rolloutNotes} · Overrides · ${f.allowOverrideRoles.join(", ")}`
+                  : `Overrides · ${f.allowOverrideRoles.join(", ")}`
+              }
+            />
+          );
+        })}
       </ul>
       <p className="text-[11px] leading-relaxed text-charcoal/45">
         Storefront, cart, and checkout stay available for everyone; only the richer signed-in nook responds to{" "}

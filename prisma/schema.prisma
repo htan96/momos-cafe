@@ -114,6 +114,52 @@ model CateringInquiry {
   @@map("catering_inquiries")
 }
 
+enum UserRole {
+  Customer
+  Admin
+  SuperAdmin
+}
+
+enum UserStatus {
+  Active
+  Suspended
+  Disabled
+}
+
+/**
+ * Platform identity — Cognito is authentication only (`cognito_sub`, email).
+ * Authorization (role, status) is authoritative in Postgres when `AUTHZ_SOURCE=db`.
+ */
+model User {
+  id         String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt  DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  cognitoSub String     @unique @map("cognito_sub")
+  email      String?    @map("email")
+  role       UserRole   @default(Customer)
+  status     UserStatus @default(Active)
+  customerId String?    @unique @map("customer_id") @db.Uuid
+  customer   Customer?  @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([email])
+  @@index([role])
+  @@index([status])
+  @@map("users")
+}
+
+/** Bootstrap super-admin TOTP + recovery (env `BOOTSTRAP_ADMIN_EMAIL` only). */
+model BootstrapAdminAuth {
+  id                  String    @id @default("default")
+  emailNormalized     String    @map("email_normalized")
+  totpEnabled         Boolean   @default(false) @map("totp_enabled")
+  totpSecretEncrypted String?   @map("totp_secret_encrypted") @db.Text
+  totpVerifiedAt      DateTime? @map("totp_verified_at") @db.Timestamptz(6)
+  recoveryCodesHashes Json?     @map("recovery_codes_hashes")
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("bootstrap_admin_auth")
+}
+
 /// Guest / future Clerk-linked profile — cafe_orders remain separate until unified checkout migrates.
 model Customer {
   id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
@@ -126,6 +172,7 @@ model Customer {
   /// Clerk / future auth hints, guest-merge markers — never store passwords here.
   authMetadata         Json?    @map("auth_metadata")
 
+  platformUser      User?
   cartSessions      CartSession[]
   orders            CommerceOrder[]
   addresses         ShippingAddress[]

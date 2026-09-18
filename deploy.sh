@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # PRODUCTION: npm run deploy
 #
-# Git: fetch + reset to origin/main (matches auto-deploy + manual full sync)
+# Git: GIT_SYNC=0 skips fetch/reset (for rebuild-app.sh non-pull path). Default 1 matches auto-deploy + full sync.
 # Deps → Prisma migrate deploy + generate → next build → PM2 reload
 #
 # Requires on server:
@@ -19,6 +19,10 @@ LOG_PREFIX="${LOG_PREFIX:-[momos-deploy]}"
 DEPLOY_LOCK="${DEPLOY_LOCK:-/tmp/momos-deploy.lock}"
 HEALTHCHECK_AFTER_DEPLOY="${HEALTHCHECK_AFTER_DEPLOY:-1}"
 APP_PORT="${APP_PORT:-3000}"
+# GIT_SYNC=0 skips git fetch/reset for local rebuild hooks (tooling may export this).
+GIT_SYNC="${GIT_SYNC:-1}"
+# NEXT_BUILD_CLEAN=1 runs `npm run build:clean` instead of `npm run build`.
+NEXT_BUILD_CLEAN="${NEXT_BUILD_CLEAN:-0}"
 
 export PATH="/usr/local/bin:/usr/bin:/bin:${PATH:-}"
 
@@ -56,9 +60,13 @@ for f in "${ENV_FILES[@]}"; do
   fi
 done
 
-echo "$LOG_PREFIX git: fetch + reset --hard origin/main"
-git fetch origin main
-git reset --hard origin/main
+if [[ "${GIT_SYNC}" != "0" ]]; then
+  echo "$LOG_PREFIX git: fetch + reset --hard origin/main"
+  git fetch origin main
+  git reset --hard origin/main
+else
+  echo "$LOG_PREFIX git: skip (GIT_SYNC=0)"
+fi
 
 for f in "${ENV_FILES[@]}"; do
   if [[ -f "${f}.deploypreserve" ]]; then
@@ -87,8 +95,13 @@ echo "$LOG_PREFIX Prisma: migrate deploy"
 echo "$LOG_PREFIX Prisma: generate"
 "$NPM_BIN" run db:generate
 
-echo "$LOG_PREFIX Next.js: build"
-"$NPM_BIN" run build
+if [[ "${NEXT_BUILD_CLEAN}" == "1" ]]; then
+  echo "$LOG_PREFIX Next.js: build (clean / build:clean)"
+  "$NPM_BIN" run build:clean
+else
+  echo "$LOG_PREFIX Next.js: build"
+  "$NPM_BIN" run build
+fi
 
 ECOSYSTEM="$ROOT/ecosystem.config.cjs"
 echo "$LOG_PREFIX PM2: $PM2_NAME (ecosystem $(basename "$ECOSYSTEM"))"

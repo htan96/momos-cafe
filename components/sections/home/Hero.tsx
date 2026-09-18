@@ -8,6 +8,7 @@ import {
   getHoursSummary,
   getIsOpenToday,
 } from "@/lib/useAdminSettings";
+import { EXTERNAL_ORDER_ONLINE_URL, EXTERNAL_ORDER_CTA_LABEL } from "@/lib/ordering/externalOrderUrl";
 
 export default function Hero() {
   const { settings } = useAdminSettings();
@@ -208,12 +209,14 @@ export default function Hero() {
           </p>
 
           <div className="flex gap-3.5 flex-wrap">
-            <Link
-              href="/menu"
+            <a
+              href={EXTERNAL_ORDER_ONLINE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-2 font-semibold text-base tracking-wider uppercase py-4 px-8 rounded-lg bg-red text-white shadow-[0_4px_0_#800,0_6px_20px_rgba(200,39,45,0.35)] hover:opacity-90 hover:-translate-y-0.5 transition-all"
             >
-              Order Now
-            </Link>
+              {EXTERNAL_ORDER_CTA_LABEL}
+            </a>
             <Link
               href="#menu-preview"
               className="inline-flex items-center justify-center gap-2 font-semibold text-sm tracking-wider uppercase py-3.5 px-6 rounded-lg bg-transparent text-white border-2 border-white/70 hover:bg-white/15 transition-all"
@@ -221,6 +224,11 @@ export default function Hero() {
               View Full Menu
             </Link>
           </div>
+          <p className="mt-4 text-xs text-white/45">
+            <Link href="/order" className="hover:text-white/65 hover:underline underline-offset-2">
+              Order pickup on our site
+            </Link>
+          </p>
 
           <div className="flex flex-wrap gap-2 mt-11">
             {[
